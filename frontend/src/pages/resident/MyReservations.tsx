@@ -1,36 +1,71 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import Header from '../../components/layout/Header';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Textarea from '../../components/ui/Textarea';
 import Modal from '../../components/ui/Modal';
 import StatusBadge from '../../components/ui/StatusBadge';
-import EmptyState from '../../components/ui/EmptyState';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import { Plus, CalendarDays, XCircle } from 'lucide-react';
-import { formatDate, COMMON_AREAS } from '../../utils/helpers';
+import PremiumPage from '../../components/ui/PremiumPage';
+import MetricCard from '../../components/ui/MetricCard';
+import { Ban, CalendarDays, CheckCircle, Clock3, Plus, XCircle } from 'lucide-react';
+import { COMMON_AREAS, formatDate } from '../../utils/helpers';
 import api from '../../services/api';
-import { Reservation } from '../../types';
+import { Reservation, ReservationBlock } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
+
+const timeOverlaps = (startA: string, endA: string, startB: string, endB: string) => startA < endB && endA > startB;
 
 const MyReservations: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
+  const { user } = useAuth();
   const [list, setList] = useState<Reservation[]>([]);
+  const [blocks, setBlocks] = useState<ReservationBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState({ area: '', date: '', startTime: '', endTime: '', notes: '' });
+  const [myResidentId, setMyResidentId] = useState<string | null>(null);
 
   const load = async () => {
-    try { const { data } = await api.get('/reservations'); setList(data); }
+    try {
+      const [reservationsResponse, blocksResponse] = await Promise.all([
+        api.get('/reservations'),
+        api.get('/reservations/blocks/list'),
+      ]);
+      setList(reservationsResponse.data);
+      setBlocks(blocksResponse.data);
+    }
     catch {} finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    load();
+    // Fetch this resident's own ID to control cancel button visibility
+    if (user?.role === 'resident') {
+      api.get('/residents/me').then(({ data }) => setMyResidentId(data._id)).catch(() => {});
+    }
+  }, []);
+
+  const openCreate = () => {
+    setForm({ area: '', date: '', startTime: '', endTime: '', notes: '' });
+    setModalOpen(true);
+  };
 
   const handleCreate = async () => {
     if (!form.area || !form.date || !form.startTime || !form.endTime) { toast.error('Preencha os campos obrigatórios'); return; }
+    const hasBlockedTime = blocks.some((block) => (
+      block.area === form.area
+      && block.date.slice(0, 10) === form.date
+      && timeOverlaps(form.startTime, form.endTime, block.startTime, block.endTime)
+    ));
+    if (hasBlockedTime) {
+      toast.error('Esse horário está bloqueado pela administração');
+      return;
+    }
     setSaving(true);
     try {
       await api.post('/reservations', form);
@@ -44,47 +79,133 @@ const MyReservations: React.FC = () => {
     catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
   };
 
+  const filteredReservations = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return list;
+
+    return list.filter((reservation) => [
+      reservation.area,
+      reservation.date,
+      reservation.status,
+      reservation.notes,
+    ].some((value) => value?.toLowerCase().includes(query)));
+  }, [list, search]);
+
   if (loading) return <LoadingSpinner text="Carregando..." />;
 
   return (
-    <div>
-      <Header title="Minhas Reservas" onMenuClick={onMenuClick}
-        actions={<Button onClick={() => { setForm({ area: '', date: '', startTime: '', endTime: '', notes: '' }); setModalOpen(true); }} icon={<Plus className="w-4 h-4" />}>Nova reserva</Button>} />
-      <div className="p-4 sm:p-6 animate-fade-in">
-        {list.length === 0 ? (
-          <EmptyState icon={<CalendarDays className="w-8 h-8" />} title="Nenhuma reserva" description="Solicite sua primeira reserva."
-            action={<Button onClick={() => setModalOpen(true)} icon={<Plus className="w-4 h-4" />}>Solicitar</Button>} />
+    <PremiumPage
+      title="Minhas Reservas"
+      subtitle="Solicite áreas comuns e acompanhe aprovações."
+      onMenuClick={onMenuClick}
+      eyebrow="Área do morador"
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="Buscar reservas..."
+      actions={(
+        <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="w-full rounded-xl border-violet-700 bg-violet-700 shadow-violet-700/20 hover:border-violet-800 hover:bg-violet-800 sm:w-auto">
+          Nova reserva
+        </Button>
+      )}
+    >
+      <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <MetricCard label="Reservas" value={list.length} helper="solicitadas" icon={<CalendarDays className="h-4 w-4" />} />
+        <MetricCard label="Pendentes" value={list.filter((item) => item.status === 'pending').length} helper="aguardando" icon={<Clock3 className="h-4 w-4" />} iconClass="bg-violet-100 text-violet-700" />
+        <MetricCard label="Aprovadas" value={list.filter((item) => item.status === 'approved').length} helper="confirmadas" icon={<CheckCircle className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" valueClassName="text-emerald-700" />
+        <MetricCard label="Canceladas" value={list.filter((item) => item.status === 'cancelled').length} helper="encerradas" icon={<XCircle className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-600" />
+        <MetricCard label="Indisponíveis" value={blocks.length} helper="bloqueios ativos" icon={<Ban className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />
+      </section>
+
+      {blocks.length > 0 && (
+        <section className="mt-7 rounded-2xl border border-violet-100/80 bg-white/90 p-5 shadow-[0_18px_60px_rgba(76,29,149,0.07)] sm:p-6">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700">Agenda</p>
+          <h2 className="mt-1 text-lg font-extrabold tracking-[-0.03em] text-slate-950">Horários indisponíveis</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {blocks.slice(0, 6).map((block) => (
+              <article key={block._id} className="rounded-2xl border border-red-100 bg-red-50/60 p-4">
+                <p className="text-sm font-black text-slate-950">{block.area}</p>
+                <p className="mt-1 text-xs font-bold text-red-700">{formatDate(block.date)} · {block.startTime} - {block.endTime}</p>
+                {block.reason && <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{block.reason}</p>}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="mt-7 overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-[0_18px_60px_rgba(76,29,149,0.07)]">
+        <div className="border-b border-violet-100/80 px-5 py-5 sm:px-7">
+          <h2 className="text-lg font-extrabold tracking-[-0.03em] text-slate-950">Agenda de Reservas</h2>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            {search ? `${filteredReservations.length} resultado(s) encontrados` : 'Solicitações da sua unidade'}
+          </p>
+        </div>
+
+        {filteredReservations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-violet-100 text-violet-700">
+              <CalendarDays className="h-7 w-7" />
+            </div>
+            <h3 className="mt-5 text-lg font-extrabold tracking-[-0.03em] text-slate-950">
+              {list.length === 0 ? 'Nenhuma reserva solicitada' : 'Nenhuma reserva encontrada'}
+            </h3>
+            <p className="mt-2 max-w-md text-sm font-medium text-slate-500">
+              {list.length === 0 ? 'Solicite sua primeira reserva para usar uma área comum.' : 'Tente buscar por outra área, data ou status.'}
+            </p>
+            {list.length === 0 && (
+              <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="mt-6 border-violet-700 bg-violet-700 hover:border-violet-800 hover:bg-violet-800">
+                Solicitar reserva
+              </Button>
+            )}
+          </div>
         ) : (
-          <div className="space-y-3">
-            {list.map((r) => (
-              <div key={r._id} className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-slate-900">{r.area}</h3>
-                      <StatusBadge status={r.status} />
+          <div className="grid gap-4 p-5 sm:p-7 xl:grid-cols-2">
+            {filteredReservations.map((reservation) => (
+              <article key={reservation._id} className="rounded-2xl border border-violet-100/80 bg-white p-5 shadow-[0_14px_40px_rgba(76,29,149,0.05)]">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <StatusBadge status={reservation.status} />
                     </div>
-                    <p className="text-sm text-slate-500">{formatDate(r.date)} • {r.startTime} - {r.endTime}</p>
-                    {r.notes && <p className="text-sm text-slate-600 mt-1">{r.notes}</p>}
+                    <h3 className="text-base font-extrabold tracking-[-0.03em] text-slate-950">{reservation.area}</h3>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">{formatDate(reservation.date)} · {reservation.startTime} - {reservation.endTime}</p>
+                    {reservation.notes && <p className="mt-3 line-clamp-2 text-sm font-medium leading-6 text-slate-600">{reservation.notes}</p>}
                   </div>
-                  {(r.status === 'pending' || r.status === 'approved') && (
-                    <Button size="sm" variant="ghost" onClick={() => cancel(r._id)} icon={<XCircle className="w-3.5 h-3.5" />}>Cancelar</Button>
-                  )}
+                  {(() => {
+                    const resId = typeof reservation.residentId === 'object' && reservation.residentId !== null
+                      ? reservation.residentId._id
+                      : reservation.residentId;
+                    const isOwner = myResidentId && resId === myResidentId;
+                    return isOwner && (reservation.status === 'pending' || reservation.status === 'approved') ? (
+                      <Button size="sm" variant="ghost" onClick={() => cancel(reservation._id)} icon={<XCircle className="h-3.5 w-3.5" />}>Cancelar</Button>
+                    ) : null;
+                  })()}
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}
-      </div>
+      </section>
+
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nova reserva">
         <div className="space-y-4">
           <Select label="Área *" value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })}
-            options={COMMON_AREAS.map(a => ({ value: a, label: a }))} placeholder="Selecione" />
+            options={COMMON_AREAS.map((area) => ({ value: area, label: area }))} placeholder="Selecione" />
           <Input label="Data *" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <div className="grid grid-cols-2 gap-4">
             <Input label="Hora início *" type="time" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
             <Input label="Hora fim *" type="time" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} />
           </div>
+          {form.area && form.date && blocks.filter((block) => block.area === form.area && block.date.slice(0, 10) === form.date).length > 0 && (
+            <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-red-700">Atenção</p>
+              <p className="mt-2 text-sm font-semibold text-slate-700">Existem bloqueios para esta área nesta data:</p>
+              <div className="mt-3 space-y-2">
+                {blocks.filter((block) => block.area === form.area && block.date.slice(0, 10) === form.date).map((block) => (
+                  <p key={block._id} className="text-xs font-bold text-red-700">{block.startTime} - {block.endTime} · {block.reason || 'Indisponível'}</p>
+                ))}
+              </div>
+            </div>
+          )}
           <Textarea label="Observação" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" onClick={() => setModalOpen(false)} className="flex-1">Cancelar</Button>
@@ -92,7 +213,8 @@ const MyReservations: React.FC = () => {
           </div>
         </div>
       </Modal>
-    </div>
+    </PremiumPage>
   );
 };
+
 export default MyReservations;

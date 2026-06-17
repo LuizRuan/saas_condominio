@@ -9,6 +9,8 @@ export interface IResident extends Document {
   type: 'owner' | 'tenant' | 'financial_responsible';
   isFinancialResponsible: boolean;
   userId?: mongoose.Types.ObjectId;
+  inviteToken: string;
+  inviteExpiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +29,8 @@ const ResidentSchema = new Schema<IResident>(
     },
     isFinancialResponsible: { type: Boolean, default: false },
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
+    inviteToken: { type: String, default: '' },
+    inviteExpiresAt: { type: Date },
   },
   { timestamps: true }
 );

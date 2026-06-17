@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import Condominium from '../models/Condominium';
+import Resident from '../models/Resident';
 import { AuthRequest } from '../middlewares/auth';
 import { getJwtSecret } from '../config/env';
 
@@ -165,5 +166,75 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar dados do usuário', details: error.message });
+  }
+};
+
+export const acceptInvite = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password || password.length < 6) {
+      res.status(400).json({ error: 'Convite e senha de pelo menos 6 caracteres são obrigatórios' });
+      return;
+    }
+
+    const resident = await Resident.findOne({
+      inviteToken: token,
+      inviteExpiresAt: { $gt: new Date() },
+    });
+
+    if (!resident) {
+      res.status(404).json({ error: 'Convite inválido ou expirado' });
+      return;
+    }
+
+    if (!resident.email) {
+      res.status(400).json({ error: 'Morador sem e-mail cadastrado' });
+      return;
+    }
+
+    if (resident.userId) {
+      res.status(409).json({ error: 'Convite já utilizado' });
+      return;
+    }
+
+    const existingUser = await User.findOne({ email: resident.email });
+    if (existingUser) {
+      res.status(409).json({ error: 'Já existe um usuário com este e-mail' });
+      return;
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const user = await User.create({
+      name: resident.name,
+      email: resident.email,
+      password: hashedPassword,
+      phone: resident.phone || '',
+      role: 'resident',
+      condominiumId: resident.condominiumId,
+      unitId: resident.unitId,
+    });
+
+    resident.userId = user._id as any;
+    resident.inviteToken = '';
+    resident.inviteExpiresAt = undefined;
+    await resident.save();
+
+    const authToken = generateToken((user._id as any).toString());
+    res.json({
+      token: authToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        condominiumId: user.condominiumId,
+        unitId: user.unitId,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao aceitar convite', details: error.message });
   }
 };

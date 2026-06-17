@@ -10,6 +10,17 @@ export interface ICharge extends Document {
   description: string;
   status: 'pending' | 'paid' | 'late';
   paidAt?: Date;
+  proofUrl: string;
+  proofNote: string;
+  proofStatus: 'none' | 'submitted' | 'approved' | 'rejected';
+  proofSubmittedAt?: Date;
+  proofReviewedAt?: Date;
+  paymentHistory: {
+    status: 'pending' | 'paid' | 'late' | 'proof_submitted' | 'proof_rejected';
+    note: string;
+    actorId?: mongoose.Types.ObjectId;
+    createdAt: Date;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +36,25 @@ const ChargeSchema = new Schema<ICharge>(
     description: { type: String, default: 'Taxa condominial' },
     status: { type: String, enum: ['pending', 'paid', 'late'], default: 'pending' },
     paidAt: { type: Date },
+    proofUrl: { type: String, default: '' },
+    proofNote: { type: String, default: '' },
+    proofStatus: {
+      type: String,
+      enum: ['none', 'submitted', 'approved', 'rejected'],
+      default: 'none',
+    },
+    proofSubmittedAt: { type: Date },
+    proofReviewedAt: { type: Date },
+    paymentHistory: [{
+      status: {
+        type: String,
+        enum: ['pending', 'paid', 'late', 'proof_submitted', 'proof_rejected'],
+        required: true,
+      },
+      note: { type: String, default: '' },
+      actorId: { type: Schema.Types.ObjectId, ref: 'User' },
+      createdAt: { type: Date, default: Date.now },
+    }],
   },
   { timestamps: true }
 );

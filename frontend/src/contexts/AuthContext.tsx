@@ -8,7 +8,9 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
   register: (data: RegisterData) => Promise<User>;
+  acceptInvite: (token: string, password: string) => Promise<User>;
   logout: () => void;
+  updateUser: (user: User) => void;
   isAdmin: boolean;
   isResident: boolean;
 }
@@ -59,11 +61,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return data.user;
   };
 
+  const acceptInvite = async (inviteToken: string, password: string): Promise<User> => {
+    const { data } = await api.post('/auth/accept-invite', { token: inviteToken, password });
+    saveSession(data.token, data.user);
+    return data.user;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
+  };
+
+  const updateUser = (updatedUser: User) => {
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
   };
 
   return (
@@ -74,7 +87,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         loading,
         login,
         register,
+        acceptInvite,
         logout,
+        updateUser,
         isAdmin: user?.role === 'admin',
         isResident: user?.role === 'resident',
       }}

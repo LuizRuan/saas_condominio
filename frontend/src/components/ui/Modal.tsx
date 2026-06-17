@@ -1,15 +1,34 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  subtitle?: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  footer?: React.ReactNode;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, subtitle, children, size = 'md', footer }) => {
+  // Lock body scroll
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [isOpen]);
+
+  // Esc to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const sizes: Record<string, string> = {
@@ -19,29 +38,51 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
     xl: 'max-w-4xl',
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="flex min-h-full items-end justify-center sm:items-center sm:p-5">
+      <div className="flex min-h-full items-end justify-center p-0 sm:items-center sm:p-5">
+        {/* Backdrop */}
         <button
           type="button"
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-[3px] transition-opacity"
+          className="fixed inset-0 bg-slate-950/50 backdrop-blur-[2px] transition-opacity"
           onClick={onClose}
           aria-label="Fechar modal"
         />
-        <div className={`animate-scale-in relative w-full ${sizes[size]} max-h-[92vh] overflow-hidden rounded-t-3xl bg-white shadow-elevated ring-1 ring-slate-950/5 sm:rounded-2xl`}>
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6 sm:py-5">
+
+        {/* Panel */}
+        <div
+          className={`animate-scale-in relative w-full ${sizes[size]} flex max-h-[94vh] flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0_32px_80px_rgba(15,23,42,0.25)] ring-1 ring-slate-950/8 sm:rounded-3xl`}
+        >
+          {/* Header */}
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
             <div>
-              <p className="eyebrow mb-1">Condomínio em Dia</p>
-              <h3 className="text-lg font-extrabold tracking-[-0.025em] text-slate-950">{title}</h3>
+              <h3 className="text-lg font-extrabold tracking-[-0.03em] text-slate-950">{title}</h3>
+              {subtitle && <p className="mt-0.5 text-sm font-medium text-slate-400">{subtitle}</p>}
             </div>
-            <button onClick={onClose} className="icon-button" aria-label="Fechar modal">
-              <X className="w-5 h-5" />
+            <button
+              onClick={onClose}
+              className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+              aria-label="Fechar modal"
+            >
+              <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="max-h-[calc(92vh-82px)] overflow-y-auto p-5 sm:p-6">{children}</div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {children}
+          </div>
+
+          {/* Footer */}
+          {footer && (
+            <div className="shrink-0 border-t border-slate-100 bg-slate-50/70 px-6 py-4">
+              {footer}
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

@@ -3,7 +3,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Building2, Home, Users, Receipt, Megaphone,
-  AlertTriangle, CalendarDays, LogOut, X, ChevronRight,
+  AlertTriangle, CalendarDays, LogOut, X, Package,
+  ChevronRight,
 } from 'lucide-react';
 import BrandMark from '../ui/BrandMark';
 
@@ -12,46 +13,53 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+const adminLinks = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', section: 'principal' },
+  { to: '/condominio', icon: Building2, label: 'Condomínio', section: 'gestão' },
+  { to: '/unidades', icon: Home, label: 'Unidades', section: 'gestão' },
+  { to: '/moradores', icon: Users, label: 'Moradores', section: 'gestão' },
+  { to: '/cobrancas', icon: Receipt, label: 'Cobranças', section: 'financeiro' },
+  { to: '/comunicados', icon: Megaphone, label: 'Comunicados', section: 'comunicação' },
+  { to: '/encomendas', icon: Package, label: 'Encomendas', section: 'comunicação' },
+  { to: '/ocorrencias', icon: AlertTriangle, label: 'Ocorrências', section: 'comunicação' },
+  { to: '/reservas', icon: CalendarDays, label: 'Reservas', section: 'comunicação' },
+];
+
+const residentLinks = [
+  { to: '/morador', icon: LayoutDashboard, label: 'Meu Painel', section: 'principal' },
+  { to: '/morador/cobrancas', icon: Receipt, label: 'Minhas Cobranças', section: 'financeiro' },
+  { to: '/morador/comunicados', icon: Megaphone, label: 'Comunicados', section: 'serviços' },
+  { to: '/morador/encomendas', icon: Package, label: 'Encomendas', section: 'serviços' },
+  { to: '/morador/ocorrencias', icon: AlertTriangle, label: 'Ocorrências', section: 'serviços' },
+  { to: '/morador/reservas', icon: CalendarDays, label: 'Reservas', section: 'serviços' },
+];
+
+const sectionLabel: Record<string, string> = {
+  principal: 'Principal',
+  gestão: 'Gestão',
+  financeiro: 'Financeiro',
+  comunicação: 'Comunicação',
+  serviços: 'Serviços',
+};
+
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
-  const adminLinks = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/condominio', icon: Building2, label: 'Condomínio' },
-    { to: '/unidades', icon: Home, label: 'Unidades' },
-    { to: '/moradores', icon: Users, label: 'Moradores' },
-    { to: '/cobrancas', icon: Receipt, label: 'Cobranças' },
-    { to: '/comunicados', icon: Megaphone, label: 'Comunicados' },
-    { to: '/ocorrencias', icon: AlertTriangle, label: 'Ocorrências' },
-    { to: '/reservas', icon: CalendarDays, label: 'Reservas' },
-  ];
-
-  const residentLinks = [
-    { to: '/morador', icon: LayoutDashboard, label: 'Painel' },
-    { to: '/morador/cobrancas', icon: Receipt, label: 'Minhas Cobranças' },
-    { to: '/morador/comunicados', icon: Megaphone, label: 'Comunicados' },
-    { to: '/morador/ocorrencias', icon: AlertTriangle, label: 'Ocorrências' },
-    { to: '/morador/reservas', icon: CalendarDays, label: 'Reservas' },
-  ];
+  const handleLogout = () => { logout(); navigate('/login'); };
 
   const links = isAdmin ? adminLinks : residentLinks;
 
-  const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all duration-200 ${
-      isActive
-        ? 'bg-white text-slate-950 shadow-lg shadow-slate-950/10'
-        : 'text-slate-400 hover:bg-white/[0.08] hover:text-white'
-    }`;
+  // Group links by section
+  const sections = links.reduce<Record<string, typeof links>>((acc, link) => {
+    if (!acc[link.section]) acc[link.section] = [];
+    acc[link.section].push(link);
+    return acc;
+  }, {});
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Overlay */}
       {isOpen && (
         <button
           type="button"
@@ -62,60 +70,102 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       )}
 
       <aside
-        className={`fixed left-0 top-0 z-50 flex h-full w-[280px] flex-col overflow-hidden bg-slate-950 text-white shadow-2xl shadow-slate-950/20 transition-transform duration-300 lg:static lg:z-auto lg:translate-x-0 lg:shadow-none ${
+        className={`fixed left-0 top-0 z-50 flex h-full w-[272px] flex-col overflow-hidden transition-transform duration-300 lg:static lg:z-auto lg:translate-x-0 lg:shadow-none ${
           isOpen ? 'visible translate-x-0' : 'invisible -translate-x-full lg:visible'
         }`}
+        style={{
+          background: 'linear-gradient(160deg, #0f172a 0%, #0d1b3e 60%, #140d2e 100%)',
+        }}
       >
-        <div className="absolute -right-20 top-10 h-56 w-56 rounded-full bg-blue-600/10 blur-3xl" />
-        <div className="relative flex items-center justify-between border-b border-white/10 px-5 py-5">
+        {/* Top glow */}
+        <div className="pointer-events-none absolute -right-10 -top-10 h-52 w-52 rounded-full bg-blue-600/12 blur-3xl" />
+        <div className="pointer-events-none absolute left-0 top-1/2 h-64 w-40 -translate-y-1/2 rounded-full bg-violet-700/8 blur-3xl" />
+
+        {/* Brand header */}
+        <div className="relative flex items-center justify-between border-b border-white/[0.07] px-5 py-5">
           <BrandMark inverted />
-          <button onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden" aria-label="Fechar menu">
-            <X className="w-5 h-5" />
+          <button
+            onClick={onClose}
+            className="rounded-xl p-1.5 text-slate-500 transition hover:bg-white/8 hover:text-white lg:hidden"
+            aria-label="Fechar menu"
+          >
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="relative px-5 pb-3 pt-6">
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-500">
-            {isAdmin ? 'Administração' : 'Área do morador'}
-          </p>
-        </div>
+        {/* Navigation */}
+        <nav className="relative flex-1 overflow-y-auto px-3 py-4">
+          {Object.entries(sections).map(([section, sectionLinks]) => (
+            <div key={section} className="mb-5">
+              {/* Section label */}
+              <p className="mb-1.5 px-3 text-[9px] font-black uppercase tracking-[0.25em] text-slate-600">
+                {sectionLabel[section] || section}
+              </p>
 
-        <nav className="relative flex-1 space-y-1 overflow-y-auto px-3 pb-5">
-          {links.map((link) => (
-            <NavLink key={link.to} to={link.to} end className={linkClass} onClick={onClose}>
-              {({ isActive }) => (
-                <>
-                  <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${isActive ? 'bg-blue-50 text-blue-600' : 'bg-white/5 text-slate-400 group-hover:text-white'}`}>
-                    <link.icon className="h-[17px] w-[17px]" strokeWidth={2} />
-                  </span>
-                  <span className="flex-1">{link.label}</span>
-                  {isActive && <ChevronRight className="h-4 w-4 text-slate-400" />}
-                </>
-              )}
-            </NavLink>
+              <div className="space-y-0.5">
+                {sectionLinks.map((link) => (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    end
+                    onClick={onClose}
+                    className={({ isActive }) =>
+                      `group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-all duration-150 ${
+                        isActive
+                          ? 'bg-white text-slate-950 shadow-lg shadow-black/20'
+                          : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-100'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <span
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-150 ${
+                            isActive
+                              ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/30'
+                              : 'bg-white/[0.06] text-slate-500 group-hover:bg-white/10 group-hover:text-slate-200'
+                          }`}
+                        >
+                          <link.icon className="h-[15px] w-[15px]" strokeWidth={isActive ? 2.5 : 2} />
+                        </span>
+                        <span className="flex-1 truncate">{link.label}</span>
+                        {isActive && (
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        )}
+                      </>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 
-        <div className="relative border-t border-white/10 p-4">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-950/30">
-                <span className="text-sm font-extrabold text-white">
-                  {user?.name?.charAt(0).toUpperCase()}
-                </span>
+        {/* User card */}
+        <div className="relative border-t border-white/[0.07] p-3">
+          <div className="overflow-hidden rounded-2xl bg-white/[0.05] ring-1 ring-white/[0.08]">
+            <div className="flex items-center gap-3 px-4 py-3">
+              {/* Avatar */}
+              <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 text-xs font-extrabold text-white shadow-md shadow-violet-900/30">
+                {user?.name?.charAt(0).toUpperCase()}
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-slate-900 bg-emerald-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold text-white">{user?.name}</p>
-                <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">{isAdmin ? 'Síndico administrador' : 'Morador'}</p>
+                <p className="truncate text-[13px] font-bold text-white">{user?.name}</p>
+                <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-500">
+                  {isAdmin ? 'Síndico' : 'Morador'}
+                </p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:border-red-400/20 hover:bg-red-500/10 hover:text-red-300"
-            >
-              <LogOut className="h-4 w-4" />
-              Encerrar sessão
-            </button>
+            <div className="border-t border-white/[0.06] px-3 py-2">
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-red-500/10 hover:text-red-400"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Encerrar sessão
+              </button>
+            </div>
           </div>
         </div>
       </aside>

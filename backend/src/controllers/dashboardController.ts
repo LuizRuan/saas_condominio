@@ -5,12 +5,14 @@ import Issue from '../models/Issue';
 import Reservation from '../models/Reservation';
 import Announcement from '../models/Announcement';
 import { AuthRequest } from '../middlewares/auth';
+import { syncOverdueCharges } from '../utils/charges';
 
 export const getAdminDashboard = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const condominiumId = req.user!.condominiumId;
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    await syncOverdueCharges(condominiumId!);
 
     const [
       totalUnits, paidCharges, pendingCharges, lateCharges,
@@ -51,6 +53,29 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response): Promis
         openIssues,
         pendingReservations,
       },
+      tasks: [
+        {
+          title: 'Cobranças em atraso',
+          description: `${lateChargesList.length} cobrança(s) exigem atenção`,
+          count: lateChargesList.length,
+          link: '/cobrancas',
+          type: 'charge',
+        },
+        {
+          title: 'Ocorrências abertas',
+          description: `${openIssues} solicitação(ões) aguardam análise`,
+          count: openIssues,
+          link: '/ocorrencias',
+          type: 'issue',
+        },
+        {
+          title: 'Reservas pendentes',
+          description: `${pendingReservations} pedido(s) para aprovar ou recusar`,
+          count: pendingReservations,
+          link: '/reservas',
+          type: 'reservation',
+        },
+      ].filter((task) => task.count > 0),
       lateCharges: lateChargesList,
       recentAnnouncements,
       recentIssues,
@@ -65,6 +90,7 @@ export const getResidentDashboard = async (req: AuthRequest, res: Response): Pro
   try {
     const condominiumId = req.user!.condominiumId;
     const unitId = req.user!.unitId;
+    await syncOverdueCharges(condominiumId!);
 
     const [pendingCharges, recentAnnouncements, openIssues, upcomingReservations] = await Promise.all([
       Charge.find({ condominiumId, unitId, status: { $in: ['pending', 'late'] } }).sort({ dueDate: 1 }).limit(5),
@@ -80,6 +106,22 @@ export const getResidentDashboard = async (req: AuthRequest, res: Response): Pro
         openIssues: openIssues.length,
         upcomingReservations: upcomingReservations.length,
       },
+      tasks: [
+        {
+          title: 'Cobranças pendentes',
+          description: `${pendingCharges.length} cobrança(s) para acompanhar`,
+          count: pendingCharges.length,
+          link: '/morador/cobrancas',
+          type: 'charge',
+        },
+        {
+          title: 'Ocorrências em andamento',
+          description: `${openIssues.length} solicitação(ões) em aberto`,
+          count: openIssues.length,
+          link: '/morador/ocorrencias',
+          type: 'issue',
+        },
+      ].filter((task) => task.count > 0),
       pendingCharges,
       recentAnnouncements,
       openIssues,
@@ -87,5 +129,119 @@ export const getResidentDashboard = async (req: AuthRequest, res: Response): Pro
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao carregar dashboard', details: error.message });
+  }
+};
+
+// ─── Charts ─────────────────────────────────────────────────────────────────
+export const getAdminCharts = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const condominiumId = req.user!.condominiumId;
+
+    // Build last 6 months labels: ['2025-01', ..., '2025-06']
+    const now = new Date();
+    const months: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+
+    // Revenue per month (3 parallel aggregations)
+    const [receivedByMonth, pendingByMonth, lateByMonth, unitStats, issuesOpen, issuesResolved] =
+      await Promise.all([
+        Charge.aggregate([
+          { $match: { condominiumId, status: 'paid', referenceMonth: { $in: months } } },
+          { $group: { _id: '$referenceMonth', total: { $sum: '$amount' } } },
+        ]),
+        Charge.aggregate([
+          { $match: { condominiumId, status: 'pending', referenceMonth: { $in: months } } },
+          { $group: { _id: '$referenceMonth', total: { $sum: '$amount' } } },
+        ]),
+        Charge.aggregate([
+          { $match: { condominiumId, status: 'late', referenceMonth: { $in: months } } },
+          { $group: { _id: '$referenceMonth', total: { $sum: '$amount' } } },
+        ]),
+        // Unit occupancy
+        Unit.aggregate([
+          { $match: { condominiumId } },
+          { $group: { _id: '$status', count: { $sum: 1 } } },
+        ]),
+        // Issues trend — open (created in last 6 months)
+        Issue.aggregate([
+          {
+            $match: {
+              condominiumId,
+              createdAt: {
+                $gte: new Date(now.getFullYear(), now.getMonth() - 5, 1),
+              },
+            },
+          },
+          {
+            $group: {
+              _id: {
+                $dateToString: { format: '%Y-%m', date: '$createdAt' },
+              },
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+        // Issues resolved (status changed to 'resolved' approximated by updatedAt)
+        Issue.aggregate([
+          {
+            $match: {
+              condominiumId,
+              status: 'resolved',
+              updatedAt: {
+                $gte: new Date(now.getFullYear(), now.getMonth() - 5, 1),
+              },
+            },
+          },
+          {
+            $group: {
+              _id: {
+                $dateToString: { format: '%Y-%m', date: '$updatedAt' },
+              },
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+      ]);
+
+    // Helper to convert aggregation array to month-indexed map
+    const toMap = (arr: { _id: string; total?: number; count?: number }[]) =>
+      Object.fromEntries(arr.map((x) => [x._id, x.total ?? x.count ?? 0]));
+
+    const receivedMap = toMap(receivedByMonth);
+    const pendingMap = toMap(pendingByMonth);
+    const lateMap = toMap(lateByMonth);
+    const issueOpenMap = toMap(issuesOpen as any);
+    const issueResolvedMap = toMap(issuesResolved as any);
+
+    // Shape for chart: short label (e.g. "Jan")
+    const monthLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const revenue = months.map((m) => ({
+      month: monthLabels[parseInt(m.split('-')[1], 10) - 1],
+      received: receivedMap[m] || 0,
+      pending: pendingMap[m] || 0,
+      late: lateMap[m] || 0,
+    }));
+
+    const issuesTrend = months.map((m) => ({
+      month: monthLabels[parseInt(m.split('-')[1], 10) - 1],
+      open: issueOpenMap[m] || 0,
+      resolved: issueResolvedMap[m] || 0,
+    }));
+
+    // Unit occupancy
+    const occupancyMap = Object.fromEntries(unitStats.map((u: any) => [u._id, u.count]));
+    const occupancy = {
+      occupied: occupancyMap['occupied'] || 0,
+      empty: occupancyMap['empty'] || 0,
+      late: occupancyMap['late'] || 0,
+      total: (occupancyMap['occupied'] || 0) + (occupancyMap['empty'] || 0) + (occupancyMap['late'] || 0),
+    };
+
+    res.json({ revenue, issuesTrend, occupancy });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao carregar gráficos', details: error.message });
   }
 };

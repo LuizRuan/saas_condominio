@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createIssue, getIssues, getIssue, updateIssue, updateIssueStatus } from '../controllers/issueController';
+import { addIssueMessage, createIssue, deleteIssue, getIssues, getIssue, updateIssue, updateIssueStatus } from '../controllers/issueController';
 import { authMiddleware } from '../middlewares/auth';
 import { roleMiddleware } from '../middlewares/role';
 
@@ -11,5 +11,7 @@ router.get('/', getIssues);
 router.get('/:id', getIssue);
 router.put('/:id', roleMiddleware('admin'), updateIssue);
 router.patch('/:id/status', roleMiddleware('admin'), updateIssueStatus);
+router.post('/:id/messages', addIssueMessage);
+router.delete('/:id', roleMiddleware('admin'), deleteIssue);
 
 export default router;

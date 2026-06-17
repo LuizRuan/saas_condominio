@@ -1,8 +1,18 @@
 import { Response } from 'express';
 import Issue from '../models/Issue';
 import Unit from '../models/Unit';
+import Resident from '../models/Resident';
 import { AuthRequest } from '../middlewares/auth';
 import { findResidentForUser } from '../utils/residentContext';
+import { notify } from '../utils/notifications';
+import { audit } from '../utils/audit';
+
+const normalizePhotos = (photos: unknown): string[] => {
+  if (!Array.isArray(photos)) return [];
+  return photos
+    .filter((photo): photo is string => typeof photo === 'string' && photo.startsWith('data:image/'))
+    .slice(0, 6);
+};
 
 export const createIssue = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -35,7 +45,34 @@ export const createIssue = async (req: AuthRequest, res: Response): Promise<void
       description: description.trim(),
       category: category || 'other',
       priority: priority || 'medium',
+      photos: normalizePhotos(req.body.photos),
+      messages: [{
+        authorId: req.user!._id,
+        authorRole: req.user!.role,
+        authorName: req.user!.name,
+        message: description.trim(),
+        photos: normalizePhotos(req.body.photos),
+      }],
     });
+
+    if (req.user!.role === 'resident') {
+      await notify({
+        condominiumId: issue.condominiumId,
+        targetRole: 'admin',
+        type: 'issue',
+        title: `${req.user!.name} abriu uma ocorrência`,
+        message: `${issue.title} em ${unit.block ? `Bloco ${unit.block} - ` : ''}Apt ${unit.number}`,
+        link: '/ocorrencias',
+      });
+    }
+
+    await audit(req, {
+      action: 'create',
+      entity: 'issue',
+      entityId: issue._id as any,
+      message: `Ocorrência "${issue.title}" criada`,
+    });
+
     res.status(201).json(issue);
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao criar ocorrência', details: error.message });
@@ -87,6 +124,12 @@ export const updateIssue = async (req: AuthRequest, res: Response): Promise<void
       update, { new: true, runValidators: true }
     );
     if (!issue) { res.status(404).json({ error: 'Ocorrência não encontrada' }); return; }
+    await audit(req, {
+      action: 'update',
+      entity: 'issue',
+      entityId: issue._id as any,
+      message: `Ocorrência "${issue.title}" atualizada`,
+    });
     res.json(issue);
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao atualizar ocorrência', details: error.message });
@@ -109,8 +152,128 @@ export const updateIssueStatus = async (req: AuthRequest, res: Response): Promis
       update, { new: true, runValidators: true }
     );
     if (!issue) { res.status(404).json({ error: 'Ocorrência não encontrada' }); return; }
+
+    if (req.user!.role === 'admin' && issue.residentId) {
+      const resident = await Resident.findById(issue.residentId);
+      if (resident?.userId) {
+        await notify({
+          condominiumId: issue.condominiumId,
+          userId: resident.userId,
+          type: 'issue',
+          title: 'Sua ocorrência foi atualizada',
+          message: `${issue.title} agora está ${status === 'resolved' ? 'resolvida' : 'em análise'}`,
+          link: '/morador/ocorrencias',
+        });
+      }
+    }
+
+    await audit(req, {
+      action: 'status',
+      entity: 'issue',
+      entityId: issue._id as any,
+      message: `Status da ocorrência "${issue.title}" alterado para ${status}`,
+    });
+
     res.json(issue);
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao atualizar status', details: error.message });
+  }
+};
+
+export const deleteIssue = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const issue = await Issue.findOneAndDelete({
+      _id: req.params.id,
+      condominiumId: req.user!.condominiumId,
+    });
+
+    if (!issue) {
+      res.status(404).json({ error: 'Ocorrência não encontrada' });
+      return;
+    }
+
+    await audit(req, {
+      action: 'delete',
+      entity: 'issue',
+      entityId: issue._id as any,
+      message: `Ocorrência "${issue.title}" excluída`,
+    });
+
+    res.json({ message: 'Ocorrência excluída com sucesso' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao excluir ocorrência', details: error.message });
+  }
+};
+
+export const addIssueMessage = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const message = String(req.body.message || '').trim();
+    const photos = normalizePhotos(req.body.photos);
+
+    if (!message && photos.length === 0) {
+      res.status(400).json({ error: 'Mensagem ou foto é obrigatória' });
+      return;
+    }
+
+    const issue = await Issue.findOne({
+      _id: req.params.id,
+      condominiumId: req.user!.condominiumId,
+      ...(req.user!.role === 'resident' ? { unitId: req.user!.unitId } : {}),
+    });
+
+    if (!issue) {
+      res.status(404).json({ error: 'Ocorrência não encontrada' });
+      return;
+    }
+
+    issue.messages.push({
+      authorId: req.user!._id as any,
+      authorRole: req.user!.role,
+      authorName: req.user!.name,
+      message: message || 'Foto anexada',
+      photos,
+      createdAt: new Date(),
+    });
+
+    if (req.user!.role === 'admin' && message) {
+      issue.response = message;
+      if (issue.status === 'open') issue.status = 'in_progress';
+    }
+
+    await issue.save();
+
+    if (req.user!.role === 'resident') {
+      await notify({
+        condominiumId: issue.condominiumId,
+        targetRole: 'admin',
+        type: 'issue',
+        title: `${req.user!.name} respondeu uma ocorrência`,
+        message: issue.title,
+        link: '/ocorrencias',
+      });
+    } else if (issue.residentId) {
+      const resident = await Resident.findById(issue.residentId);
+      if (resident?.userId) {
+        await notify({
+          condominiumId: issue.condominiumId,
+          userId: resident.userId,
+          type: 'issue',
+          title: 'Nova resposta do síndico',
+          message: issue.title,
+          link: '/morador/ocorrencias',
+        });
+      }
+    }
+
+    await audit(req, {
+      action: 'message',
+      entity: 'issue',
+      entityId: issue._id as any,
+      message: `Nova mensagem na ocorrência "${issue.title}"`,
+    });
+
+    res.json(issue);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao adicionar mensagem', details: error.message });
   }
 };

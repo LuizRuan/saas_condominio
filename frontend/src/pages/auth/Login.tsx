@@ -108,6 +108,14 @@ const Login: React.FC = () => {
               <Button type="submit" loading={loading} className="w-full" size="lg" icon={!loading ? <ArrowRight className="h-4 w-4" /> : undefined}>
                 Entrar na plataforma
               </Button>
+              <div className="text-right">
+                <Link
+                  to="/esqueci-senha"
+                  className="text-xs font-bold text-slate-400 transition-colors hover:text-blue-600"
+                >
+                  Esqueci minha senha
+                </Link>
+              </div>
             </form>
 
             <div className="my-7 h-px bg-slate-100" />

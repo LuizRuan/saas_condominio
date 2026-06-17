@@ -10,6 +10,15 @@ export interface IIssue extends Document {
   priority: 'low' | 'medium' | 'high';
   status: 'open' | 'in_progress' | 'resolved';
   response: string;
+  photos: string[];
+  messages: {
+    authorId?: mongoose.Types.ObjectId;
+    authorRole: 'admin' | 'resident';
+    authorName: string;
+    message: string;
+    photos: string[];
+    createdAt: Date;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +46,15 @@ const IssueSchema = new Schema<IIssue>(
       default: 'open',
     },
     response: { type: String, default: '' },
+    photos: { type: [String], default: [] },
+    messages: [{
+      authorId: { type: Schema.Types.ObjectId, ref: 'User' },
+      authorRole: { type: String, enum: ['admin', 'resident'], required: true },
+      authorName: { type: String, default: 'Usuário' },
+      message: { type: String, required: true },
+      photos: { type: [String], default: [] },
+      createdAt: { type: Date, default: Date.now },
+    }],
   },
   { timestamps: true }
 );

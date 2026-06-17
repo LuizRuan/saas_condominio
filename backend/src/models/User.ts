@@ -8,6 +8,8 @@ export interface IUser extends Document {
   role: 'admin' | 'resident';
   condominiumId?: mongoose.Types.ObjectId;
   unitId?: mongoose.Types.ObjectId;
+  resetToken?: string;
+  resetTokenExpiry?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +23,8 @@ const UserSchema = new Schema<IUser>(
     role: { type: String, enum: ['admin', 'resident'], default: 'resident' },
     condominiumId: { type: Schema.Types.ObjectId, ref: 'Condominium' },
     unitId: { type: Schema.Types.ObjectId, ref: 'Unit' },
+    resetToken: { type: String, select: false },
+    resetTokenExpiry: { type: Date, select: false },
   },
   { timestamps: true }
 );

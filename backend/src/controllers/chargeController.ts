@@ -3,6 +3,17 @@ import Charge from '../models/Charge';
 import Unit from '../models/Unit';
 import Resident from '../models/Resident';
 import { AuthRequest } from '../middlewares/auth';
+import { audit } from '../utils/audit';
+import { syncOverdueCharges } from '../utils/charges';
+import { notify } from '../utils/notifications';
+
+const isImageDataUrl = (value: unknown): value is string =>
+  typeof value === 'string' && value.startsWith('data:image/');
+
+const csvCell = (value: unknown): string => {
+  const text = String(value ?? '');
+  return `"${text.replace(/"/g, '""')}"`;
+};
 
 export const createCharge = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -34,7 +45,32 @@ export const createCharge = async (req: AuthRequest, res: Response): Promise<voi
       amount: Number(amount),
       dueDate: new Date(dueDate),
       description: description || 'Taxa condominial',
+      paymentHistory: [{
+        status: 'pending',
+        note: 'Cobrança criada',
+        actorId: req.user!._id,
+      }],
     });
+
+    if (resident?.userId) {
+      await notify({
+        condominiumId: charge.condominiumId,
+        userId: resident.userId,
+        type: 'payment',
+        title: 'Nova cobrança disponível',
+        message: `${charge.description} de ${charge.referenceMonth}`,
+        link: '/morador/cobrancas',
+      });
+    }
+
+    await audit(req, {
+      action: 'create',
+      entity: 'charge',
+      entityId: charge._id as any,
+      message: `Cobrança criada para ${unit.block ? `Bloco ${unit.block} - ` : ''}Apt ${unit.number}`,
+      metadata: { amount: charge.amount, referenceMonth: charge.referenceMonth },
+    });
+
     res.status(201).json(charge);
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao criar cobrança', details: error.message });
@@ -77,10 +113,21 @@ export const createBulkCharges = async (req: AuthRequest, res: Response): Promis
         dueDate: new Date(dueDate),
         description: description || 'Taxa condominial',
         status: 'pending',
+        paymentHistory: [{
+          status: 'pending',
+          note: 'Cobrança criada em massa',
+          actorId: req.user!._id,
+        }],
       });
     }
 
     const created = await Charge.insertMany(charges);
+    await audit(req, {
+      action: 'bulk_create',
+      entity: 'charge',
+      message: `${created.length} cobranças criadas em massa`,
+      metadata: { amount: Number(amount), referenceMonth },
+    });
     res.status(201).json({ message: `${created.length} cobranças criadas`, charges: created });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao criar cobranças em massa', details: error.message });
@@ -89,6 +136,8 @@ export const createBulkCharges = async (req: AuthRequest, res: Response): Promis
 
 export const getCharges = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    await syncOverdueCharges(req.user!.condominiumId!);
+
     const filter: any = {};
 
     if (req.user!.role === 'admin') {
@@ -180,13 +229,49 @@ export const markAsPaid = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const charge = await Charge.findOneAndUpdate(
       { _id: req.params.id, condominiumId: req.user!.condominiumId },
-      { status: 'paid', paidAt: new Date() },
+      {
+        $set: {
+          status: 'paid',
+          paidAt: new Date(),
+          proofStatus: req.body.fromProof ? 'approved' : 'none',
+          proofReviewedAt: req.body.fromProof ? new Date() : undefined,
+        },
+        $push: {
+          paymentHistory: {
+            status: 'paid',
+            note: req.body.fromProof ? 'Comprovante aprovado' : 'Marcado como pago',
+            actorId: req.user!._id,
+            createdAt: new Date(),
+          },
+        },
+      },
       { new: true }
-    );
+    ).populate('unitId', 'block number').populate('residentId', 'name phone email userId');
     if (!charge) {
       res.status(404).json({ error: 'Cobrança não encontrada' });
       return;
     }
+
+    const resident = typeof charge.residentId === 'object' ? charge.residentId as any : null;
+    if (resident?.userId) {
+      await notify({
+        condominiumId: charge.condominiumId,
+        userId: resident.userId,
+        type: 'payment',
+        title: 'Pagamento confirmado',
+        message: `${charge.description} foi marcada como paga`,
+        link: '/morador/cobrancas',
+      });
+    }
+
+    await audit(req, {
+      action: 'mark_paid',
+      entity: 'charge',
+      entityId: charge._id as any,
+      message: `Cobrança ${charge.referenceMonth} marcada como paga`,
+      metadata: { amount: charge.amount },
+    });
+
     res.json(charge);
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao marcar como pago', details: error.message });
@@ -197,16 +282,182 @@ export const markAsPending = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const charge = await Charge.findOneAndUpdate(
       { _id: req.params.id, condominiumId: req.user!.condominiumId },
-      { status: 'pending', paidAt: null },
+      {
+        $set: {
+          status: 'pending',
+          paidAt: null,
+          proofStatus: 'none',
+          proofReviewedAt: null,
+        },
+        $push: {
+          paymentHistory: {
+            status: 'pending',
+            note: 'Marcado como pendente',
+            actorId: req.user!._id,
+            createdAt: new Date(),
+          },
+        },
+      },
       { new: true }
     );
     if (!charge) {
       res.status(404).json({ error: 'Cobrança não encontrada' });
       return;
     }
+    await audit(req, {
+      action: 'mark_pending',
+      entity: 'charge',
+      entityId: charge._id as any,
+      message: `Cobrança ${charge.referenceMonth} marcada como pendente`,
+    });
     res.json(charge);
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao marcar como pendente', details: error.message });
+  }
+};
+
+export const submitPaymentProof = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { proofUrl, proofNote } = req.body;
+    if (!isImageDataUrl(proofUrl)) {
+      res.status(400).json({ error: 'Envie uma imagem válida do comprovante' });
+      return;
+    }
+
+    const charge = await Charge.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        condominiumId: req.user!.condominiumId,
+        ...(req.user!.role === 'resident' ? { unitId: req.user!.unitId } : {}),
+      },
+      {
+        $set: {
+          proofUrl,
+          proofNote: proofNote || '',
+          proofStatus: 'submitted',
+          proofSubmittedAt: new Date(),
+        },
+        $push: {
+          paymentHistory: {
+            status: 'proof_submitted',
+            note: proofNote || 'Comprovante enviado',
+            actorId: req.user!._id,
+            createdAt: new Date(),
+          },
+        },
+      },
+      { new: true }
+    ).populate('unitId', 'block number').populate('residentId', 'name phone email');
+
+    if (!charge) {
+      res.status(404).json({ error: 'Cobrança não encontrada' });
+      return;
+    }
+
+    await notify({
+      condominiumId: charge.condominiumId,
+      targetRole: 'admin',
+      type: 'payment',
+      title: `${req.user!.name} enviou um comprovante`,
+      message: `${charge.description} • ${charge.referenceMonth}`,
+      link: '/cobrancas',
+    });
+
+    await audit(req, {
+      action: 'proof_submitted',
+      entity: 'charge',
+      entityId: charge._id as any,
+      message: `Comprovante enviado para cobrança ${charge.referenceMonth}`,
+    });
+
+    res.json(charge);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao enviar comprovante', details: error.message });
+  }
+};
+
+export const rejectPaymentProof = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const charge = await Charge.findOneAndUpdate(
+      { _id: req.params.id, condominiumId: req.user!.condominiumId },
+      {
+        $set: {
+          proofStatus: 'rejected',
+          proofReviewedAt: new Date(),
+        },
+        $push: {
+          paymentHistory: {
+            status: 'proof_rejected',
+            note: req.body.note || 'Comprovante rejeitado',
+            actorId: req.user!._id,
+            createdAt: new Date(),
+          },
+        },
+      },
+      { new: true }
+    ).populate('residentId', 'name phone email userId');
+
+    if (!charge) {
+      res.status(404).json({ error: 'Cobrança não encontrada' });
+      return;
+    }
+
+    const resident = typeof charge.residentId === 'object' ? charge.residentId as any : null;
+    if (resident?.userId) {
+      await notify({
+        condominiumId: charge.condominiumId,
+        userId: resident.userId,
+        type: 'payment',
+        title: 'Comprovante precisa de revisão',
+        message: req.body.note || 'O síndico solicitou um novo comprovante',
+        link: '/morador/cobrancas',
+      });
+    }
+
+    await audit(req, {
+      action: 'proof_rejected',
+      entity: 'charge',
+      entityId: charge._id as any,
+      message: `Comprovante rejeitado para cobrança ${charge.referenceMonth}`,
+    });
+
+    res.json(charge);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao rejeitar comprovante', details: error.message });
+  }
+};
+
+export const exportChargesCsv = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    await syncOverdueCharges(req.user!.condominiumId!);
+    const charges = await Charge.find({ condominiumId: req.user!.condominiumId })
+      .populate('unitId', 'block number')
+      .populate('residentId', 'name phone email')
+      .sort({ dueDate: -1 });
+
+    const rows = [
+      ['Unidade', 'Morador', 'Email', 'Referência', 'Descrição', 'Valor', 'Vencimento', 'Status', 'Comprovante'].map(csvCell).join(','),
+      ...charges.map((charge) => {
+        const resident = typeof charge.residentId === 'object' ? charge.residentId as any : null;
+        return [
+          (charge.unitId as any)?.number ? `${(charge.unitId as any).block ? `Bloco ${(charge.unitId as any).block} - ` : ''}Apt ${(charge.unitId as any).number}` : '',
+          resident?.name || '',
+          resident?.email || '',
+          charge.referenceMonth,
+          charge.description,
+          charge.amount,
+          charge.dueDate.toISOString().slice(0, 10),
+          charge.status,
+          charge.proofStatus,
+        ].map(csvCell).join(',');
+      }),
+    ];
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="cobrancas.csv"');
+    res.send(`\uFEFF${rows.join('\n')}`);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao exportar cobranças', details: error.message });
   }
 };
 
@@ -220,6 +471,13 @@ export const deleteCharge = async (req: AuthRequest, res: Response): Promise<voi
       res.status(404).json({ error: 'Cobrança não encontrada' });
       return;
     }
+    await audit(req, {
+      action: 'delete',
+      entity: 'charge',
+      entityId: charge._id as any,
+      message: `Cobrança ${charge.referenceMonth} excluída`,
+      metadata: { amount: charge.amount },
+    });
     res.json({ message: 'Cobrança excluída com sucesso' });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao excluir cobrança', details: error.message });

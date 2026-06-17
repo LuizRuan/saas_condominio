@@ -44,8 +44,17 @@ export interface Resident {
   type: 'owner' | 'tenant' | 'financial_responsible';
   isFinancialResponsible: boolean;
   userId?: string;
+  inviteToken?: string;
+  inviteExpiresAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PaymentHistoryEntry {
+  status: 'pending' | 'paid' | 'late' | 'proof_submitted' | 'proof_rejected';
+  note?: string;
+  actorId?: string;
+  createdAt: string;
 }
 
 export interface Charge {
@@ -59,6 +68,12 @@ export interface Charge {
   description: string;
   status: 'pending' | 'paid' | 'late';
   paidAt?: string;
+  proofUrl?: string;
+  proofNote?: string;
+  proofStatus?: 'none' | 'submitted' | 'approved' | 'rejected';
+  proofSubmittedAt?: string;
+  proofReviewedAt?: string;
+  paymentHistory?: PaymentHistoryEntry[];
   createdAt: string;
   updatedAt: string;
 }
@@ -70,6 +85,7 @@ export interface Announcement {
   message: string;
   category: 'general' | 'maintenance' | 'assembly' | 'security' | 'financial';
   isPinned: boolean;
+  photos: string[];
   createdBy: string | { _id: string; name: string };
   createdAt: string;
   updatedAt: string;
@@ -86,8 +102,20 @@ export interface Issue {
   priority: 'low' | 'medium' | 'high';
   status: 'open' | 'in_progress' | 'resolved';
   response: string;
+  photos?: string[];
+  messages?: IssueMessage[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface IssueMessage {
+  _id?: string;
+  authorId?: string;
+  authorRole: 'admin' | 'resident';
+  authorName: string;
+  message: string;
+  photos?: string[];
+  createdAt: string;
 }
 
 export interface Reservation {
@@ -105,6 +133,56 @@ export interface Reservation {
   updatedAt: string;
 }
 
+export interface ReservationBlock {
+  _id: string;
+  condominiumId: string;
+  area: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  reason: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AppNotification {
+  _id: string;
+  condominiumId: string;
+  userId?: string;
+  targetRole?: 'admin' | 'resident';
+  type: 'payment' | 'issue' | 'reservation' | 'announcement' | 'system';
+  title: string;
+  message: string;
+  link?: string;
+  readAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuditLog {
+  _id: string;
+  condominiumId: string;
+  actorId?: string;
+  actorName: string;
+  action: string;
+  entity: string;
+  entityId?: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DashboardTask {
+  id: string;
+  title: string;
+  description: string;
+  count: number;
+  type: 'payment' | 'issue' | 'reservation' | 'announcement' | 'system';
+  link: string;
+}
+
 export interface DashboardStats {
   receivedThisMonth: number;
   toReceive: number;
@@ -120,6 +198,7 @@ export interface AdminDashboard {
   recentAnnouncements: Announcement[];
   recentIssues: Issue[];
   upcomingReservations: Reservation[];
+  tasks?: DashboardTask[];
 }
 
 export interface ResidentDashboard {
@@ -133,6 +212,7 @@ export interface ResidentDashboard {
   recentAnnouncements: Announcement[];
   openIssues: Issue[];
   upcomingReservations: Reservation[];
+  tasks?: DashboardTask[];
 }
 
 export interface RegisterData {

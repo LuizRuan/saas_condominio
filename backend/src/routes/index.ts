@@ -8,6 +8,10 @@ import announcementRoutes from './announcementRoutes';
 import issueRoutes from './issueRoutes';
 import reservationRoutes from './reservationRoutes';
 import dashboardRoutes from './dashboardRoutes';
+import notificationRoutes from './notificationRoutes';
+import auditRoutes from './auditRoutes';
+import packageRoutes from './packageRoutes';
+import userRoutes from './userRoutes';
 
 const router = Router();
 
@@ -26,5 +30,9 @@ router.use('/announcements', announcementRoutes);
 router.use('/issues', issueRoutes);
 router.use('/reservations', reservationRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/audit', auditRoutes);
+router.use('/packages', packageRoutes);
+router.use('/users', userRoutes);
 
 export default router;

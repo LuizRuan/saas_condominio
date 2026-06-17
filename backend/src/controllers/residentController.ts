@@ -1,9 +1,11 @@
 import { Response } from 'express';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import Resident from '../models/Resident';
 import User from '../models/User';
 import Unit from '../models/Unit';
 import { AuthRequest } from '../middlewares/auth';
+import { audit } from '../utils/audit';
 
 export const createResident = async (req: AuthRequest, res: Response): Promise<void> => {
   let createdUserId: string | undefined;
@@ -118,6 +120,23 @@ export const getResident = async (req: AuthRequest, res: Response): Promise<void
     res.json(resident);
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar morador', details: error.message });
+  }
+};
+
+export const getMyResident = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const resident = await Resident.findOne({
+      userId: req.user!._id,
+      condominiumId: req.user!.condominiumId,
+    }).populate('unitId', 'block number');
+
+    if (!resident) {
+      res.status(404).json({ error: 'Perfil de morador não encontrado' });
+      return;
+    }
+    res.json(resident);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao buscar perfil', details: error.message });
   }
 };
 
@@ -247,5 +266,56 @@ export const deleteResident = async (req: AuthRequest, res: Response): Promise<v
     res.json({ message: 'Morador excluído com sucesso' });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao excluir morador', details: error.message });
+  }
+};
+
+export const createResidentInvite = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const resident = await Resident.findOne({
+      _id: req.params.id,
+      condominiumId: req.user!.condominiumId,
+    }).populate('unitId', 'block number');
+
+    if (!resident) {
+      res.status(404).json({ error: 'Morador não encontrado' });
+      return;
+    }
+
+    if (!resident.email) {
+      res.status(400).json({ error: 'Cadastre um e-mail para gerar o convite' });
+      return;
+    }
+
+    if (resident.userId) {
+      res.status(409).json({ error: 'Morador já possui acesso vinculado' });
+      return;
+    }
+
+    const existingUser = await User.findOne({ email: resident.email });
+    if (existingUser) {
+      res.status(409).json({ error: 'Já existe um usuário com este e-mail' });
+      return;
+    }
+
+    resident.inviteToken = crypto.randomBytes(24).toString('hex');
+    resident.inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await resident.save();
+
+    const baseUrl = (process.env.CLIENT_URL || 'http://localhost:5173').split(',')[0].replace(/\/+$/, '');
+    const inviteUrl = `${baseUrl}/convite/${resident.inviteToken}`;
+    const unit = resident.unitId as any;
+    const unitLabel = unit?.number ? `${unit.block ? `Bloco ${unit.block} - ` : ''}Apt ${unit.number}` : 'sua unidade';
+    const whatsappText = `Olá, ${resident.name}! Seu acesso ao Condomínio em Dia para ${unitLabel} está pronto. Crie sua senha pelo link: ${inviteUrl}`;
+
+    await audit(req, {
+      action: 'invite',
+      entity: 'resident',
+      entityId: resident._id as any,
+      message: `Convite gerado para ${resident.name}`,
+    });
+
+    res.json({ inviteUrl, whatsappText, expiresAt: resident.inviteExpiresAt });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao gerar convite', details: error.message });
   }
 };
