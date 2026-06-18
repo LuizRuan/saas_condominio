@@ -5,10 +5,10 @@ interface BrandMarkProps {
   compact?: boolean;
 }
 
-const BrandMark = ({ compact = false }: BrandMarkProps) => (
+const BrandMark = ({ compact = false, inverted = false }: BrandMarkProps) => (
   <div className="flex items-center">
     <img 
-      src="/logo.png" 
+      src={inverted ? "/logo-white.png" : "/logo.png"} 
       alt="Domus Logo" 
       className={`object-contain ${compact ? 'h-8' : 'h-10'}`} 
     />

@@ -200,19 +200,14 @@ const LandingPage: React.FC = () => {
           </div>
           
           <div className="relative mx-auto w-full max-w-[600px] lg:max-w-none">
-            {/* Dashboard Mockup Placeholder */}
-            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 bg-slate-900/50 shadow-2xl backdrop-blur-sm lg:aspect-auto lg:h-[600px]">
-              <div className="flex h-12 items-center gap-2 border-b border-white/5 bg-slate-950/50 px-4">
+            {/* Dashboard Mockup */}
+            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 bg-slate-900/50 shadow-2xl backdrop-blur-sm lg:aspect-auto lg:h-[450px]">
+              <div className="flex h-10 items-center gap-2 border-b border-white/10 bg-slate-950 px-4">
                 <div className="h-3 w-3 rounded-full bg-slate-800" />
                 <div className="h-3 w-3 rounded-full bg-slate-800" />
                 <div className="h-3 w-3 rounded-full bg-slate-800" />
               </div>
-              <div className="flex h-[calc(100%-3rem)] items-center justify-center">
-                <div className="text-center">
-                  <Building2 className="mx-auto mb-4 h-12 w-12 text-slate-700" />
-                  <p className="text-sm font-semibold text-slate-500">[Espaço reservado para o print do Dashboard]</p>
-                </div>
-              </div>
+              <img src="/dashboard-mockup.png" alt="Dashboard Domus" className="h-full w-full object-cover object-left-top" />
             </div>
             
             {/* Glow effects around mockup */}
