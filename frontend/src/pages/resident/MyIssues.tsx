@@ -22,15 +22,41 @@ const catOpts = [
   { value: 'garage', label: 'Garagem' }, { value: 'leak', label: 'Vazamento' }, { value: 'other', label: 'Outro' },
 ];
 
-const readImageFiles = (files: FileList | null): Promise<string[]> => {
-  if (!files?.length) return Promise.resolve([]);
+const MAX_ISSUE_PHOTOS = 3;
+const ISSUE_MAX_DIMENSION = 700;
+const ISSUE_QUALITY = 0.60;
 
-  const selectedFiles = Array.from(files).filter((file) => file.type.startsWith('image/')).slice(0, 6);
-  return Promise.all(selectedFiles.map((file) => new Promise<string>((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.readAsDataURL(file);
-  })));
+const compressIssueImage = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const image = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  image.onload = () => {
+    const scale = Math.min(1, ISSUE_MAX_DIMENSION / Math.max(image.width, image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.width * scale));
+    canvas.height = Math.max(1, Math.round(image.height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { URL.revokeObjectURL(objectUrl); reject(new Error('Erro ao processar imagem')); return; }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(objectUrl);
+    resolve(canvas.toDataURL('image/jpeg', ISSUE_QUALITY));
+  };
+  image.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Não foi possível carregar a imagem')); };
+  image.src = objectUrl;
+});
+
+const readAndCompressFiles = async (files: FileList | null, currentCount: number): Promise<string[]> => {
+  if (!files?.length) return [];
+  const remaining = MAX_ISSUE_PHOTOS - currentCount;
+  if (remaining <= 0) { toast.error(`Máximo de ${MAX_ISSUE_PHOTOS} fotos por ocorrência`); return []; }
+  const selected = Array.from(files).filter((f) => f.type.startsWith('image/')).slice(0, remaining);
+  const results: string[] = [];
+  for (const file of selected) {
+    try { results.push(await compressIssueImage(file)); }
+    catch { toast.error(`Erro ao processar ${file.name}`); }
+  }
+  return results;
 };
 
 const MyIssues: React.FC = () => {
@@ -75,21 +101,15 @@ const MyIssues: React.FC = () => {
   };
 
   const handleCreatePhotos = async (files: FileList | null) => {
-    const photos = await readImageFiles(files);
-    if (!photos.length) {
-      toast.error('Selecione imagens válidas');
-      return;
-    }
-    setForm((current) => ({ ...current, photos: [...current.photos, ...photos].slice(0, 6) }));
+    const photos = await readAndCompressFiles(files, form.photos.length);
+    if (!photos.length) { toast.error('Selecione imagens válidas'); return; }
+    setForm((current) => ({ ...current, photos: [...current.photos, ...photos].slice(0, MAX_ISSUE_PHOTOS) }));
   };
 
   const handleReplyPhotos = async (files: FileList | null) => {
-    const photos = await readImageFiles(files);
-    if (!photos.length) {
-      toast.error('Selecione imagens válidas');
-      return;
-    }
-    setReplyPhotos((current) => [...current, ...photos].slice(0, 6));
+    const photos = await readAndCompressFiles(files, replyPhotos.length);
+    if (!photos.length) { toast.error('Selecione imagens válidas'); return; }
+    setReplyPhotos((current) => [...current, ...photos].slice(0, MAX_ISSUE_PHOTOS));
   };
 
   const sendReply = async () => {

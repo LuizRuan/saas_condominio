@@ -31,11 +31,11 @@ const catOptions = Object.entries(categoryLabels)
   .filter(([key]) => ['general', 'maintenance', 'assembly', 'security', 'financial'].includes(key))
   .map(([value, label]) => ({ value, label }));
 
-const MAX_PHOTOS = 8;
-const MAX_FILE_SIZE = 8 * 1024 * 1024;
-const MAX_TOTAL_PHOTO_SIZE = 8 * 1024 * 1024;
-const PHOTO_MAX_DIMENSION = 1400;
-const PHOTO_QUALITY = 0.78;
+const MAX_PHOTOS = 3;
+const MAX_FILE_SIZE = 3 * 1024 * 1024;
+const MAX_TOTAL_PHOTO_SIZE = 2 * 1024 * 1024;
+const PHOTO_MAX_DIMENSION = 700;
+const PHOTO_QUALITY = 0.60;
 const PAGE_SIZE = 4;
 
 type CategoryFilter = 'all' | Announcement['category'];

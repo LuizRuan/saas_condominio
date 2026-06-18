@@ -9,6 +9,7 @@ export interface INotification extends Document {
   message: string;
   link?: string;
   readAt?: Date;
+  expiresAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +24,12 @@ const NotificationSchema = new Schema<INotification>(
     message: { type: String, required: true, trim: true },
     link: { type: String, default: '' },
     readAt: { type: Date },
+    // Unread notifications expire after 90 days; read ones after 30 days
+    // This field is set at creation and updated when the notification is read
+    expiresAt: {
+      type: Date,
+      default: () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+    },
   },
   { timestamps: true }
 );
@@ -30,5 +37,7 @@ const NotificationSchema = new Schema<INotification>(
 NotificationSchema.index({ condominiumId: 1, createdAt: -1 });
 NotificationSchema.index({ userId: 1, readAt: 1 });
 NotificationSchema.index({ condominiumId: 1, targetRole: 1, readAt: 1 });
+// Auto-delete expired notifications
+NotificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export default mongoose.model<INotification>('Notification', NotificationSchema);

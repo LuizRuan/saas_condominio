@@ -27,8 +27,8 @@ const AnnouncementSchema = new Schema<IAnnouncement>(
       type: [String],
       default: [],
       validate: {
-        validator: (photos: string[]) => photos.length <= 8,
-        message: 'Um comunicado pode ter no máximo 8 fotos',
+        validator: (photos: string[]) => photos.length <= 3,
+        message: 'Um comunicado pode ter no máximo 3 fotos',
       },
     },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },

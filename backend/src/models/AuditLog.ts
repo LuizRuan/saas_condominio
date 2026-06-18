@@ -29,5 +29,7 @@ const AuditLogSchema = new Schema<IAuditLog>(
 
 AuditLogSchema.index({ condominiumId: 1, createdAt: -1 });
 AuditLogSchema.index({ condominiumId: 1, entity: 1, entityId: 1 });
+// Auto-delete logs older than 90 days
+AuditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 });
 
 export default mongoose.model<IAuditLog>('AuditLog', AuditLogSchema);

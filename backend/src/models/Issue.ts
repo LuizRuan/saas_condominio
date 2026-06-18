@@ -46,7 +46,14 @@ const IssueSchema = new Schema<IIssue>(
       default: 'open',
     },
     response: { type: String, default: '' },
-    photos: { type: [String], default: [] },
+    photos: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (photos: string[]) => photos.length <= 3,
+        message: 'Uma ocorrência pode ter no máximo 3 fotos',
+      },
+    },
     messages: [{
       authorId: { type: Schema.Types.ObjectId, ref: 'User' },
       authorRole: { type: String, enum: ['admin', 'resident'], required: true },
