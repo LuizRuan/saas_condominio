@@ -189,9 +189,14 @@ const ResidentsPage: React.FC = () => {
               {residents.length === 0 ? 'Nenhum morador cadastrado' : 'Nenhum resultado encontrado'}
             </h3>
             <p className="mt-1.5 max-w-sm text-sm font-medium text-slate-400">
-              {residents.length === 0
-                ? 'Cadastre o primeiro morador para organizar responsáveis, proprietários e inquilinos.'
-                : 'Tente buscar por outro nome, e-mail, telefone ou unidade.'}
+              {residents.length === 0 ? (
+                <>
+                  Cadastre moradores para liberar acesso ao aplicativo e permitir que eles vejam suas cobranças e enviem ocorrências.<br/>
+                  <span className="mt-1 block text-xs text-slate-400">Dica: Convide os moradores enviando um link de acesso por WhatsApp.</span>
+                </>
+              ) : (
+                'Tente buscar por outro nome, e-mail, telefone ou unidade.'
+              )}
             </p>
             {residents.length === 0 && (
               <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="mt-6">

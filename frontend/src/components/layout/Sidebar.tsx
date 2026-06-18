@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Building2, Home, Users, Receipt, Megaphone,
   AlertTriangle, CalendarDays, LogOut, X, Package,
-  ChevronRight, TrendingDown,
+  ChevronRight, TrendingDown, Wallet, FileText,
 } from 'lucide-react';
 import BrandMark from '../ui/BrandMark';
 
@@ -20,6 +20,8 @@ const adminLinks = [
   { to: '/moradores', icon: Users, label: 'Moradores', section: 'gestão' },
   { to: '/cobrancas', icon: Receipt, label: 'Cobranças', section: 'financeiro' },
   { to: '/despesas', icon: TrendingDown, label: 'Despesas', section: 'financeiro' },
+  { to: '/caixa', icon: Wallet, label: 'Caixa', section: 'financeiro' },
+  { to: '/relatorios', icon: FileText, label: 'Relatórios', section: 'financeiro' },
   { to: '/comunicados', icon: Megaphone, label: 'Comunicados', section: 'comunicação' },
   { to: '/encomendas', icon: Package, label: 'Encomendas', section: 'comunicação' },
   { to: '/ocorrencias', icon: AlertTriangle, label: 'Ocorrências', section: 'comunicação' },

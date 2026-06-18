@@ -244,10 +244,17 @@ const ChargesPage: React.FC = () => {
               <Receipt className="h-6 w-6" />
             </div>
             <h3 className="mt-4 text-base font-extrabold text-slate-800">
-              {charges.length === 0 ? 'Nenhuma cobrança encontrada' : 'Nenhum resultado'}
+              {charges.length === 0 ? 'Nenhuma cobrança registrada' : 'Nenhum resultado'}
             </h3>
             <p className="mt-1.5 max-w-sm text-sm font-medium text-slate-400">
-              {charges.length === 0 ? 'Crie uma cobrança individual ou em massa para começar.' : 'Tente ajustar os filtros de busca.'}
+              {charges.length === 0 ? (
+                <>
+                  Crie cobranças individuais ou em massa para começar a gerenciar a saúde financeira do condomínio.<br/>
+                  <span className="mt-1 block text-xs text-slate-400">Dica: Utilize o botão de Cobrança em Lote para gerar a taxa do mês para todas as unidades de uma vez.</span>
+                </>
+              ) : (
+                'Tente ajustar os filtros de busca ou limpar a pesquisa.'
+              )}
             </p>
           </div>
         ) : (

@@ -121,9 +121,14 @@ const UnitsPage: React.FC = () => {
               {units.length === 0 ? 'Nenhuma unidade cadastrada' : 'Nenhuma unidade encontrada'}
             </h3>
             <p className="mt-1.5 max-w-sm text-sm font-medium text-slate-400">
-              {units.length === 0
-                ? 'Cadastre as unidades para vincular moradores, cobranças e reservas.'
-                : 'Tente buscar por outro bloco, número ou observação.'}
+              {units.length === 0 ? (
+                <>
+                  Cadastre apartamentos, casas ou salas para vincular moradores, cobranças, reservas e encomendas.<br/>
+                  <span className="mt-1 block text-xs text-slate-400">Dica: Você pode cadastrar manualmente ou exportar/importar dados via API.</span>
+                </>
+              ) : (
+                'Tente buscar por outro bloco, número ou observação.'
+              )}
             </p>
             {units.length === 0 && (
               <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="mt-6">

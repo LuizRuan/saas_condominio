@@ -396,7 +396,14 @@ const AnnouncementsPage: React.FC = () => {
               {list.length === 0 ? 'Nenhum comunicado publicado' : 'Nenhum comunicado encontrado'}
             </h3>
             <p className="mt-2 max-w-md text-sm font-medium text-slate-500">
-              {list.length === 0 ? 'Crie o primeiro comunicado para centralizar avisos aos moradores.' : 'Tente buscar por outro título, categoria ou mensagem.'}
+              {list.length === 0 ? (
+                <>
+                  Evite papéis no elevador. Crie comunicados digitais para centralizar avisos importantes para todos os moradores.<br/>
+                  <span className="mt-1 block text-xs text-slate-400">Dica: Você pode anexar fotos e fixar avisos importantes no topo do aplicativo dos moradores.</span>
+                </>
+              ) : (
+                'Tente buscar por outro título, categoria ou mensagem.'
+              )}
             </p>
             {list.length === 0 && (
               <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="mt-6 border-violet-700 bg-violet-700 hover:border-violet-800 hover:bg-violet-800">

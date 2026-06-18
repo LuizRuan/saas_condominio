@@ -5,7 +5,7 @@ interface DashboardCardProps {
   title: string;
   value: string | number;
   icon: React.ReactNode;
-  color: 'blue' | 'green' | 'red' | 'yellow' | 'purple' | 'slate';
+  color: 'blue' | 'green' | 'red' | 'yellow' | 'purple' | 'slate' | 'orange';
   subtitle?: string;
   trend?: number; // percentage change, positive = up, negative = down
 }
@@ -20,6 +20,7 @@ const colorMap: Record<string, {
   yellow: { bg: 'bg-amber-50',   icon: 'text-amber-600',  value: 'text-amber-700',  border: 'border-amber-100/80',  glow: 'shadow-amber-500/8',  trendUp: 'text-amber-600 bg-amber-50',  trendDown: 'text-emerald-600 bg-emerald-50' },
   purple: { bg: 'bg-violet-50',  icon: 'text-violet-600', value: 'text-violet-700', border: 'border-violet-100/80', glow: 'shadow-violet-500/8', trendUp: 'text-violet-600 bg-violet-50',trendDown: 'text-red-600 bg-red-50' },
   slate:  { bg: 'bg-slate-100',  icon: 'text-slate-600',  value: 'text-slate-800',  border: 'border-slate-200/80',  glow: 'shadow-slate-400/8',  trendUp: 'text-slate-600 bg-slate-100', trendDown: 'text-red-600 bg-red-50' },
+  orange: { bg: 'bg-orange-50',  icon: 'text-orange-600', value: 'text-orange-700', border: 'border-orange-100/80', glow: 'shadow-orange-500/8', trendUp: 'text-orange-600 bg-orange-50', trendDown: 'text-red-600 bg-red-50' },
 };
 
 const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, icon, color, subtitle, trend }) => {

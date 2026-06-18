@@ -4,6 +4,7 @@ import Unit from '../models/Unit';
 import Issue from '../models/Issue';
 import Reservation from '../models/Reservation';
 import Announcement from '../models/Announcement';
+import Expense from '../models/Expense';
 import { AuthRequest } from '../middlewares/auth';
 import { syncOverdueCharges } from '../utils/charges';
 
@@ -18,6 +19,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response): Promis
       totalUnits, paidCharges, pendingCharges, lateCharges,
       openIssues, pendingReservations, lateChargesList,
       recentAnnouncements, recentIssues, upcomingReservations,
+      paidExpenses, pendingExpenses,
     ] = await Promise.all([
       Unit.countDocuments({ condominiumId }),
       Charge.aggregate([
@@ -42,13 +44,38 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response): Promis
         .populate('unitId', 'block number').sort({ createdAt: -1 }).limit(5),
       Reservation.find({ condominiumId, status: 'pending', date: { $gte: now } })
         .populate('unitId', 'block number').sort({ date: 1 }).limit(5),
+      // Expenses — paid this month
+      Expense.aggregate([
+        {
+          $match: {
+            condominiumId,
+            status: 'paid',
+            date: {
+              $gte: new Date(now.getFullYear(), now.getMonth(), 1),
+              $lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
+            },
+          },
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      // Expenses — pending (any date)
+      Expense.aggregate([
+        { $match: { condominiumId, status: 'pending' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
     ]);
+
+    const receivedThisMonth = paidCharges[0]?.total || 0;
+    const expensesPaidThisMonth = paidExpenses[0]?.total || 0;
 
     res.json({
       stats: {
-        receivedThisMonth: paidCharges[0]?.total || 0,
+        receivedThisMonth,
         toReceive: pendingCharges[0]?.total || 0,
         late: lateCharges[0]?.total || 0,
+        expensesPaidThisMonth,
+        expensesPending: pendingExpenses[0]?.total || 0,
+        balanceThisMonth: receivedThisMonth - expensesPaidThisMonth,
         totalUnits,
         openIssues,
         pendingReservations,

@@ -6,12 +6,13 @@ import DashboardPanel from '../../components/dashboard/DashboardPanel';
 import RevenueChart from '../../components/dashboard/RevenueChart';
 import OccupancyDonut from '../../components/dashboard/OccupancyDonut';
 import IssuesTrendLine from '../../components/dashboard/IssuesTrendLine';
+import OnboardingBanner from '../../components/dashboard/OnboardingBanner';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { SkeletonDashboard } from '../../components/ui/Skeleton';
 import PremiumPage from '../../components/ui/PremiumPage';
 import {
   AlertCircle, AlertTriangle, ArrowUpRight, CalendarDays, CheckCircle2,
-  ClipboardList, DollarSign, Home, Megaphone, TrendingUp,
+  ClipboardList, DollarSign, Home, Megaphone, TrendingUp, TrendingDown, Wallet,
 } from 'lucide-react';
 import { formatCurrency, formatDate, getUnitLabel } from '../../utils/helpers';
 import api from '../../services/api';
@@ -99,14 +100,16 @@ const AdminDashboard: React.FC = () => {
           </div>
         </section>
 
+        <OnboardingBanner totalUnits={data?.stats.totalUnits || 0} />
+
         {/* ── KPI cards ── */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <DashboardCard title="Recebido no mês" value={formatCurrency(data?.stats.receivedThisMonth || 0)} icon={<DollarSign className="w-5 h-5" />} color="green" />
           <DashboardCard title="A receber" value={formatCurrency(data?.stats.toReceive || 0)} icon={<TrendingUp className="w-5 h-5" />} color="blue" />
           <DashboardCard title="Em atraso" value={formatCurrency(data?.stats.late || 0)} icon={<AlertCircle className="w-5 h-5" />} color="red" />
-          <DashboardCard title="Unidades" value={data?.stats.totalUnits || 0} icon={<Home className="w-5 h-5" />} color="slate" />
+          <DashboardCard title="Despesas do mês" value={formatCurrency(data?.stats.expensesPaidThisMonth || 0)} icon={<TrendingDown className="w-5 h-5" />} color="orange" />
+          <DashboardCard title="Saldo do mês" value={formatCurrency(data?.stats.balanceThisMonth || 0)} icon={<Wallet className="w-5 h-5" />} color="purple" />
           <DashboardCard title="Ocorrências" value={data?.stats.openIssues || 0} icon={<AlertTriangle className="w-5 h-5" />} color="yellow" />
-          <DashboardCard title="Reservas" value={data?.stats.pendingReservations || 0} icon={<CalendarDays className="w-5 h-5" />} color="purple" />
         </div>
 
         {/* ── Task center ── */}

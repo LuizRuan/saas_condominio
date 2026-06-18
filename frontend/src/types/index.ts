@@ -187,6 +187,9 @@ export interface DashboardStats {
   receivedThisMonth: number;
   toReceive: number;
   late: number;
+  expensesPaidThisMonth: number;
+  expensesPending: number;
+  balanceThisMonth: number;
   totalUnits: number;
   openIssues: number;
   pendingReservations: number;
@@ -250,4 +253,32 @@ export interface Expense {
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CashflowEntry {
+  month: string;
+  label: string;
+  income: number;
+  expense: number;
+  balance: number;
+}
+
+export interface FinanceReport {
+  month: string;
+  summary: {
+    income: number;
+    expense: number;
+    balance: number;
+    pendingIncome: number;
+    pendingExpense: number;
+    totalLate: number;
+  };
+  expensesByCategory: { category: string; amount: number }[];
+  lateUnits: {
+    unitId: string;
+    block: string;
+    number: string;
+    totalDebt: number;
+    chargesCount: number;
+  }[];
 }
