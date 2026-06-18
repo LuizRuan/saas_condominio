@@ -6,6 +6,7 @@ import {
   Star, ChevronDown, Menu, X, LogOut
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import BrandMark from '../../components/ui/BrandMark';
 
 const features = [
   { icon: Receipt, title: 'Cobranças automáticas', desc: 'Gere cobranças em massa, acompanhe status e envie lembretes via WhatsApp com um clique.' },
@@ -50,7 +51,7 @@ const plans = [
 ];
 
 const faqs = [
-  { q: 'Preciso instalar alguma coisa?', a: 'Não. O Condomínio em Dia é 100% web. Funciona em qualquer dispositivo sem instalação.' },
+  { q: 'Preciso instalar alguma coisa?', a: 'Não. O Domus é 100% web. Funciona em qualquer dispositivo sem instalação.' },
   { q: 'Os moradores precisam criar conta?', a: 'Você envia um link de convite por e-mail ou WhatsApp. O morador clica, cria a senha e já acessa o portal.' },
   { q: 'Como funciona o trial?', a: 'O plano Starter é gratuito sem limite de tempo para até 20 unidades. Não precisa de cartão.' },
   { q: 'Posso migrar meus dados de planilhas?', a: 'Sim. Oferecemos importação via CSV para unidades, moradores e histórico de cobranças.' },
@@ -72,15 +73,7 @@ const LandingPage: React.FC = () => {
       {/* ── Navbar ── */}
       <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-700 shadow-md">
-              <Building2 className="h-5 w-5 text-white" strokeWidth={2.2} />
-            </div>
-            <div className="leading-none">
-              <p className="text-[15px] font-extrabold tracking-[-0.03em]">Condomínio</p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600">em Dia</p>
-            </div>
-          </div>
+          <BrandMark compact />
 
           <nav className="hidden items-center gap-7 md:flex">
             {['Funcionalidades', 'Preços', 'FAQ'].map((item) => (
@@ -378,14 +371,9 @@ const LandingPage: React.FC = () => {
       {/* ── Footer ── */}
       <footer className="border-t border-slate-100 bg-white px-5 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-700">
-              <Building2 className="h-4 w-4 text-white" strokeWidth={2.2} />
-            </div>
-            <span className="text-sm font-extrabold text-slate-800">Condomínio em Dia</span>
-          </div>
+          <BrandMark compact />
           <p className="text-xs font-medium text-slate-400">
-            © {new Date().getFullYear()} Condomínio em Dia. Todos os direitos reservados.
+            © {new Date().getFullYear()} Domus. Todos os direitos reservados.
           </p>
           <div className="flex items-center gap-5">
             <Link to="/login" onClick={handleAuthClick} className="text-xs font-semibold text-slate-400 hover:text-slate-700">Entrar</Link>

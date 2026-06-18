@@ -13,6 +13,18 @@ export const errorHandler = (
     return;
   }
 
+  // Multer Error Catching
+  if (err.name === 'MulterError' && (err as any).code === 'LIMIT_FILE_SIZE') {
+    res.status(400).json({ error: 'Arquivo muito grande. O limite é de 5MB.' });
+    return;
+  }
+
+  // File filter error catching (from our custom filter)
+  if (err.message.includes('Formato de arquivo inválido')) {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+
   if (err.name === 'ValidationError') {
     res.status(400).json({ error: 'Dados inválidos', details: err.message });
     return;

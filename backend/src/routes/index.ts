@@ -20,7 +20,7 @@ const router = Router();
 
 // Health check
 router.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', message: 'Condomínio em Dia API está online 🚀', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', message: 'Domus API está online 🚀', timestamp: new Date().toISOString() });
 });
 
 // Routes

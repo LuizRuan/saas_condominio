@@ -305,7 +305,7 @@ export const createResidentInvite = async (req: AuthRequest, res: Response): Pro
     const inviteUrl = `${baseUrl}/convite/${resident.inviteToken}`;
     const unit = resident.unitId as any;
     const unitLabel = unit?.number ? `${unit.block ? `Bloco ${unit.block} - ` : ''}Apt ${unit.number}` : 'sua unidade';
-    const whatsappText = `Olá, ${resident.name}! Seu acesso ao Condomínio em Dia para ${unitLabel} está pronto. Crie sua senha pelo link: ${inviteUrl}`;
+    const whatsappText = `Olá, ${resident.name}! Seu acesso ao Domus para ${unitLabel} está pronto. Crie sua senha pelo link: ${inviteUrl}`;
 
     await audit(req, {
       action: 'invite',

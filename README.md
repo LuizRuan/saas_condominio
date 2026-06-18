@@ -1,4 +1,4 @@
-# 🏢 Condomínio em Dia
+# 🏢 Domus
 
 **Organize cobranças, moradores, comunicados e solicitações do condomínio em um só lugar.**
 

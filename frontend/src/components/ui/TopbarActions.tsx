@@ -369,7 +369,7 @@ const TopbarActions: React.FC = () => {
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Centro de controle</p>
                 <h3 className="mt-2 text-2xl font-black tracking-[-0.05em]">Configurações do sistema</h3>
                 <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-violet-100">
-                  Ajuste cadastros, operação e preferências principais do Condomínio em Dia em um só lugar.
+                  Ajuste cadastros, operação e preferências principais do Domus em um só lugar.
                 </p>
               </div>
               <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15 sm:flex">

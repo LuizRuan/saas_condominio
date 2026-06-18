@@ -27,7 +27,7 @@ const ResidentDashboard: React.FC = () => {
   if (loading) return <LoadingSpinner text="Carregando..." />;
 
   return (
-    <PremiumPage title="Meu Painel" subtitle="Bem-vindo ao Condomínio em Dia" onMenuClick={onMenuClick} eyebrow="Área do morador">
+    <PremiumPage title="Meu Painel" subtitle="Bem-vindo ao Domus" onMenuClick={onMenuClick} eyebrow="Área do morador">
       <div className="mt-6 animate-fade-in space-y-6">
         <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-violet-900 px-6 py-8 text-white shadow-xl shadow-violet-950/15 sm:px-8">
           <div className="absolute -right-14 -top-20 h-64 w-64 rounded-full bg-violet-500/20 blur-2xl" />

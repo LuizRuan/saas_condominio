@@ -58,7 +58,7 @@ const MyCharges: React.FC = () => {
   };
 
   const paymentText = selectedCharge && condo?.pixKey
-    ? `Pagamento Condomínio em Dia\nValor: ${formatCurrency(selectedCharge.amount)}\nReferência: ${selectedCharge.referenceMonth}\nChave Pix: ${condo.pixKey}`
+    ? `Pagamento Domus\nValor: ${formatCurrency(selectedCharge.amount)}\nReferência: ${selectedCharge.referenceMonth}\nChave Pix: ${condo.pixKey}`
     : '';
 
   const copyPaymentText = async () => {

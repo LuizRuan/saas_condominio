@@ -1,7 +1,7 @@
 {
-  "name": "condominio-em-dia-backend",
+  "name": "domus-backend",
   "version": "1.0.0",
-  "description": "Backend do SaaS Condomínio em Dia",
+  "description": "Backend do SaaS Domus",
   "main": "dist/server.js",
   "engines": {
     "node": ">=20.19.0"

@@ -15,17 +15,21 @@ export const parseFile = async (req: AuthRequest, res: Response): Promise<void> 
     }
 
     const file = req.file;
-    const extension = file.originalname.split('.').pop()?.toLowerCase();
+    const mimeType = file.mimetype;
 
     let parsedData: any[] = [];
 
-    if (extension === 'pdf') {
+    if (mimeType === 'application/pdf') {
       // Mock logic for PDF parsing since we don't have an AI endpoint configured yet
       // In a real scenario, we would send file.buffer to an OCR/LLM API
       parsedData = [
         { status: 'Revisar', block: '?', number: '?', residentName: '', phone: '', email: '', message: 'Aviso: Leitura inteligente de PDF em desenvolvimento.' }
       ];
-    } else if (extension === 'xlsx' || extension === 'csv') {
+    } else if (
+      mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+      mimeType === 'application/vnd.ms-excel' || 
+      mimeType === 'text/csv'
+    ) {
       const workbook = xlsx.read(file.buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
