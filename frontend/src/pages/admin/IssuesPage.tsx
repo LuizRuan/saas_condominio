@@ -51,16 +51,16 @@ const IssuesPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   
-  const { data: issuesResponse, isLoading: loadingIssues } = useQuery({
+  const { data: issuesResponse, isLoading: loadingIssues } = useQuery<{ data: Issue[] }>({
     queryKey: ['issues', filterStatus, filterPriority],
     queryFn: async () => {
       const { data } = await api.get('/issues', { params: { status: filterStatus || undefined, priority: filterPriority || undefined, limit: 200 } });
       return data;
     },
   });
-  const issues = issuesResponse?.data ?? issuesResponse ?? [];
+  const issues: Issue[] = issuesResponse?.data ?? (issuesResponse as unknown as Issue[]) ?? [];
 
-  const { data: units = [], isLoading: loadingUnits } = useQuery({
+  const { data: units = [], isLoading: loadingUnits } = useQuery<Unit[]>({
     queryKey: ['units'],
     queryFn: async () => {
       const { data } = await api.get('/units');

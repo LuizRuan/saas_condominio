@@ -38,7 +38,7 @@ const ResidentsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const queryClient = useQueryClient();
   
-  const { data: residents = [], isLoading: loadingResidents } = useQuery({
+  const { data: residents = [], isLoading: loadingResidents } = useQuery<Resident[]>({
     queryKey: ['residents'],
     queryFn: async () => {
       const { data } = await api.get('/residents');
@@ -46,7 +46,7 @@ const ResidentsPage: React.FC = () => {
     },
   });
 
-  const { data: units = [], isLoading: loadingUnits } = useQuery({
+  const { data: units = [], isLoading: loadingUnits } = useQuery<Unit[]>({
     queryKey: ['units'],
     queryFn: async () => {
       const { data } = await api.get('/units');
@@ -111,7 +111,7 @@ const ResidentsPage: React.FC = () => {
     try {
       const { data } = await api.post(`/residents/${resident._id}/invite`);
       setInviteTarget(resident); setInviteResult(data);
-      toast.success('Convite gerado!'); load();
+      toast.success('Convite gerado!'); queryClient.invalidateQueries({ queryKey: ['residents'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Não foi possível gerar convite'); }
     finally { setSaving(false); }
   };

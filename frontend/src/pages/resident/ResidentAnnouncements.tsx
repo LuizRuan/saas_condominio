@@ -14,14 +14,14 @@ const ResidentAnnouncements: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const [search, setSearch] = useState('');
 
-  const { data: listResponse, isLoading: loading } = useQuery({
+  const { data: listResponse, isLoading: loading } = useQuery<{ data: Announcement[] }>({
     queryKey: ['announcements'],
     queryFn: async () => {
       const { data } = await api.get('/announcements', { params: { limit: 100 } });
       return data;
     },
   });
-  const list = listResponse?.data ?? listResponse ?? [];
+  const list: Announcement[] = listResponse?.data ?? (listResponse as unknown as Announcement[]) ?? [];
 
   const filteredAnnouncements = useMemo(() => {
     const query = search.trim().toLowerCase();

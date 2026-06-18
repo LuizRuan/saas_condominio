@@ -38,7 +38,7 @@ const ChargesPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
 
-  const { data: chargesResponse, isLoading: loadingCharges } = useQuery({
+  const { data: chargesResponse, isLoading: loadingCharges } = useQuery<{ data: Charge[] }>({
     queryKey: ['charges', filterStatus, filterMonth],
     queryFn: async () => {
       const { data } = await api.get('/charges', { 
@@ -47,9 +47,9 @@ const ChargesPage: React.FC = () => {
       return data;
     },
   });
-  const charges = chargesResponse?.data ?? chargesResponse ?? [];
+  const charges: Charge[] = chargesResponse?.data ?? (chargesResponse as unknown as Charge[]) ?? [];
 
-  const { data: units = [], isLoading: loadingUnits } = useQuery({
+  const { data: units = [], isLoading: loadingUnits } = useQuery<Unit[]>({
     queryKey: ['units'],
     queryFn: async () => {
       const { data } = await api.get('/units');
@@ -57,7 +57,7 @@ const ChargesPage: React.FC = () => {
     },
   });
 
-  const { data: condo = null, isLoading: loadingCondo } = useQuery({
+  const { data: condo = null, isLoading: loadingCondo } = useQuery<Condominium | null>({
     queryKey: ['my-condominium'],
     queryFn: async () => {
       const { data } = await api.get('/condominiums/my');

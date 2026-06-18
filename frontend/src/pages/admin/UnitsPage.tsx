@@ -19,14 +19,14 @@ const UnitsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const queryClient = useQueryClient();
   
-  const { data: unitsResponse, isLoading: loading } = useQuery({
+  const { data: unitsResponse, isLoading: loading } = useQuery<Unit[]>({
     queryKey: ['units'],
     queryFn: async () => {
       const { data } = await api.get('/units');
       return data;
     },
   });
-  const units = unitsResponse ?? [];
+  const units: Unit[] = unitsResponse ?? [];
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);

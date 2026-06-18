@@ -18,16 +18,16 @@ const MyCharges: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const queryClient = useQueryClient();
   
-  const { data: chargesResponse, isLoading: loadingCharges } = useQuery({
+  const { data: chargesResponse, isLoading: loadingCharges } = useQuery<{ data: Charge[] }>({
     queryKey: ['my-charges'],
     queryFn: async () => {
       const { data } = await api.get('/charges', { params: { limit: 200 } });
       return data;
     },
   });
-  const charges = chargesResponse?.data ?? chargesResponse ?? [];
+  const charges: Charge[] = chargesResponse?.data ?? (chargesResponse as unknown as Charge[]) ?? [];
 
-  const { data: condo = null, isLoading: loadingCondo } = useQuery({
+  const { data: condo = null, isLoading: loadingCondo } = useQuery<Condominium | null>({
     queryKey: ['my-condominium'],
     queryFn: async () => {
       const { data } = await api.get('/condominiums/my');

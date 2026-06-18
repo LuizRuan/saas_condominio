@@ -64,14 +64,14 @@ const MyIssues: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const queryClient = useQueryClient();
   
-  const { data: issuesResponse, isLoading: loading } = useQuery({
+  const { data: issuesResponse, isLoading: loading } = useQuery<{ data: Issue[] }>({
     queryKey: ['my-issues'],
     queryFn: async () => {
       const { data } = await api.get('/issues', { params: { limit: 200 } });
       return data;
     },
   });
-  const issues = issuesResponse?.data ?? issuesResponse ?? [];
+  const issues: Issue[] = issuesResponse?.data ?? (issuesResponse as unknown as Issue[]) ?? [];
   const [modalOpen, setModalOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);

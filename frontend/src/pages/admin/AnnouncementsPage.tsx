@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
@@ -226,14 +226,14 @@ const AnnouncementsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const queryClient = useQueryClient();
   
-  const { data: listResponse, isLoading: loading } = useQuery({
+  const { data: listResponse, isLoading: loading } = useQuery<{ data: Announcement[] }>({
     queryKey: ['announcements'],
     queryFn: async () => {
       const { data } = await api.get('/announcements', { params: { limit: 100 } });
       return data;
     },
   });
-  const list = listResponse?.data ?? listResponse ?? [];
+  const list: Announcement[] = listResponse?.data ?? (listResponse as unknown as Announcement[]) ?? [];
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Announcement | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null);

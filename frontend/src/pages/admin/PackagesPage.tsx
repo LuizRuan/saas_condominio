@@ -19,12 +19,12 @@ const PackagesPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const queryClient = useQueryClient();
   
-  const { data: packages = [], isLoading: loadingPackages } = useQuery({
+  const { data: packages = [], isLoading: loadingPackages } = useQuery<Package[]>({
     queryKey: ['packages'],
     queryFn: () => packageService.getAll(),
   });
 
-  const { data: units = [], isLoading: loadingUnits } = useQuery({
+  const { data: units = [], isLoading: loadingUnits } = useQuery<Unit[]>({
     queryKey: ['units'],
     queryFn: async () => {
       const { data } = await api.get('/units');

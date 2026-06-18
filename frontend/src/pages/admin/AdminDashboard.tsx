@@ -27,32 +27,32 @@ const AdminDashboard: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const navigate = useNavigate();
 
-  const { data: dashboardResponse, isLoading: loadingDashboard } = useQuery({
+  const { data: dashboardResponse, isLoading: loadingDashboard } = useQuery<DashboardData | null>({
     queryKey: ['admin-dashboard'],
     queryFn: async () => {
       const { data } = await api.get('/dashboard/admin');
       return data;
     },
   });
-  const data = dashboardResponse ?? null;
+  const data: DashboardData | null = dashboardResponse ?? null;
 
-  const { data: auditResponse, isLoading: loadingAudit } = useQuery({
+  const { data: auditResponse, isLoading: loadingAudit } = useQuery<AuditLog[]>({
     queryKey: ['audit-logs'],
     queryFn: async () => {
       const { data } = await api.get('/audit', { params: { limit: 5 } });
       return data;
     },
   });
-  const auditLogs = auditResponse ?? [];
+  const auditLogs: AuditLog[] = auditResponse ?? [];
 
-  const { data: chartsResponse, isLoading: loadingCharts } = useQuery({
+  const { data: chartsResponse, isLoading: loadingCharts } = useQuery<ChartsData | null>({
     queryKey: ['admin-charts'],
     queryFn: async () => {
       const { data } = await api.get('/dashboard/admin/charts');
       return data;
     },
   });
-  const charts = chartsResponse ?? null;
+  const charts: ChartsData | null = chartsResponse ?? null;
 
   const loading = loadingDashboard || loadingAudit || loadingCharts;
 

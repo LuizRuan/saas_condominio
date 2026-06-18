@@ -5,15 +5,19 @@ import PremiumPage from '../../components/ui/PremiumPage';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import MetricCard from '../../components/ui/MetricCard';
 import { PackageOpen, AlertCircle, PackageCheck, PackageSearch } from 'lucide-react';
-import { packageService } from '../../services/packageService';
+import { packageService, Package } from '../../services/packageService';
 
 const MyPackages: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   
-  const { data: packages = [], isLoading: loading } = useQuery({
+  const { data: packagesResponse, isLoading: loading } = useQuery<Package[]>({
     queryKey: ['my-packages'],
-    queryFn: () => packageService.getResidentPackages(),
+    queryFn: async () => {
+      const data = await packageService.getResidentPackages();
+      return data;
+    },
   });
+  const packages: Package[] = packagesResponse ?? [];
 
   if (loading) return <LoadingSpinner text="Buscando encomendas..." />;
 

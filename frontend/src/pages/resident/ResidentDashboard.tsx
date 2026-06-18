@@ -15,14 +15,14 @@ const ResidentDashboard: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const navigate = useNavigate();
 
-  const { data: dashboardResponse, isLoading: loading } = useQuery({
+  const { data: dashboardResponse, isLoading: loading } = useQuery<DashData | null>({
     queryKey: ['resident-dashboard'],
     queryFn: async () => {
       const { data } = await api.get('/dashboard/resident');
       return data;
     },
   });
-  const data = dashboardResponse ?? null;
+  const data: DashData | null = dashboardResponse ?? null;
 
   if (loading) return <LoadingSpinner text="Carregando..." />;
 
