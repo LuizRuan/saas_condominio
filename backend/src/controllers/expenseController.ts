@@ -64,7 +64,7 @@ export const createExpense = async (req: AuthRequest, res: Response): Promise<vo
     await audit(req, {
       action: 'CREATE',
       entity: 'Expense',
-      entityId: expense._id as string,
+      entityId: String(expense._id),
       message: `Despesa "${expense.description}" criada (R$ ${expense.amount.toFixed(2)})`,
     });
 
@@ -91,7 +91,7 @@ export const updateExpense = async (req: AuthRequest, res: Response): Promise<vo
     await audit(req, {
       action: 'UPDATE',
       entity: 'Expense',
-      entityId: expense._id as string,
+      entityId: String(expense._id),
       message: `Despesa "${expense.description}" atualizada`,
     });
 
@@ -110,7 +110,7 @@ export const deleteExpense = async (req: AuthRequest, res: Response): Promise<vo
     await audit(req, {
       action: 'DELETE',
       entity: 'Expense',
-      entityId: expense._id as string,
+      entityId: String(expense._id),
       message: `Despesa "${expense.description}" excluída`,
     });
 
