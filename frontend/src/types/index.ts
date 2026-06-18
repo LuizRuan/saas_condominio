@@ -227,3 +227,27 @@ export interface RegisterData {
   defaultFee?: number;
   dueDay?: number;
 }
+
+export type ExpenseCategory =
+  | 'utilities'
+  | 'cleaning'
+  | 'security'
+  | 'maintenance'
+  | 'employees'
+  | 'works'
+  | 'providers'
+  | 'other';
+
+export interface Expense {
+  _id: string;
+  condominiumId: string;
+  description: string;
+  amount: number;
+  category: ExpenseCategory;
+  date: string;
+  status: 'paid' | 'pending';
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}

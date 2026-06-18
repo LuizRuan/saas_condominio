@@ -12,6 +12,7 @@ import notificationRoutes from './notificationRoutes';
 import auditRoutes from './auditRoutes';
 import packageRoutes from './packageRoutes';
 import userRoutes from './userRoutes';
+import expenseRoutes from './expenseRoutes';
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use('/notifications', notificationRoutes);
 router.use('/audit', auditRoutes);
 router.use('/packages', packageRoutes);
 router.use('/users', userRoutes);
+router.use('/expenses', expenseRoutes);
 
 export default router;

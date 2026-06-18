@@ -39,7 +39,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md', text, full
   }
 
   return (
-    <div className="flex min-h-[240px] items-center justify-center py-12">
+    <div className="flex h-full min-h-[60vh] w-full items-center justify-center p-12">
       {content}
     </div>
   );

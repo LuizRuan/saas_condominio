@@ -24,6 +24,7 @@ const AnnouncementsPage = React.lazy(() => import('./pages/admin/AnnouncementsPa
 const IssuesPage = React.lazy(() => import('./pages/admin/IssuesPage'));
 const ReservationsPage = React.lazy(() => import('./pages/admin/ReservationsPage'));
 const PackagesPage = React.lazy(() => import('./pages/admin/PackagesPage'));
+const ExpensesPage = React.lazy(() => import('./pages/admin/ExpensesPage'));
 
 // Shared — lazy loaded
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
@@ -75,6 +76,7 @@ const App: React.FC = () => {
                 <Route path="/unidades" element={<UnitsPage />} />
                 <Route path="/moradores" element={<ResidentsPage />} />
                 <Route path="/cobrancas" element={<ChargesPage />} />
+                <Route path="/despesas" element={<ExpensesPage />} />
                 <Route path="/comunicados" element={<AnnouncementsPage />} />
                 <Route path="/encomendas" element={<PackagesPage />} />
                 <Route path="/ocorrencias" element={<IssuesPage />} />
