@@ -18,7 +18,7 @@ const ProfilePage: React.FC = () => {
   const [loadingPassword, setLoadingPassword] = useState(false);
 
   const [dataForm, setDataForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
-  const [pwdForm, setPwdForm] = useState({ newPassword: '', confirmPassword: '' });
+  const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
   useEffect(() => {
     if (user) {
@@ -44,7 +44,7 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleUpdatePassword = async () => {
-    if (!pwdForm.newPassword || !pwdForm.confirmPassword) {
+    if (!pwdForm.currentPassword || !pwdForm.newPassword || !pwdForm.confirmPassword) {
       toast.error('Preencha todos os campos de senha');
       return;
     }
@@ -59,9 +59,9 @@ const ProfilePage: React.FC = () => {
 
     setLoadingPassword(true);
     try {
-      await api.put('/users/profile/password', { newPassword: pwdForm.newPassword });
+      await api.put('/users/profile/password', { currentPassword: pwdForm.currentPassword, newPassword: pwdForm.newPassword });
       toast.success('Senha alterada com sucesso!');
-      setPwdForm({ newPassword: '', confirmPassword: '' });
+      setPwdForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Erro ao alterar senha');
     } finally {
@@ -150,6 +150,14 @@ const ProfilePage: React.FC = () => {
 
             <div className="p-5 sm:p-7">
               <div className="grid gap-5 sm:grid-cols-2">
+                <Input
+                  label="Senha atual *"
+                  type="password"
+                  value={pwdForm.currentPassword}
+                  onChange={(e) => setPwdForm({ ...pwdForm, currentPassword: e.target.value })}
+                  placeholder="Sua senha atual"
+                  containerClassName="sm:col-span-2"
+                />
                 <Input
                   label="Nova senha *"
                   type="password"

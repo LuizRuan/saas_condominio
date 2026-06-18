@@ -19,9 +19,12 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
 
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, phone } = req.body;
+    // Allowlist only safe fields — prevent mass assignment of role/condominiumId etc.
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : undefined;
+    const phone = typeof req.body.phone === 'string' ? req.body.phone.trim() : undefined;
+
     const user = await User.findById(req.user!._id);
-    
+
     if (!user) {
       res.status(404).json({ message: 'Usuário não encontrado' });
       return;
@@ -56,10 +59,11 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
 
 export const updatePassword = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { newPassword } = req.body;
-    
-    if (!newPassword) {
-      res.status(400).json({ message: 'A nova senha é obrigatória' });
+    const currentPassword = String(req.body.currentPassword || '');
+    const newPassword = String(req.body.newPassword || '');
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ message: 'Senha atual e nova senha são obrigatórias' });
       return;
     }
 
@@ -68,13 +72,25 @@ export const updatePassword = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const user = await User.findById(req.user!._id);
+    // Load with password field (excluded by default via select: false pattern)
+    const user = await User.findById(req.user!._id).select('+password');
     if (!user) {
       res.status(404).json({ message: 'Usuário não encontrado' });
       return;
     }
 
-    user.password = newPassword; // Pre-save hook will hash it
+    // Verify current password before allowing any change
+    // (prevents account takeover even if an attacker steals a valid JWT token)
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      res.status(401).json({ message: 'Senha atual incorreta' });
+      return;
+    }
+
+    // SECURITY FIX: User model has NO pre-save hook — must hash manually
+    // Previously this was: user.password = newPassword; // (stored in plain text!)
+    const salt = await bcrypt.genSalt(12);
+    user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
     await audit(req, {

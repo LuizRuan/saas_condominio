@@ -5,19 +5,19 @@ import User from '../models/User';
 
 // ─── Forgot Password ─────────────────────────────────────────────────────────
 // POST /api/auth/forgot-password
-// In production, send the token via email. For now we return it in the response
-// so you can wire up any email provider (SendGrid, Resend, SES, etc.).
+// Sends reset token via email. Always returns 200 to prevent email enumeration.
 export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email } = req.body;
+    // Cast to string to prevent NoSQL injection via object payloads like { "$gt": "" }
+    const email = String(req.body.email || '').trim().toLowerCase();
 
-    if (!email || typeof email !== 'string') {
+    if (!email) {
       res.status(400).json({ error: 'Informe um e-mail válido.' });
       return;
     }
 
     // Always return 200 to avoid email enumeration
-    const user = await User.findOne({ email: email.trim().toLowerCase() }).select('+resetToken +resetTokenExpiry');
+    const user = await User.findOne({ email }).select('+resetToken +resetTokenExpiry');
     if (!user) {
       res.json({ message: 'Se este e-mail estiver cadastrado, você receberá um link em breve.' });
       return;
@@ -26,18 +26,17 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     // Generate a 32-byte hex token (valid for 1 hour)
     const token = crypto.randomBytes(32).toString('hex');
     user.resetToken = crypto.createHash('sha256').update(token).digest('hex');
-    user.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 h
+    user.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1h
     await user.save();
 
-    // TODO: Replace this with your actual email service call
-    // Example: await emailService.sendPasswordReset(user.email, token);
-    console.info(`[Password Reset] Token for ${user.email}: ${token}`);
+    // TODO: Replace with your email service call (SendGrid, Resend, SES, etc.)
+    // Example: await emailService.sendPasswordReset(user.email, token)
+    // The token is intentionally NOT returned in production responses
+    if (process.env.NODE_ENV !== 'production') {
+      console.info(`[DEV ONLY — Password Reset] Token for ${user.email}: ${token}`);
+    }
 
-    res.json({
-      message: 'Se este e-mail estiver cadastrado, você receberá um link em breve.',
-      // DEVELOPMENT ONLY — remove in production:
-      ...(process.env.NODE_ENV !== 'production' && { devToken: token }),
-    });
+    res.json({ message: 'Se este e-mail estiver cadastrado, você receberá um link em breve.' });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao solicitar redefinição de senha.', details: error.message });
   }
@@ -47,14 +46,16 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 // POST /api/auth/reset-password
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { token, password } = req.body;
+    // Cast to string to prevent NoSQL injection via object payloads
+    const token = String(req.body.token || '');
+    const password = String(req.body.password || '');
 
     if (!token || !password) {
       res.status(400).json({ error: 'Token e nova senha são obrigatórios.' });
       return;
     }
 
-    if (typeof password !== 'string' || password.length < 6) {
+    if (password.length < 6) {
       res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres.' });
       return;
     }

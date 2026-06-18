@@ -19,10 +19,19 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
   let createdCondominiumId: string | undefined;
 
   try {
-    const { name, email, password, phone, condominiumName, city, state, pixKey, defaultFee, dueDay } = req.body;
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+    // Cast all inputs to string to prevent NoSQL injection via object payloads
+    const name = String(req.body.name || '').trim();
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+    const condominiumName = String(req.body.condominiumName || '').trim();
+    const phone = String(req.body.phone || '');
+    const city = String(req.body.city || '');
+    const state = String(req.body.state || '');
+    const pixKey = String(req.body.pixKey || '');
+    const defaultFee = Number(req.body.defaultFee ?? 0);
+    const dueDay = Number(req.body.dueDay ?? 10);
 
-    if (!name?.trim() || !normalizedEmail || !password || !condominiumName?.trim()) {
+    if (!name || !email || !password || !condominiumName) {
       res.status(400).json({ error: 'Nome, e-mail, senha e condomínio são obrigatórios' });
       return;
     }
@@ -32,7 +41,7 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
       return;
     }
 
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       res.status(409).json({ error: 'Este e-mail já está cadastrado' });
       return;
@@ -41,23 +50,22 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user first
     const user = await User.create({
-      name: name.trim(),
-      email: normalizedEmail,
+      name,
+      email,
       password: hashedPassword,
-      phone: phone || '',
+      phone,
       role: 'admin',
     });
     createdUserId = user.id;
 
     const condominium = await Condominium.create({
-      name: condominiumName.trim(),
-      city: city || '',
-      state: state || '',
-      pixKey: pixKey || '',
-      defaultFee: defaultFee ?? 0,
-      dueDay: dueDay ?? 10,
+      name: condominiumName,
+      city,
+      state,
+      pixKey,
+      defaultFee,
+      dueDay,
       ownerId: user._id,
     });
     createdCondominiumId = condominium.id;
@@ -91,15 +99,16 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
 
 export const login = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+    // Cast to string to prevent NoSQL injection
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
 
-    if (!normalizedEmail || !password) {
+    if (!email || !password) {
       res.status(400).json({ error: 'E-mail e senha são obrigatórios' });
       return;
     }
 
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
       res.status(401).json({ error: 'E-mail ou senha incorretos' });
       return;
@@ -171,8 +180,11 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
 
 export const acceptInvite = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { token, password } = req.body;
-    if (!token || !password || password.length < 6) {
+    // Cast to string to prevent NoSQL injection via { "$gt": "" } payloads
+    const token = String(req.body.token || '');
+    const password = String(req.body.password || '');
+
+    if (!token || password.length < 6) {
       res.status(400).json({ error: 'Convite e senha de pelo menos 6 caracteres são obrigatórios' });
       return;
     }
