@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -61,8 +62,16 @@ const readAndCompressFiles = async (files: FileList | null, currentCount: number
 
 const MyIssues: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  
+  const { data: issuesResponse, isLoading: loading } = useQuery({
+    queryKey: ['my-issues'],
+    queryFn: async () => {
+      const { data } = await api.get('/issues', { params: { limit: 200 } });
+      return data;
+    },
+  });
+  const issues = issuesResponse?.data ?? issuesResponse ?? [];
   const [modalOpen, setModalOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
@@ -72,11 +81,7 @@ const MyIssues: React.FC = () => {
   const [replyPhotos, setReplyPhotos] = useState<string[]>([]);
   const [form, setForm] = useState({ title: '', description: '', category: 'other', priority: 'medium', photos: [] as string[] });
 
-  const load = async () => {
-    try { const { data } = await api.get('/issues', { params: { limit: 200 } }); setIssues(data.data ?? data); }
-    catch {} finally { setLoading(false); }
-  };
-  useEffect(() => { load(); }, []);
+
 
   const openCreate = () => {
     setForm({ title: '', description: '', category: 'other', priority: 'medium', photos: [] });
@@ -95,7 +100,7 @@ const MyIssues: React.FC = () => {
     setSaving(true);
     try {
       await api.post('/issues', form);
-      toast.success('Ocorrência registrada!'); setModalOpen(false); load();
+      toast.success('Ocorrência registrada!'); setModalOpen(false); queryClient.invalidateQueries({ queryKey: ['my-issues'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -126,7 +131,7 @@ const MyIssues: React.FC = () => {
       setReply('');
       setReplyPhotos([]);
       toast.success('Mensagem enviada!');
-      load();
+      queryClient.invalidateQueries({ queryKey: ['my-issues'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };

@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import Textarea from '../../components/ui/Textarea';
@@ -15,9 +16,27 @@ import toast from 'react-hot-toast';
 
 const MyCharges: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
-  const [charges, setCharges] = useState<Charge[]>([]);
-  const [condo, setCondo] = useState<Condominium | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  
+  const { data: chargesResponse, isLoading: loadingCharges } = useQuery({
+    queryKey: ['my-charges'],
+    queryFn: async () => {
+      const { data } = await api.get('/charges', { params: { limit: 200 } });
+      return data;
+    },
+  });
+  const charges = chargesResponse?.data ?? chargesResponse ?? [];
+
+  const { data: condo = null, isLoading: loadingCondo } = useQuery({
+    queryKey: ['my-condominium'],
+    queryFn: async () => {
+      const { data } = await api.get('/condominiums/my');
+      return data;
+    },
+  });
+
+  const loading = loadingCharges || loadingCondo;
+
   const [search, setSearch] = useState('');
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selectedCharge, setSelectedCharge] = useState<Charge | null>(null);
@@ -25,16 +44,7 @@ const MyCharges: React.FC = () => {
   const [proofNote, setProofNote] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
-    try {
-      const [c, co] = await Promise.all([api.get('/charges', { params: { limit: 200 } }), api.get('/condominiums/my')]);
-      setCharges(c.data.data ?? c.data); setCondo(co.data);
-    } catch {} finally { setLoading(false); }
-  };
 
-  useEffect(() => {
-    load();
-  }, []);
 
   const copyPix = () => {
     if (condo?.pixKey) { navigator.clipboard.writeText(condo.pixKey); toast.success('Chave Pix copiada!'); }
@@ -82,7 +92,7 @@ const MyCharges: React.FC = () => {
       await api.post(`/charges/${selectedCharge._id}/proof`, { proofUrl, proofNote });
       toast.success('Comprovante enviado para análise!');
       setPaymentOpen(false);
-      load();
+      queryClient.invalidateQueries({ queryKey: ['my-charges'] });
     } catch (e: any) {
       toast.error(e.response?.data?.error || 'Erro ao enviar comprovante');
     } finally {

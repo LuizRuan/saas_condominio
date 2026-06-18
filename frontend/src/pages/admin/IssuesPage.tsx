@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -46,32 +47,40 @@ const readImageFiles = (files: FileList | null): Promise<string[]> => {
 
 const IssuesPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterPriority, setFilterPriority] = useState('');
+  
+  const { data: issuesResponse, isLoading: loadingIssues } = useQuery({
+    queryKey: ['issues', filterStatus, filterPriority],
+    queryFn: async () => {
+      const { data } = await api.get('/issues', { params: { status: filterStatus || undefined, priority: filterPriority || undefined, limit: 200 } });
+      return data;
+    },
+  });
+  const issues = issuesResponse?.data ?? issuesResponse ?? [];
+
+  const { data: units = [], isLoading: loadingUnits } = useQuery({
+    queryKey: ['units'],
+    queryFn: async () => {
+      const { data } = await api.get('/units');
+      return data;
+    },
+  });
+
+  const loading = loadingIssues || loadingUnits;
+
   const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Issue | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Issue | null>(null);
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterPriority, setFilterPriority] = useState('');
   const [search, setSearch] = useState('');
   const [response, setResponse] = useState('');
   const [replyPhotos, setReplyPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ unitId: '', title: '', description: '', category: 'other', priority: 'medium', photos: [] as string[] });
 
-  const load = async () => {
-    try {
-      const [issuesResponse, unitsResponse] = await Promise.all([
-        api.get('/issues', { params: { status: filterStatus || undefined, priority: filterPriority || undefined, limit: 200 } }),
-        api.get('/units'),
-      ]);
-      setIssues(issuesResponse.data.data ?? issuesResponse.data);
-      setUnits(unitsResponse.data);
-    } catch {} finally { setLoading(false); }
-  };
-  useEffect(() => { load(); }, [filterStatus, filterPriority]);
+
 
   const openDetail = (issue: Issue) => { setSelected(issue); setResponse(''); setReplyPhotos([]); setDetailOpen(true); };
   const openCreate = () => {
@@ -90,7 +99,7 @@ const IssuesPage: React.FC = () => {
       await api.post('/issues', form);
       toast.success('Ocorrência criada!');
       setCreateOpen(false);
-      load();
+      queryClient.invalidateQueries({ queryKey: ['issues'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -100,7 +109,7 @@ const IssuesPage: React.FC = () => {
     setSaving(true);
     try {
       await api.patch(`/issues/${selected._id}/status`, { status, response });
-      toast.success('Atualizado!'); setDetailOpen(false); load();
+      toast.success('Atualizado!'); setDetailOpen(false); queryClient.invalidateQueries({ queryKey: ['issues'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -137,7 +146,7 @@ const IssuesPage: React.FC = () => {
       setResponse('');
       setReplyPhotos([]);
       toast.success('Resposta enviada!');
-      load();
+      queryClient.invalidateQueries({ queryKey: ['issues'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -154,7 +163,7 @@ const IssuesPage: React.FC = () => {
         setDetailOpen(false);
         setSelected(null);
       }
-      load();
+      queryClient.invalidateQueries({ queryKey: ['issues'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };

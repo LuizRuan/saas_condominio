@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import DashboardCard from '../../components/dashboard/DashboardCard';
 import DashboardPanel from '../../components/dashboard/DashboardPanel';
 import RevenueChart from '../../components/dashboard/RevenueChart';
@@ -25,30 +26,35 @@ interface ChartsData {
 const AdminDashboard: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const navigate = useNavigate();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [charts, setCharts] = useState<ChartsData | null>(null);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const [dashboardResponse, auditResponse, chartsResponse] = await Promise.all([
-          api.get('/dashboard/admin'),
-          api.get('/audit', { params: { limit: 5 } }).catch(() => ({ data: [] })),
-          api.get('/dashboard/admin/charts').catch(() => ({ data: null })),
-        ]);
-        setData(dashboardResponse.data);
-        setAuditLogs(auditResponse.data);
-        setCharts(chartsResponse.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDashboard();
-  }, []);
+  const { data: dashboardResponse, isLoading: loadingDashboard } = useQuery({
+    queryKey: ['admin-dashboard'],
+    queryFn: async () => {
+      const { data } = await api.get('/dashboard/admin');
+      return data;
+    },
+  });
+  const data = dashboardResponse ?? null;
+
+  const { data: auditResponse, isLoading: loadingAudit } = useQuery({
+    queryKey: ['audit-logs'],
+    queryFn: async () => {
+      const { data } = await api.get('/audit', { params: { limit: 5 } });
+      return data;
+    },
+  });
+  const auditLogs = auditResponse ?? [];
+
+  const { data: chartsResponse, isLoading: loadingCharts } = useQuery({
+    queryKey: ['admin-charts'],
+    queryFn: async () => {
+      const { data } = await api.get('/dashboard/admin/charts');
+      return data;
+    },
+  });
+  const charts = chartsResponse ?? null;
+
+  const loading = loadingDashboard || loadingAudit || loadingCharts;
 
   if (loading) {
     return (

@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import PremiumPage from '../../components/ui/PremiumPage';
 import MetricCard from '../../components/ui/MetricCard';
@@ -11,17 +12,16 @@ import { Announcement } from '../../types';
 
 const ResidentAnnouncements: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
-  const [list, setList] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    const load = async () => {
-      try { const { data } = await api.get('/announcements', { params: { limit: 100 } }); setList(data.data ?? data); }
-      catch {} finally { setLoading(false); }
-    };
-    load();
-  }, []);
+  const { data: listResponse, isLoading: loading } = useQuery({
+    queryKey: ['announcements'],
+    queryFn: async () => {
+      const { data } = await api.get('/announcements', { params: { limit: 100 } });
+      return data;
+    },
+  });
+  const list = listResponse?.data ?? listResponse ?? [];
 
   const filteredAnnouncements = useMemo(() => {
     const query = search.trim().toLowerCase();

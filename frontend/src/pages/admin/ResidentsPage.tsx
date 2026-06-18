@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -35,9 +36,26 @@ const shortTypeLabels: Record<Resident['type'], string> = {
 
 const ResidentsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
-  const [residents, setResidents] = useState<Resident[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  
+  const { data: residents = [], isLoading: loadingResidents } = useQuery({
+    queryKey: ['residents'],
+    queryFn: async () => {
+      const { data } = await api.get('/residents');
+      return data;
+    },
+  });
+
+  const { data: units = [], isLoading: loadingUnits } = useQuery({
+    queryKey: ['units'],
+    queryFn: async () => {
+      const { data } = await api.get('/units');
+      return data;
+    },
+  });
+
+  const loading = loadingResidents || loadingUnits;
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Resident | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Resident | null>(null);
@@ -47,13 +65,7 @@ const ResidentsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ name: '', phone: '', email: '', unitId: '', type: 'owner', isFinancialResponsible: false, createAccount: false, password: '123456' });
 
-  const load = async () => {
-    try {
-      const [r, u] = await Promise.all([api.get('/residents'), api.get('/units')]);
-      setResidents(r.data); setUnits(u.data);
-    } catch { } finally { setLoading(false); }
-  };
-  useEffect(() => { load(); }, []);
+
 
   const openCreate = () => {
     setEditing(null);
@@ -75,7 +87,7 @@ const ResidentsPage: React.FC = () => {
     try {
       if (editing) { await api.put(`/residents/${editing._id}`, form); toast.success('Atualizado!'); }
       else { await api.post('/residents', form); toast.success('Cadastrado!'); }
-      setModalOpen(false); load();
+      setModalOpen(false); queryClient.invalidateQueries({ queryKey: ['residents'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -89,7 +101,7 @@ const ResidentsPage: React.FC = () => {
       toast.success('Morador excluído!');
       setDeleteTarget(null);
       if (editing?._id === deletedId) { setModalOpen(false); setEditing(null); }
-      load();
+      queryClient.invalidateQueries({ queryKey: ['residents'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };

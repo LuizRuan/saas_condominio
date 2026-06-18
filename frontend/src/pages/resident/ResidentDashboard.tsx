@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import DashboardCard from '../../components/dashboard/DashboardCard';
 import DashboardPanel from '../../components/dashboard/DashboardPanel';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -13,17 +14,15 @@ import { formatCurrency, formatDate } from '../../utils/helpers';
 const ResidentDashboard: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const navigate = useNavigate();
-  const [data, setData] = useState<DashData | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetch = async () => {
-      try { const { data } = await api.get('/dashboard/resident'); setData(data); }
-      catch (err) { console.error(err); }
-      finally { setLoading(false); }
-    };
-    fetch();
-  }, []);
+  const { data: dashboardResponse, isLoading: loading } = useQuery({
+    queryKey: ['resident-dashboard'],
+    queryFn: async () => {
+      const { data } = await api.get('/dashboard/resident');
+      return data;
+    },
+  });
+  const data = dashboardResponse ?? null;
 
   if (loading) return <LoadingSpinner text="Carregando..." />;
 

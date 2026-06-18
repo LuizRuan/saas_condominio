@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -16,9 +17,22 @@ import toast from 'react-hot-toast';
 
 const PackagesPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  
+  const { data: packages = [], isLoading: loadingPackages } = useQuery({
+    queryKey: ['packages'],
+    queryFn: () => packageService.getAll(),
+  });
+
+  const { data: units = [], isLoading: loadingUnits } = useQuery({
+    queryKey: ['units'],
+    queryFn: async () => {
+      const { data } = await api.get('/units');
+      return data;
+    },
+  });
+
+  const loading = loadingPackages || loadingUnits;
   
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -32,25 +46,7 @@ const PackagesPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
 
-  const fetchPackages = async () => {
-    try {
-      const data = await packageService.getAll();
-      setPackages(data);
-    } catch {
-      toast.error('Erro ao buscar encomendas');
-    }
-  };
 
-  const fetchUnits = async () => {
-    try {
-      const { data } = await api.get('/units');
-      setUnits(data);
-    } catch {}
-  };
-
-  useEffect(() => {
-    Promise.all([fetchPackages(), fetchUnits()]).finally(() => setLoading(false));
-  }, []);
 
   const openCreate = () => {
     setForm({ unitId: '', description: '', trackingCode: '', notes: '' });
@@ -73,7 +69,7 @@ const PackagesPage: React.FC = () => {
       await packageService.create(form);
       toast.success('Encomenda registrada!');
       setCreateModalOpen(false);
-      fetchPackages();
+      queryClient.invalidateQueries({ queryKey: ['packages'] });
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Erro ao registrar encomenda');
     } finally {
@@ -88,7 +84,7 @@ const PackagesPage: React.FC = () => {
       await packageService.markAsDelivered(selectedPackage._id, deliverForm.deliveredTo);
       toast.success('Baixa realizada com sucesso!');
       setDeliverModalOpen(false);
-      fetchPackages();
+      queryClient.invalidateQueries({ queryKey: ['packages'] });
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Erro ao dar baixa');
     } finally {
@@ -103,7 +99,7 @@ const PackagesPage: React.FC = () => {
       await packageService.delete(deleteTarget._id);
       toast.success('Encomenda excluída!');
       setDeleteTarget(null);
-      fetchPackages();
+      queryClient.invalidateQueries({ queryKey: ['packages'] });
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Erro ao excluir');
     } finally {

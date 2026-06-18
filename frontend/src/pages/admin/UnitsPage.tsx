@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -16,20 +17,23 @@ import toast from 'react-hot-toast';
 
 const UnitsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  
+  const { data: unitsResponse, isLoading: loading } = useQuery({
+    queryKey: ['units'],
+    queryFn: async () => {
+      const { data } = await api.get('/units');
+      return data;
+    },
+  });
+  const units = unitsResponse ?? [];
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Unit | null>(null);
   const [form, setForm] = useState({ block: '', number: '', status: 'empty', notes: '' });
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-
-  const fetchUnits = async () => {
-    try { const { data } = await api.get('/units'); setUnits(data); }
-    catch {} finally { setLoading(false); }
-  };
-  useEffect(() => { fetchUnits(); }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -48,7 +52,7 @@ const UnitsPage: React.FC = () => {
     try {
       if (editing) { await api.put(`/units/${editing._id}`, form); toast.success('Atualizada!'); }
       else { await api.post('/units', form); toast.success('Cadastrada!'); }
-      setModalOpen(false); fetchUnits();
+      setModalOpen(false); queryClient.invalidateQueries({ queryKey: ['units'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -62,7 +66,7 @@ const UnitsPage: React.FC = () => {
       toast.success('Unidade excluída!');
       setDeleteTarget(null);
       if (editing?._id === deletedId) { setModalOpen(false); setEditing(null); }
-      fetchUnits();
+      queryClient.invalidateQueries({ queryKey: ['units'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };

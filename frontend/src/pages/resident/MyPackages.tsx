@@ -1,31 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import PremiumPage from '../../components/ui/PremiumPage';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import MetricCard from '../../components/ui/MetricCard';
 import { PackageOpen, AlertCircle, PackageCheck, PackageSearch } from 'lucide-react';
-import { packageService, Package } from '../../services/packageService';
-import toast from 'react-hot-toast';
+import { packageService } from '../../services/packageService';
 
 const MyPackages: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchPackages();
-  }, []);
-
-  const fetchPackages = async () => {
-    try {
-      const data = await packageService.getResidentPackages();
-      setPackages(data);
-    } catch {
-      toast.error('Erro ao buscar suas encomendas');
-    } finally {
-      setLoading(false);
-    }
-  };
+  
+  const { data: packages = [], isLoading: loading } = useQuery({
+    queryKey: ['my-packages'],
+    queryFn: () => packageService.getResidentPackages(),
+  });
 
   if (loading) return <LoadingSpinner text="Buscando encomendas..." />;
 

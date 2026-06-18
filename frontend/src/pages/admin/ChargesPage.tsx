@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -33,10 +34,39 @@ import toast from 'react-hot-toast';
 
 const ChargesPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
-  const [charges, setCharges] = useState<Charge[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [condo, setCondo] = useState<Condominium | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+
+  const { data: chargesResponse, isLoading: loadingCharges } = useQuery({
+    queryKey: ['charges', filterStatus, filterMonth],
+    queryFn: async () => {
+      const { data } = await api.get('/charges', { 
+        params: { status: filterStatus || undefined, referenceMonth: filterMonth || undefined, limit: 200 } 
+      });
+      return data;
+    },
+  });
+  const charges = chargesResponse?.data ?? chargesResponse ?? [];
+
+  const { data: units = [], isLoading: loadingUnits } = useQuery({
+    queryKey: ['units'],
+    queryFn: async () => {
+      const { data } = await api.get('/units');
+      return data;
+    },
+  });
+
+  const { data: condo = null, isLoading: loadingCondo } = useQuery({
+    queryKey: ['my-condominium'],
+    queryFn: async () => {
+      const { data } = await api.get('/condominiums/my');
+      return data;
+    },
+  });
+
+  const loading = loadingCharges || loadingUnits || loadingCondo;
+
   const [modalOpen, setModalOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [whatsOpen, setWhatsOpen] = useState(false);
@@ -44,31 +74,18 @@ const ChargesPage: React.FC = () => {
   const [selectedCharge, setSelectedCharge] = useState<Charge | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Charge | null>(null);
   const [saving, setSaving] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterMonth, setFilterMonth] = useState('');
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ unitId: '', referenceMonth: '', amount: '', dueDate: '', description: 'Taxa condominial' });
   const [bulkForm, setBulkForm] = useState({ referenceMonth: '', amount: '', dueDate: '', description: 'Taxa condominial' });
 
-  const load = async () => {
-    try {
-      const [c, u, co] = await Promise.all([
-        api.get('/charges', { params: { status: filterStatus || undefined, referenceMonth: filterMonth || undefined, limit: 200 } }),
-        api.get('/units'),
-        api.get('/condominiums/my'),
-      ]);
-      setCharges(c.data.data ?? c.data); setUnits(u.data); setCondo(co.data);
-    } catch {} finally { setLoading(false); }
-  };
 
-  useEffect(() => { load(); }, [filterStatus, filterMonth]);
 
   const handleCreate = async () => {
     if (!form.unitId || !form.referenceMonth || !form.amount || !form.dueDate) { toast.error('Preencha todos os campos'); return; }
     setSaving(true);
     try {
       await api.post('/charges', { ...form, amount: Number(form.amount) });
-      toast.success('Cobrança criada!'); setModalOpen(false); load();
+      toast.success('Cobrança criada!'); setModalOpen(false); queryClient.invalidateQueries({ queryKey: ['charges'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -78,18 +95,18 @@ const ChargesPage: React.FC = () => {
     setSaving(true);
     try {
       const { data } = await api.post('/charges/bulk', { ...bulkForm, amount: Number(bulkForm.amount) });
-      toast.success(data.message); setBulkOpen(false); load();
+      toast.success(data.message); setBulkOpen(false); queryClient.invalidateQueries({ queryKey: ['charges'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
 
   const markPaid = async (id: string, fromProof = false) => {
-    try { await api.patch(`/charges/${id}/mark-paid`, { fromProof }); toast.success(fromProof ? 'Comprovante aprovado!' : 'Marcado como pago!'); setProofOpen(false); load(); }
+    try { await api.patch(`/charges/${id}/mark-paid`, { fromProof }); toast.success(fromProof ? 'Comprovante aprovado!' : 'Marcado como pago!'); setProofOpen(false); queryClient.invalidateQueries({ queryKey: ['charges'] }); }
     catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
   };
 
   const markPending = async (id: string) => {
-    try { await api.patch(`/charges/${id}/mark-pending`); toast.success('Marcado como pendente!'); load(); }
+    try { await api.patch(`/charges/${id}/mark-pending`); toast.success('Marcado como pendente!'); queryClient.invalidateQueries({ queryKey: ['charges'] }); }
     catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
   };
 
@@ -98,7 +115,7 @@ const ChargesPage: React.FC = () => {
       await api.patch(`/charges/${id}/reject-proof`);
       toast.success('Comprovante rejeitado!');
       setProofOpen(false);
-      load();
+      queryClient.invalidateQueries({ queryKey: ['charges'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
   };
 
@@ -109,7 +126,7 @@ const ChargesPage: React.FC = () => {
       await api.delete(`/charges/${deleteTarget._id}`);
       toast.success('Cobrança excluída!');
       setDeleteTarget(null);
-      load();
+      queryClient.invalidateQueries({ queryKey: ['charges'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };

@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -223,8 +224,16 @@ const CompactAnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement
 
 const AnnouncementsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
-  const [list, setList] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  
+  const { data: listResponse, isLoading: loading } = useQuery({
+    queryKey: ['announcements'],
+    queryFn: async () => {
+      const { data } = await api.get('/announcements', { params: { limit: 100 } });
+      return data;
+    },
+  });
+  const list = listResponse?.data ?? listResponse ?? [];
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Announcement | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null);
@@ -235,11 +244,7 @@ const AnnouncementsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [form, setForm] = useState({ title: '', message: '', category: 'general', isPinned: false, photos: [] as string[] });
 
-  const load = async () => {
-    try { const { data } = await api.get('/announcements', { params: { limit: 100 } }); setList(data.data ?? data); }
-    catch {} finally { setLoading(false); }
-  };
-  useEffect(() => { load(); }, []);
+
 
   const openCreate = () => { setEditing(null); setForm({ title: '', message: '', category: 'general', isPinned: false, photos: [] }); setModalOpen(true); };
   const openEdit = (a: Announcement) => { setEditing(a); setForm({ title: a.title, message: a.message, category: a.category, isPinned: a.isPinned, photos: a.photos || [] }); setModalOpen(true); };
@@ -251,7 +256,7 @@ const AnnouncementsPage: React.FC = () => {
     try {
       if (editing) { await api.put(`/announcements/${editing._id}`, form); toast.success('Atualizado!'); }
       else { await api.post('/announcements', form); toast.success('Criado!'); }
-      setModalOpen(false); load();
+      setModalOpen(false); queryClient.invalidateQueries({ queryKey: ['announcements'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -268,7 +273,7 @@ const AnnouncementsPage: React.FC = () => {
         setModalOpen(false);
         setEditing(null);
       }
-      load();
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
     }
     catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
