@@ -74,3 +74,41 @@ export const BRAZILIAN_STATES = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA',
   'PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
 ];
+
+const isValidCPF = (cpf: string): boolean => {
+  if (/^(\d)\1{10}$/.test(cpf)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(cpf[i]) * (10 - i);
+  let rem = (sum * 10) % 11;
+  if (rem === 10 || rem === 11) rem = 0;
+  if (rem !== parseInt(cpf[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(cpf[i]) * (11 - i);
+  rem = (sum * 10) % 11;
+  if (rem === 10 || rem === 11) rem = 0;
+  return rem === parseInt(cpf[10]);
+};
+
+const isValidCNPJ = (cnpj: string): boolean => {
+  if (/^(\d)\1{13}$/.test(cnpj)) return false;
+  const calc = (cn: string, weights: number[]) =>
+    weights.reduce((acc, w, i) => acc + parseInt(cn[i]) * w, 0);
+  const mod = (n: number) => { const r = n % 11; return r < 2 ? 0 : 11 - r; };
+  return (
+    mod(calc(cnpj, [5,4,3,2,9,8,7,6,5,4,3,2])) === parseInt(cnpj[12]) &&
+    mod(calc(cnpj, [6,5,4,3,2,9,8,7,6,5,4,3,2])) === parseInt(cnpj[13])
+  );
+};
+
+export const validatePixKey = (raw: string): { valid: boolean; error?: string } => {
+  const key = raw.trim();
+  if (!key) return { valid: true };
+  const digits = key.replace(/\D/g, '');
+  if (digits.length === 11 && /^\d[\d.\-]*\d$/.test(key)) {
+    return isValidCPF(digits) ? { valid: true } : { valid: false, error: 'CPF inválido. Verifique os dígitos.' };
+  }
+  if (digits.length === 14 && /^\d[\d.\-\/]*\d$/.test(key)) {
+    return isValidCNPJ(digits) ? { valid: true } : { valid: false, error: 'CNPJ inválido. Verifique os dígitos.' };
+  }
+  return { valid: true };
+};

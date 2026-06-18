@@ -6,7 +6,7 @@ import Select from '../../components/ui/Select';
 import Button from '../../components/ui/Button';
 import BrandMark from '../../components/ui/BrandMark';
 import { ArrowLeft, ArrowRight, Building2, CheckCircle2, UserRound } from 'lucide-react';
-import { BRAZILIAN_STATES } from '../../utils/helpers';
+import { BRAZILIAN_STATES, validatePixKey } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
 const Register: React.FC = () => {
@@ -23,15 +23,32 @@ const Register: React.FC = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+    let masked = digits;
+    if (digits.length > 2) masked = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    if (digits.length > 7) masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+    setForm({ ...form, phone: masked });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.password || !form.condominiumName) {
       toast.error('Preencha os campos obrigatórios');
       return;
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRegex.test(form.email.trim())) {
+      toast.error('Informe um e-mail válido (ex: nome@gmail.com)');
+      return;
+    }
     if (form.password.length < 6) {
       toast.error('A senha deve ter pelo menos 6 caracteres');
       return;
+    }
+    if (form.pixKey) {
+      const pixValidation = validatePixKey(form.pixKey);
+      if (!pixValidation.valid) { toast.error(pixValidation.error!); return; }
     }
     setLoading(true);
     try {
@@ -109,7 +126,7 @@ const Register: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input label="Nome completo *" name="name" value={form.name} onChange={handleChange} placeholder="Seu nome" autoComplete="name" />
-                <Input label="Telefone" name="phone" value={form.phone} onChange={handleChange} placeholder="(11) 99999-9999" autoComplete="tel" />
+                <Input label="Telefone" name="phone" value={form.phone} onChange={handlePhoneChange} placeholder="(11) 99999-9999" autoComplete="tel" maxLength={15} />
                 <Input label="E-mail *" name="email" type="email" value={form.email} onChange={handleChange} placeholder="seu@email.com" autoComplete="email" />
                 <Input label="Senha *" name="password" type="password" value={form.password} onChange={handleChange} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
               </div>
@@ -129,7 +146,7 @@ const Register: React.FC = () => {
                 <Input label="Nome do condomínio *" name="condominiumName" value={form.condominiumName} onChange={handleChange} placeholder="Residencial Aurora" containerClassName="sm:col-span-2" />
                 <Input label="Cidade" name="city" value={form.city} onChange={handleChange} placeholder="São Paulo" />
                 <Select label="Estado" name="state" value={form.state} onChange={handleChange} options={stateOptions} placeholder="Selecione" />
-                <Input label="Chave Pix" name="pixKey" value={form.pixKey} onChange={handleChange} placeholder="CPF, CNPJ, e-mail ou telefone" />
+                <Input label="Chave Pix (CPF, CNPJ, e-mail ou telefone)" name="pixKey" value={form.pixKey} onChange={handleChange} placeholder="CPF, CNPJ, e-mail ou telefone" />
                 <div className="grid grid-cols-2 gap-4">
                   <Input label="Taxa padrão (R$)" name="defaultFee" type="number" min="0" step="0.01" value={form.defaultFee} onChange={handleChange} placeholder="350" />
                   <Input label="Dia vencimento" name="dueDay" type="number" min="1" max="31" value={form.dueDay} onChange={handleChange} placeholder="10" />

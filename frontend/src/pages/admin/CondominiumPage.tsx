@@ -7,7 +7,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import PremiumPage from '../../components/ui/PremiumPage';
 import MetricCard from '../../components/ui/MetricCard';
 import { Building2, CalendarDays, CreditCard, MapPin, Pencil, Save, ShieldCheck, X } from 'lucide-react';
-import { BRAZILIAN_STATES, formatCurrency } from '../../utils/helpers';
+import { BRAZILIAN_STATES, formatCurrency, validatePixKey } from '../../utils/helpers';
 import api from '../../services/api';
 import { Condominium } from '../../types';
 import toast from 'react-hot-toast';
@@ -56,6 +56,8 @@ const CondominiumPage: React.FC = () => {
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Informe o nome do condomínio'); return; }
     if (form.dueDay < 1 || form.dueDay > 31) { toast.error('O dia de vencimento deve ficar entre 1 e 31'); return; }
+    const pixValidation = validatePixKey(form.pixKey);
+    if (!pixValidation.valid) { toast.error(pixValidation.error!); return; }
 
     setSaving(true);
     try {
@@ -122,14 +124,14 @@ const CondominiumPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 gap-5 p-5 sm:grid-cols-2 sm:p-7">
-            <Input label="Nome" value={form.name} disabled={!isEditing} onChange={(e) => setForm({ ...form, name: e.target.value })} containerClassName="sm:col-span-2" />
-            <Input label="CNPJ" value={form.cnpj} disabled={!isEditing} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} />
-            <Input label="Endereço" value={form.address} disabled={!isEditing} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-            <Input label="Cidade" value={form.city} disabled={!isEditing} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-            <Select label="Estado" value={form.state} disabled={!isEditing} onChange={(e) => setForm({ ...form, state: e.target.value })} options={BRAZILIAN_STATES.map((s) => ({ value: s, label: s }))} placeholder="Selecione" />
-            <Input label="Chave Pix" value={form.pixKey} disabled={!isEditing} onChange={(e) => setForm({ ...form, pixKey: e.target.value })} containerClassName="sm:col-span-2" />
-            <Input label="Taxa padrão (R$)" type="number" min="0" step="0.01" value={String(form.defaultFee)} disabled={!isEditing} onChange={(e) => setForm({ ...form, defaultFee: Number(e.target.value) })} />
-            <Input label="Dia de vencimento" type="number" min="1" max="31" value={String(form.dueDay)} disabled={!isEditing} onChange={(e) => setForm({ ...form, dueDay: Number(e.target.value) })} />
+            <Input label="Nome" value={form.name} disabled={!isEditing} title={!isEditing ? 'Clique em Editar dados para modificar' : undefined} onChange={(e) => setForm({ ...form, name: e.target.value })} containerClassName="sm:col-span-2" />
+            <Input label="CNPJ" value={form.cnpj} disabled={!isEditing} title={!isEditing ? 'Clique em Editar dados para modificar' : undefined} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} />
+            <Input label="Endereço" value={form.address} disabled={!isEditing} title={!isEditing ? 'Clique em Editar dados para modificar' : undefined} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <Input label="Cidade" value={form.city} disabled={!isEditing} title={!isEditing ? 'Clique em Editar dados para modificar' : undefined} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+            <Select label="Estado" value={form.state} disabled={!isEditing} title={!isEditing ? 'Clique em Editar dados para modificar' : undefined} onChange={(e) => setForm({ ...form, state: e.target.value })} options={BRAZILIAN_STATES.map((s) => ({ value: s, label: s }))} placeholder="Selecione" />
+            <Input label="Chave Pix (CPF, CNPJ, e-mail ou telefone)" value={form.pixKey} disabled={!isEditing} title={!isEditing ? 'Clique em Editar dados para modificar' : undefined} onChange={(e) => setForm({ ...form, pixKey: e.target.value })} containerClassName="sm:col-span-2" />
+            <Input label="Taxa padrão (R$)" type="number" min="0" step="0.01" value={String(form.defaultFee)} disabled={!isEditing} title={!isEditing ? 'Clique em Editar dados para modificar' : undefined} onChange={(e) => setForm({ ...form, defaultFee: Number(e.target.value) })} />
+            <Input label="Dia de vencimento" type="number" min="1" max="31" value={String(form.dueDay)} disabled={!isEditing} title={!isEditing ? 'Clique em Editar dados para modificar' : undefined} onChange={(e) => setForm({ ...form, dueDay: Number(e.target.value) })} />
           </div>
 
           {!isEditing && (
