@@ -84,7 +84,11 @@ const connectDB = async (): Promise<void> => {
     const mongod = await MongoMemoryServer.create();
     await mongoose.connect(mongod.getUri());
     console.log('🧪 MongoDB in-memory iniciado (modo teste)');
-    await seedTestUsers();
+    
+    // Povoar com dados de demonstração avançados
+    const { seedDemo } = await import('../utils/seed-demo');
+    await seedDemo();
+    
     return;
   }
 

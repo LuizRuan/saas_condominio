@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import {
   Building2, CheckCircle2, Shield, Zap, Users, Receipt,
   Megaphone, AlertTriangle, CalendarDays, Package, ArrowRight,
-  Star, ChevronDown, Menu, X,
+  Star, ChevronDown, Menu, X, LogOut
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const features = [
   { icon: Receipt, title: 'Cobranças automáticas', desc: 'Gere cobranças em massa, acompanhe status e envie lembretes via WhatsApp com um clique.' },
@@ -59,6 +60,11 @@ const faqs = [
 const LandingPage: React.FC = () => {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const { user, logout } = useAuth();
+
+  const handleAuthClick = () => {
+    if (user) logout();
+  };
 
   return (
     <div className="min-h-screen bg-white font-[Manrope,system-ui,sans-serif] text-slate-900">
@@ -89,11 +95,17 @@ const LandingPage: React.FC = () => {
           </nav>
 
           <div className="hidden items-center gap-3 md:flex">
-            <Link to="/login" className="text-sm font-bold text-slate-500 transition hover:text-slate-900">
+            {user && (
+              <Link to={user.role === 'admin' ? '/dashboard' : '/morador'} className="text-sm font-bold text-blue-600 transition hover:text-blue-700">
+                Acessar Painel
+              </Link>
+            )}
+            <Link to="/login" onClick={handleAuthClick} className="text-sm font-bold text-slate-500 transition hover:text-slate-900">
               Entrar
             </Link>
             <Link
               to="/cadastro"
+              onClick={handleAuthClick}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-500"
             >
               Começar grátis
@@ -124,9 +136,13 @@ const LandingPage: React.FC = () => {
                 </a>
               ))}
               <hr className="border-slate-100" />
-              <Link to="/login" className="text-sm font-bold text-slate-600">Entrar</Link>
+              {user && (
+                <Link to={user.role === 'admin' ? '/dashboard' : '/morador'} className="text-sm font-bold text-blue-600">Acessar Painel</Link>
+              )}
+              <Link to="/login" onClick={handleAuthClick} className="text-sm font-bold text-slate-600">Entrar</Link>
               <Link
                 to="/cadastro"
+                onClick={handleAuthClick}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white"
               >
                 Começar grátis <ArrowRight className="h-4 w-4" />
@@ -165,6 +181,7 @@ const LandingPage: React.FC = () => {
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
               to="/cadastro"
+              onClick={handleAuthClick}
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-7 py-4 text-base font-bold text-white shadow-xl shadow-blue-950/40 transition hover:bg-blue-500 sm:w-auto"
             >
               Começar gratuitamente
@@ -172,6 +189,7 @@ const LandingPage: React.FC = () => {
             </Link>
             <Link
               to="/login"
+              onClick={handleAuthClick}
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] px-7 py-4 text-base font-bold text-white transition hover:bg-white/[0.12] sm:w-auto"
             >
               Já tenho conta
@@ -348,6 +366,7 @@ const LandingPage: React.FC = () => {
           </p>
           <Link
             to="/cadastro"
+            onClick={handleAuthClick}
             className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-xl shadow-blue-950/40 transition hover:bg-blue-500"
           >
             Criar minha conta grátis
@@ -369,8 +388,8 @@ const LandingPage: React.FC = () => {
             © {new Date().getFullYear()} Condomínio em Dia. Todos os direitos reservados.
           </p>
           <div className="flex items-center gap-5">
-            <Link to="/login" className="text-xs font-semibold text-slate-400 hover:text-slate-700">Entrar</Link>
-            <Link to="/cadastro" className="text-xs font-semibold text-slate-400 hover:text-slate-700">Cadastrar</Link>
+            <Link to="/login" onClick={handleAuthClick} className="text-xs font-semibold text-slate-400 hover:text-slate-700">Entrar</Link>
+            <Link to="/cadastro" onClick={handleAuthClick} className="text-xs font-semibold text-slate-400 hover:text-slate-700">Cadastrar</Link>
           </div>
         </div>
       </footer>
