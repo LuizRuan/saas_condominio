@@ -10,7 +10,8 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import PremiumPage from '../../components/ui/PremiumPage';
 import MetricCard from '../../components/ui/MetricCard';
-import { AlertTriangle, Building2, CheckCircle2, Home, Pencil, Plus, Trash2 } from 'lucide-react';
+import ImportWizard from '../../components/units/ImportWizard';
+import { AlertTriangle, Building2, CheckCircle2, Home, Pencil, Plus, Trash2, UploadCloud } from 'lucide-react';
 import api from '../../services/api';
 import { Unit } from '../../types';
 import toast from 'react-hot-toast';
@@ -34,6 +35,7 @@ const UnitsPage: React.FC = () => {
   const [form, setForm] = useState({ block: '', number: '', status: 'empty', notes: '' });
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   const openCreate = () => {
     setEditing(null);
@@ -90,9 +92,14 @@ const UnitsPage: React.FC = () => {
       onSearchChange={setSearch}
       searchPlaceholder="Buscar unidades, blocos..."
       actions={(
-        <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="w-full sm:w-auto">
-          Nova unidade
-        </Button>
+        <div className="flex gap-3 w-full sm:w-auto">
+          <Button onClick={() => setWizardOpen(true)} variant="secondary" icon={<UploadCloud className="h-4 w-4" />} className="flex-1 sm:flex-none">
+            Importar Excel/PDF
+          </Button>
+          <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="flex-1 sm:flex-none">
+            Nova unidade
+          </Button>
+        </div>
       )}
     >
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -131,9 +138,14 @@ const UnitsPage: React.FC = () => {
               )}
             </p>
             {units.length === 0 && (
-              <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="mt-6">
-                Cadastrar unidade
-              </Button>
+              <div className="mt-6 flex gap-3">
+                <Button onClick={() => setWizardOpen(true)} variant="secondary" icon={<UploadCloud className="h-4 w-4" />}>
+                  Importar Excel/PDF
+                </Button>
+                <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />}>
+                  Cadastrar unidade
+                </Button>
+              </div>
             )}
           </div>
         ) : (
@@ -222,6 +234,12 @@ const UnitsPage: React.FC = () => {
         loading={saving}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
+      />
+
+      <ImportWizard 
+        isOpen={wizardOpen} 
+        onClose={() => setWizardOpen(false)} 
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['units'] })} 
       />
     </PremiumPage>
   );

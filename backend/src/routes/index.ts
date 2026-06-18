@@ -14,6 +14,7 @@ import packageRoutes from './packageRoutes';
 import userRoutes from './userRoutes';
 import expenseRoutes from './expenseRoutes';
 import financeRoutes from './financeRoutes';
+import importRoutes from './importRoutes';
 
 const router = Router();
 
@@ -38,5 +39,6 @@ router.use('/packages', packageRoutes);
 router.use('/users', userRoutes);
 router.use('/expenses', expenseRoutes);
 router.use('/finance', financeRoutes);
+router.use('/import', importRoutes);
 
 export default router;
