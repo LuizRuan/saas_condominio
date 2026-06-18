@@ -8,10 +8,13 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import BrandMark from '../../components/ui/BrandMark';
 
+import { WalletCards } from 'lucide-react';
+
 const features = [
-  { icon: Receipt, title: 'Cobranças automáticas', desc: 'Gere cobranças em massa, acompanhe status e envie lembretes via WhatsApp com um clique.' },
-  { icon: Users, title: 'Gestão de moradores', desc: 'Cadastre moradores, envie convites por link e vincule ao portal de forma automática.' },
-  { icon: AlertTriangle, title: 'Ocorrências', desc: 'Moradores abrem chamados com fotos. Você responde com chat integrado e rastreia o status.' },
+  { icon: Receipt, title: 'Cobranças e inadimplência', desc: 'Gere cobranças em massa, acompanhe pagamentos e envie lembretes aos moradores.' },
+  { icon: Users, title: 'Moradores e unidades', desc: 'Organize proprietários, inquilinos e responsáveis financeiros por unidade.' },
+  { icon: WalletCards, title: 'Despesas do condomínio', desc: 'Lance contas de luz, água, segurança, limpeza e acompanhe o saldo mensal.' },
+  { icon: AlertTriangle, title: 'Ocorrências com histórico', desc: 'Registre solicitações, acompanhe status e mantenha tudo documentado.' },
   { icon: CalendarDays, title: 'Reservas de áreas', desc: 'Controle de horários de salão, churrasqueira e academia com aprovação do síndico.' },
   { icon: Megaphone, title: 'Comunicados', desc: 'Publique avisos com fotos, fixe os importantes e todos os moradores recebem notificação.' },
   { icon: Package, title: 'Encomendas', desc: 'Registre chegadas e notifique moradores para retirada, acabando com os esquecimentos.' },
@@ -19,10 +22,10 @@ const features = [
 
 const plans = [
   {
-    name: 'Starter',
+    name: 'Grátis',
     price: 'Grátis',
     period: '',
-    desc: 'Ideal para testar a plataforma.',
+    desc: 'Para condomínios pequenos começarem.',
     items: ['Até 20 unidades', 'Dashboard completo', 'Cobranças e comunicados', 'Suporte por e-mail'],
     cta: 'Começar grátis',
     href: '/cadastro',
@@ -33,18 +36,18 @@ const plans = [
     price: 'R$97',
     period: '/mês',
     desc: 'Para condomínios em operação.',
-    items: ['Até 100 unidades', 'Tudo do Starter', 'Relatórios PDF', 'WhatsApp integrado', 'Suporte prioritário'],
-    cta: 'Assinar Pro',
+    items: ['Até 100 unidades', 'Tudo do Grátis', 'Relatórios PDF', 'WhatsApp integrado', 'Suporte prioritário'],
+    cta: 'Começar grátis',
     href: '/cadastro',
     highlight: true,
   },
   {
-    name: 'Enterprise',
+    name: 'Administradora',
     price: 'R$197',
     period: '/mês',
-    desc: 'Para síndicos profissionais.',
+    desc: 'Para quem gerencia mais de um condomínio.',
     items: ['Unidades ilimitadas', 'Tudo do Pro', 'Multi-condomínio', 'Pix automático', 'SLA garantido'],
-    cta: 'Falar com vendas',
+    cta: 'Começar grátis',
     href: '/cadastro',
     highlight: false,
   },
@@ -61,6 +64,7 @@ const faqs = [
 const LandingPage: React.FC = () => {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [isAnnual, setIsAnnual] = useState(false);
   const { user, logout } = useAuth();
 
   const handleAuthClick = () => {
@@ -76,23 +80,21 @@ const LandingPage: React.FC = () => {
           <BrandMark compact />
 
           <nav className="hidden items-center gap-7 md:flex">
-            {['Funcionalidades', 'Preços', 'FAQ'].map((item) => (
-              <a
-                key={item}
-                href={`#${item.toLowerCase()}`}
-                className="text-sm font-semibold text-slate-500 transition hover:text-slate-900"
-              >
-                {item}
-              </a>
-            ))}
+            {['Ver funcionalidades', 'Preços', 'Dúvidas'].map((item) => {
+              const hash = item === 'Ver funcionalidades' ? 'funcionalidades' : item === 'Dúvidas' ? 'faq' : item.toLowerCase();
+              return (
+                <a
+                  key={item}
+                  href={`#${hash}`}
+                  className="text-sm font-semibold text-slate-500 transition hover:text-slate-900"
+                >
+                  {item}
+                </a>
+              );
+            })}
           </nav>
 
           <div className="hidden items-center gap-3 md:flex">
-            {user && (
-              <Link to={user.role === 'admin' ? '/dashboard' : '/morador'} className="text-sm font-bold text-blue-600 transition hover:text-blue-700">
-                Acessar Painel
-              </Link>
-            )}
             <Link to="/login" onClick={handleAuthClick} className="text-sm font-bold text-slate-500 transition hover:text-slate-900">
               Entrar
             </Link>
@@ -118,20 +120,20 @@ const LandingPage: React.FC = () => {
         {mobileMenu && (
           <div className="border-t border-slate-100 bg-white px-5 py-4 md:hidden">
             <nav className="flex flex-col gap-3">
-              {['Funcionalidades', 'Preços', 'FAQ'].map((item) => (
-                <a
-                  key={item}
-                  href={`#${item.toLowerCase()}`}
-                  onClick={() => setMobileMenu(false)}
-                  className="text-sm font-semibold text-slate-600"
-                >
-                  {item}
-                </a>
-              ))}
+              {['Ver funcionalidades', 'Preços', 'Dúvidas'].map((item) => {
+                const hash = item === 'Ver funcionalidades' ? 'funcionalidades' : item === 'Dúvidas' ? 'faq' : item.toLowerCase();
+                return (
+                  <a
+                    key={item}
+                    href={`#${hash}`}
+                    onClick={() => setMobileMenu(false)}
+                    className="text-sm font-semibold text-slate-600"
+                  >
+                    {item}
+                  </a>
+                );
+              })}
               <hr className="border-slate-100" />
-              {user && (
-                <Link to={user.role === 'admin' ? '/dashboard' : '/morador'} className="text-sm font-bold text-blue-600">Acessar Painel</Link>
-              )}
               <Link to="/login" onClick={handleAuthClick} className="text-sm font-bold text-slate-600">Entrar</Link>
               <Link
                 to="/cadastro"
@@ -147,53 +149,112 @@ const LandingPage: React.FC = () => {
 
       {/* ── Hero ── */}
       <section className="relative overflow-hidden bg-slate-950 px-5 py-24 text-white md:py-32">
-        <div className="absolute -left-32 bottom-0 h-96 w-96 rounded-full bg-blue-600/20 blur-[120px]" />
-        <div className="absolute -right-20 top-10 h-80 w-80 rounded-full bg-violet-500/20 blur-[100px]" />
+        <div className="absolute -left-32 bottom-0 h-96 w-96 rounded-full bg-blue-600/30 blur-[120px]" />
+        <div className="absolute right-0 top-0 h-[40rem] w-[40rem] rounded-full bg-violet-600/20 blur-[120px]" />
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0 opacity-[0.03]"
           style={{
             backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)',
             backgroundSize: '40px 40px',
           }}
         />
-        <div className="relative mx-auto max-w-4xl text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-4 py-1.5 text-xs font-bold text-blue-200">
-            <Star className="h-3.5 w-3.5 fill-blue-300 text-blue-300" />
-            SaaS de gestão condominial — simples e profissional
-          </div>
-          <h1 className="text-4xl font-extrabold leading-[1.08] tracking-[-0.055em] sm:text-5xl md:text-6xl">
-            Chega de planilha.{' '}
-            <span className="bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent">
-              Gerencie seu condomínio online.
-            </span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-base font-medium leading-7 text-slate-400 sm:text-lg">
-            Cobranças, moradores, ocorrências, reservas e comunicados em um único sistema.
-            Fácil para o síndico, transparente para o morador.
-          </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              to="/cadastro"
-              onClick={handleAuthClick}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-7 py-4 text-base font-bold text-white shadow-xl shadow-blue-950/40 transition hover:bg-blue-500 sm:w-auto"
-            >
-              Começar gratuitamente
-              <ArrowRight className="h-5 w-5" />
-            </Link>
-            <Link
-              to="/login"
-              onClick={handleAuthClick}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] px-7 py-4 text-base font-bold text-white transition hover:bg-white/[0.12] sm:w-auto"
-            >
-              Já tenho conta
-            </Link>
-          </div>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-5 text-xs font-semibold text-slate-500">
-            {['Sem cartão de crédito', 'Plano gratuito permanente', 'Configuração em 5 minutos'].map((t) => (
-              <span key={t} className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                {t}
+        <div className="relative mx-auto max-w-7xl grid items-center gap-16 lg:grid-cols-2">
+          <div className="max-w-2xl text-left">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-4 py-1.5 text-xs font-bold text-blue-200">
+              <Star className="h-3.5 w-3.5 fill-blue-300 text-blue-300" />
+              SaaS de gestão condominial — simples e profissional
+            </div>
+            <h1 className="text-4xl font-extrabold leading-[1.08] tracking-[-0.055em] sm:text-5xl md:text-6xl">
+              Menos planilhas.{' '}
+              <span className="bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent">
+                Mais controle para o síndico.
               </span>
+            </h1>
+            <p className="mt-6 text-base font-medium leading-7 text-slate-400 sm:text-lg">
+              Automatize cobranças, organize moradores, acompanhe despesas e mantenha o condomínio sempre em dia.
+            </p>
+            <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
+              <Link
+                to="/cadastro"
+                onClick={handleAuthClick}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-7 py-4 text-base font-bold text-white shadow-xl shadow-blue-950/40 transition hover:bg-blue-500 sm:w-auto"
+              >
+                Começar grátis
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+              <a
+                href="#funcionalidades"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] px-7 py-4 text-base font-bold text-white transition hover:bg-white/[0.12] sm:w-auto"
+              >
+                Ver demonstração
+              </a>
+            </div>
+            <div className="mt-10 flex flex-wrap items-center justify-start gap-5 text-xs font-semibold text-slate-400">
+              {['Sem instalação', 'Configuração rápida', 'Financeiro integrado'].map((t) => (
+                <span key={t} className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  {t}
+                </span>
+              ))}
+            </div>
+          </div>
+          
+          <div className="relative mx-auto w-full max-w-[600px] lg:max-w-none">
+            {/* Dashboard Mockup Placeholder */}
+            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/10 bg-slate-900/50 shadow-2xl backdrop-blur-sm lg:aspect-auto lg:h-[600px]">
+              <div className="flex h-12 items-center gap-2 border-b border-white/5 bg-slate-950/50 px-4">
+                <div className="h-3 w-3 rounded-full bg-slate-800" />
+                <div className="h-3 w-3 rounded-full bg-slate-800" />
+                <div className="h-3 w-3 rounded-full bg-slate-800" />
+              </div>
+              <div className="flex h-[calc(100%-3rem)] items-center justify-center">
+                <div className="text-center">
+                  <Building2 className="mx-auto mb-4 h-12 w-12 text-slate-700" />
+                  <p className="text-sm font-semibold text-slate-500">[Espaço reservado para o print do Dashboard]</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Glow effects around mockup */}
+            <div className="absolute -bottom-10 -left-10 -z-10 h-64 w-64 rounded-full bg-blue-500/20 blur-[100px]" />
+            <div className="absolute -right-10 top-20 -z-10 h-64 w-64 rounded-full bg-indigo-500/20 blur-[100px]" />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Como Funciona ── */}
+      <section className="bg-white px-5 py-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-16 text-center">
+            <h2 className="text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl">
+              Comece em poucos minutos
+            </h2>
+          </div>
+          <div className="grid gap-8 sm:grid-cols-3">
+            {[
+              {
+                step: '1',
+                title: 'Cadastre o condomínio',
+                desc: 'Configure nome, taxa padrão e vencimento.',
+              },
+              {
+                step: '2',
+                title: 'Importe unidades e moradores',
+                desc: 'Cadastre manualmente ou importe por planilha.',
+              },
+              {
+                step: '3',
+                title: 'Gere cobranças e acompanhe tudo',
+                desc: 'Veja recebidos, atrasos, despesas e comunicados em tempo real.',
+              },
+            ].map((s) => (
+              <div key={s.step} className="relative flex flex-col items-center text-center">
+                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-xl font-black text-blue-600 ring-8 ring-white">
+                  {s.step}
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-900">{s.title}</h3>
+                <p className="mt-2 text-sm font-medium leading-6 text-slate-500">{s.desc}</p>
+              </div>
             ))}
           </div>
         </div>
@@ -262,6 +323,25 @@ const LandingPage: React.FC = () => {
             <p className="mt-3 text-base font-medium text-slate-500">
               Comece grátis. Escale quando precisar.
             </p>
+            
+            {/* Toggle Mensal/Anual */}
+            <div className="mx-auto mt-10 flex max-w-fit items-center gap-4 rounded-full border border-slate-200 bg-white p-1.5 shadow-sm">
+              <button
+                onClick={() => setIsAnnual(false)}
+                className={`rounded-full px-5 py-2 text-sm font-bold transition-all ${!isAnnual ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                Mensal
+              </button>
+              <button
+                onClick={() => setIsAnnual(true)}
+                className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-bold transition-all ${isAnnual ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                Anual
+                <span className={`inline-flex items-center justify-center rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 ${isAnnual ? 'bg-emerald-500 text-white' : ''}`}>
+                  -20%
+                </span>
+              </button>
+            </div>
           </div>
           <div className="grid gap-5 sm:grid-cols-3">
             {plans.map((plan) => (
@@ -281,17 +361,24 @@ const LandingPage: React.FC = () => {
                 <p className={`text-xs font-extrabold uppercase tracking-[0.18em] ${plan.highlight ? 'text-blue-200' : 'text-blue-600'}`}>
                   {plan.name}
                 </p>
-                <div className="mt-3 flex items-end gap-1">
-                  <span className={`text-4xl font-extrabold tracking-[-0.05em] ${plan.highlight ? 'text-white' : 'text-slate-950'}`}>
-                    {plan.price}
-                  </span>
-                  {plan.period && (
-                    <span className={`mb-1.5 text-sm font-semibold ${plan.highlight ? 'text-blue-200' : 'text-slate-400'}`}>
-                      {plan.period}
+                <div className="mt-3 flex flex-col items-start gap-0.5">
+                  <div className="flex items-end gap-1">
+                    <span className={`text-4xl font-extrabold tracking-[-0.05em] ${plan.highlight ? 'text-white' : 'text-slate-950'}`}>
+                      {plan.price === 'Grátis' ? plan.price : (isAnnual ? `R$${Math.floor(parseInt(plan.price.replace('R$', '')) * 0.8)}` : plan.price)}
+                    </span>
+                    {plan.period && (
+                      <span className={`mb-1.5 text-sm font-semibold ${plan.highlight ? 'text-blue-200' : 'text-slate-400'}`}>
+                        {plan.period}
+                      </span>
+                    )}
+                  </div>
+                  {isAnnual && plan.price !== 'Grátis' && (
+                    <span className={`text-xs font-medium ${plan.highlight ? 'text-blue-200' : 'text-slate-400'}`}>
+                      faturado anualmente (R${Math.floor(parseInt(plan.price.replace('R$', '')) * 0.8 * 12)})
                     </span>
                   )}
                 </div>
-                <p className={`mt-1.5 text-sm font-medium ${plan.highlight ? 'text-blue-100' : 'text-slate-500'}`}>
+                <p className={`mt-3 text-sm font-medium ${plan.highlight ? 'text-blue-100' : 'text-slate-500'}`}>
                   {plan.desc}
                 </p>
                 <ul className="my-6 space-y-3">
@@ -352,17 +439,17 @@ const LandingPage: React.FC = () => {
       <section className="bg-slate-950 px-5 py-20 text-white">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-extrabold tracking-[-0.045em] sm:text-4xl">
-            Pronto para modernizar a gestão do seu condomínio?
+            Comece a organizar seu condomínio hoje.
           </h2>
           <p className="mt-4 text-base font-medium leading-7 text-slate-400">
-            Cadastre-se em 2 minutos. Sem cartão, sem burocracia.
+            Crie sua conta grátis, cadastre as primeiras unidades e veja tudo funcionando em poucos minutos.
           </p>
           <Link
             to="/cadastro"
             onClick={handleAuthClick}
             className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-xl shadow-blue-950/40 transition hover:bg-blue-500"
           >
-            Criar minha conta grátis
+            Criar conta grátis
             <ArrowRight className="h-5 w-5" />
           </Link>
         </div>
