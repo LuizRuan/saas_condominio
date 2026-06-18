@@ -59,9 +59,12 @@ const ChargeSchema = new Schema<ICharge>(
   { timestamps: true }
 );
 
+// Basic indexes
 ChargeSchema.index({ condominiumId: 1 });
 ChargeSchema.index({ unitId: 1 });
-ChargeSchema.index({ status: 1 });
+// Compound indexes for common query patterns
+ChargeSchema.index({ condominiumId: 1, status: 1, dueDate: -1 });
 ChargeSchema.index({ condominiumId: 1, referenceMonth: 1 });
+ChargeSchema.index({ condominiumId: 1, dueDate: 1, status: 1 }); // syncOverdueCharges
 
 export default mongoose.model<ICharge>('Charge', ChargeSchema);

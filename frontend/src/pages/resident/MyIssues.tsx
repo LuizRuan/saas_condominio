@@ -73,7 +73,7 @@ const MyIssues: React.FC = () => {
   const [form, setForm] = useState({ title: '', description: '', category: 'other', priority: 'medium', photos: [] as string[] });
 
   const load = async () => {
-    try { const { data } = await api.get('/issues'); setIssues(data); }
+    try { const { data } = await api.get('/issues', { params: { limit: 200 } }); setIssues(data.data ?? data); }
     catch {} finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);

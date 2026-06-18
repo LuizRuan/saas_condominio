@@ -34,19 +34,30 @@ app.use(
   })
 );
 
-// Rate limiting
+// Rate limiting global
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 1500, // Limite aumentado para evitar falsos positivos no desenvolvimento
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Muitas requisições. Tente novamente em 15 minutos.' },
 });
 app.use(limiter);
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Strict rate limiter for auth routes (anti brute-force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
+  skip: (req) => req.method === 'GET',
+});
+app.use('/api/auth', authLimiter);
+
+// Body parsing — limit kept tight to prevent DoS (images are compressed client-side)
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // Routes
 app.use('/api', routes);

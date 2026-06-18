@@ -27,8 +27,8 @@ const MyCharges: React.FC = () => {
 
   const load = async () => {
     try {
-      const [c, co] = await Promise.all([api.get('/charges'), api.get('/condominiums/my')]);
-      setCharges(c.data); setCondo(co.data);
+      const [c, co] = await Promise.all([api.get('/charges', { params: { limit: 200 } }), api.get('/condominiums/my')]);
+      setCharges(c.data.data ?? c.data); setCondo(co.data);
     } catch {} finally { setLoading(false); }
   };
 

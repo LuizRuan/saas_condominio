@@ -64,10 +64,10 @@ const IssuesPage: React.FC = () => {
   const load = async () => {
     try {
       const [issuesResponse, unitsResponse] = await Promise.all([
-        api.get('/issues', { params: { status: filterStatus || undefined, priority: filterPriority || undefined } }),
+        api.get('/issues', { params: { status: filterStatus || undefined, priority: filterPriority || undefined, limit: 200 } }),
         api.get('/units'),
       ]);
-      setIssues(issuesResponse.data);
+      setIssues(issuesResponse.data.data ?? issuesResponse.data);
       setUnits(unitsResponse.data);
     } catch {} finally { setLoading(false); }
   };

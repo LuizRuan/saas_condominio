@@ -53,11 +53,11 @@ const ChargesPage: React.FC = () => {
   const load = async () => {
     try {
       const [c, u, co] = await Promise.all([
-        api.get('/charges', { params: { status: filterStatus || undefined, referenceMonth: filterMonth || undefined } }),
+        api.get('/charges', { params: { status: filterStatus || undefined, referenceMonth: filterMonth || undefined, limit: 200 } }),
         api.get('/units'),
         api.get('/condominiums/my'),
       ]);
-      setCharges(c.data); setUnits(u.data); setCondo(co.data);
+      setCharges(c.data.data ?? c.data); setUnits(u.data); setCondo(co.data);
     } catch {} finally { setLoading(false); }
   };
 

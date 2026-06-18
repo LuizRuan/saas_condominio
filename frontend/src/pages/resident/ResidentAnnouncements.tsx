@@ -17,7 +17,7 @@ const ResidentAnnouncements: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-      try { const { data } = await api.get('/announcements'); setList(data); }
+      try { const { data } = await api.get('/announcements', { params: { limit: 100 } }); setList(data.data ?? data); }
       catch {} finally { setLoading(false); }
     };
     load();

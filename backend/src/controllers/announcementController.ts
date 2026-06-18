@@ -62,10 +62,22 @@ export const createAnnouncement = async (req: AuthRequest, res: Response): Promi
 
 export const getAnnouncements = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const announcements = await Announcement.find({ condominiumId: req.user!.condominiumId })
-      .populate('createdBy', 'name')
-      .sort({ isPinned: -1, createdAt: -1 });
-    res.json(announcements);
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
+    const skip = (page - 1) * limit;
+
+    const filter = { condominiumId: req.user!.condominiumId };
+
+    const [data, total] = await Promise.all([
+      Announcement.find(filter)
+        .populate('createdBy', 'name')
+        .sort({ isPinned: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Announcement.countDocuments(filter),
+    ]);
+
+    res.json({ data, total, page, totalPages: Math.ceil(total / limit) });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar comunicados', details: error.message });
   }

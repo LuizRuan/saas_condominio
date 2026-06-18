@@ -151,12 +151,21 @@ export const getCharges = async (req: AuthRequest, res: Response): Promise<void>
     if (req.query.referenceMonth) filter.referenceMonth = req.query.referenceMonth;
     if (req.query.unitId && req.user!.role === 'admin') filter.unitId = req.query.unitId;
 
-    const charges = await Charge.find(filter)
-      .populate('unitId', 'block number')
-      .populate('residentId', 'name phone email')
-      .sort({ dueDate: -1 });
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+    const skip = (page - 1) * limit;
 
-    res.json(charges);
+    const [data, total] = await Promise.all([
+      Charge.find(filter)
+        .populate('unitId', 'block number')
+        .populate('residentId', 'name phone email')
+        .sort({ dueDate: -1 })
+        .skip(skip)
+        .limit(limit),
+      Charge.countDocuments(filter),
+    ]);
+
+    res.json({ data, total, page, totalPages: Math.ceil(total / limit) });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar cobranças', details: error.message });
   }

@@ -66,8 +66,11 @@ const IssueSchema = new Schema<IIssue>(
   { timestamps: true }
 );
 
+// Basic indexes
 IssueSchema.index({ condominiumId: 1 });
-IssueSchema.index({ condominiumId: 1, status: 1 });
 IssueSchema.index({ unitId: 1 });
+// Compound indexes for common query patterns
+IssueSchema.index({ condominiumId: 1, status: 1, createdAt: -1 });
+IssueSchema.index({ condominiumId: 1, priority: 1, createdAt: -1 });
 
 export default mongoose.model<IIssue>('Issue', IssueSchema);

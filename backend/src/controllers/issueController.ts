@@ -86,11 +86,21 @@ export const getIssues = async (req: AuthRequest, res: Response): Promise<void> 
     if (req.query.status) filter.status = req.query.status;
     if (req.query.priority) filter.priority = req.query.priority;
 
-    const issues = await Issue.find(filter)
-      .populate('unitId', 'block number')
-      .populate('residentId', 'name')
-      .sort({ createdAt: -1 });
-    res.json(issues);
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      Issue.find(filter)
+        .populate('unitId', 'block number')
+        .populate('residentId', 'name')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Issue.countDocuments(filter),
+    ]);
+
+    res.json({ data, total, page, totalPages: Math.ceil(total / limit) });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar ocorrências', details: error.message });
   }

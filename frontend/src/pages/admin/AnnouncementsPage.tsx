@@ -236,7 +236,7 @@ const AnnouncementsPage: React.FC = () => {
   const [form, setForm] = useState({ title: '', message: '', category: 'general', isPinned: false, photos: [] as string[] });
 
   const load = async () => {
-    try { const { data } = await api.get('/announcements'); setList(data); }
+    try { const { data } = await api.get('/announcements', { params: { limit: 100 } }); setList(data.data ?? data); }
     catch {} finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
