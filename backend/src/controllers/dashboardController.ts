@@ -16,23 +16,22 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response): Promis
     await syncOverdueCharges(condominiumId!);
 
     const [
-      totalUnits, paidCharges, pendingCharges, lateCharges,
+      totalUnits, chargesAgg,
       openIssues, pendingReservations, lateChargesList,
       recentAnnouncements, recentIssues, upcomingReservations,
-      paidExpenses, pendingExpenses,
+      expensesAgg,
     ] = await Promise.all([
       Unit.countDocuments({ condominiumId }),
       Charge.aggregate([
-        { $match: { condominiumId, status: 'paid', referenceMonth: currentMonth } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
-      Charge.aggregate([
-        { $match: { condominiumId, status: 'pending' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
-      Charge.aggregate([
-        { $match: { condominiumId, status: 'late' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
+        { $match: { condominiumId } },
+        {
+          $group: {
+            _id: null,
+            paidThisMonth: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'paid'] }, { $eq: ['$referenceMonth', currentMonth] }] }, '$amount', 0] } },
+            pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, '$amount', 0] } },
+            late: { $sum: { $cond: [{ $eq: ['$status', 'late'] }, '$amount', 0] } },
+          }
+        }
       ]),
       Issue.countDocuments({ condominiumId, status: 'open' }),
       Reservation.countDocuments({ condominiumId, status: 'pending' }),
@@ -44,37 +43,28 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response): Promis
         .populate('unitId', 'block number').sort({ createdAt: -1 }).limit(5),
       Reservation.find({ condominiumId, status: 'pending', date: { $gte: now } })
         .populate('unitId', 'block number').sort({ date: 1 }).limit(5),
-      // Expenses — paid this month
       Expense.aggregate([
+        { $match: { condominiumId } },
         {
-          $match: {
-            condominiumId,
-            status: 'paid',
-            date: {
-              $gte: new Date(now.getFullYear(), now.getMonth(), 1),
-              $lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
-            },
-          },
-        },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
-      // Expenses — pending (any date)
-      Expense.aggregate([
-        { $match: { condominiumId, status: 'pending' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
+          $group: {
+            _id: null,
+            paidThisMonth: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'paid'] }, { $gte: ['$date', new Date(now.getFullYear(), now.getMonth(), 1)] }, { $lte: ['$date', new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)] }] }, '$amount', 0] } },
+            pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, '$amount', 0] } },
+          }
+        }
       ]),
     ]);
 
-    const receivedThisMonth = paidCharges[0]?.total || 0;
-    const expensesPaidThisMonth = paidExpenses[0]?.total || 0;
+    const receivedThisMonth = chargesAgg[0]?.paidThisMonth || 0;
+    const expensesPaidThisMonth = expensesAgg[0]?.paidThisMonth || 0;
 
     res.json({
       stats: {
         receivedThisMonth,
-        toReceive: pendingCharges[0]?.total || 0,
-        late: lateCharges[0]?.total || 0,
+        toReceive: chargesAgg[0]?.pending || 0,
+        late: chargesAgg[0]?.late || 0,
         expensesPaidThisMonth,
-        expensesPending: pendingExpenses[0]?.total || 0,
+        expensesPending: expensesAgg[0]?.pending || 0,
         balanceThisMonth: receivedThisMonth - expensesPaidThisMonth,
         totalUnits,
         openIssues,
@@ -172,20 +162,19 @@ export const getAdminCharts = async (req: AuthRequest, res: Response): Promise<v
       months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     }
 
-    // Revenue per month (3 parallel aggregations)
-    const [receivedByMonth, pendingByMonth, lateByMonth, unitStats, issuesOpen, issuesResolved] =
+    // Revenue per month (1 aggregation instead of 3)
+    const [chargesByMonth, unitStats, issuesOpen, issuesResolved] =
       await Promise.all([
         Charge.aggregate([
-          { $match: { condominiumId, status: 'paid', referenceMonth: { $in: months } } },
-          { $group: { _id: '$referenceMonth', total: { $sum: '$amount' } } },
-        ]),
-        Charge.aggregate([
-          { $match: { condominiumId, status: 'pending', referenceMonth: { $in: months } } },
-          { $group: { _id: '$referenceMonth', total: { $sum: '$amount' } } },
-        ]),
-        Charge.aggregate([
-          { $match: { condominiumId, status: 'late', referenceMonth: { $in: months } } },
-          { $group: { _id: '$referenceMonth', total: { $sum: '$amount' } } },
+          { $match: { condominiumId, referenceMonth: { $in: months } } },
+          {
+            $group: {
+              _id: '$referenceMonth',
+              received: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, '$amount', 0] } },
+              pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, '$amount', 0] } },
+              late: { $sum: { $cond: [{ $eq: ['$status', 'late'] }, '$amount', 0] } },
+            }
+          }
         ]),
         // Unit occupancy
         Unit.aggregate([
@@ -234,14 +223,14 @@ export const getAdminCharts = async (req: AuthRequest, res: Response): Promise<v
       ]);
 
     // Helper to convert aggregation array to month-indexed map
-    const toMap = (arr: { _id: string; total?: number; count?: number }[]) =>
-      Object.fromEntries(arr.map((x) => [x._id, x.total ?? x.count ?? 0]));
+    const toMapObj = (arr: { _id: string; received?: number; pending?: number; late?: number; count?: number }[], key: 'received'|'pending'|'late'|'count') =>
+      Object.fromEntries(arr.map((x) => [x._id, x[key] ?? 0]));
 
-    const receivedMap = toMap(receivedByMonth);
-    const pendingMap = toMap(pendingByMonth);
-    const lateMap = toMap(lateByMonth);
-    const issueOpenMap = toMap(issuesOpen as any);
-    const issueResolvedMap = toMap(issuesResolved as any);
+    const receivedMap = toMapObj(chargesByMonth, 'received');
+    const pendingMap = toMapObj(chargesByMonth, 'pending');
+    const lateMap = toMapObj(chargesByMonth, 'late');
+    const issueOpenMap = toMapObj(issuesOpen as any, 'count');
+    const issueResolvedMap = toMapObj(issuesResolved as any, 'count');
 
     // Shape for chart: short label (e.g. "Jan")
     const monthLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
