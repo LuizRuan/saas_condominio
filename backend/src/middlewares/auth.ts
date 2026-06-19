@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import User, { IUser } from '../models/User';
+import User, { IUser, IUserDoc } from '../models/User';
 import { getJwtSecret } from '../config/env';
 
 export interface AuthRequest extends Request {
-  user?: IUser;
+  user?: IUserDoc;
 }
 
 export const authMiddleware = async (

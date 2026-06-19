@@ -1,6 +1,6 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Schema, HydratedDocument } from 'mongoose';
 
-export interface IUser extends Document {
+export interface IUser {
   name: string;
   email: string;
   password: string;
@@ -14,6 +14,9 @@ export interface IUser extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Tipo que inclui os métodos e _id do Document — usar nos controllers/middlewares
+export type IUserDoc = HydratedDocument<IUser>;
 
 const UserSchema = new Schema<IUser>(
   {

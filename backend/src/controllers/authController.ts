@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import User from '../models/User';
 import Condominium from '../models/Condominium';
 import Resident from '../models/Resident';
@@ -257,10 +258,10 @@ export const demoLogin = async (_req: AuthRequest, res: Response): Promise<void>
     const DEMO_EMAIL = 'sindicotest@gmail.com';
 
     // Se usuário demo não existe, roda o seed para criá-lo com todos os dados
-    let demoUser = await User.findOne({ email: DEMO_EMAIL }).select('+password');
+    let demoUser = await User.findOne({ email: DEMO_EMAIL });
     if (!demoUser) {
       await seedDemo();
-      demoUser = await User.findOne({ email: DEMO_EMAIL }).select('+password');
+      demoUser = await User.findOne({ email: DEMO_EMAIL });
     }
 
     if (!demoUser) {
@@ -268,13 +269,12 @@ export const demoLogin = async (_req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // Marcar como demo se ainda não estiver
+    // Marcar como demo via updateOne para evitar problemas de tipo do Mongoose
     if (!demoUser.isDemo) {
-      demoUser.isDemo = true;
-      await demoUser.save();
+      await User.updateOne({ _id: demoUser._id }, { $set: { isDemo: true } });
     }
 
-    const token = generateToken((demoUser._id as any).toString());
+    const token = generateToken((demoUser._id as mongoose.Types.ObjectId).toString());
 
     res.json({
       token,
