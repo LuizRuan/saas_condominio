@@ -163,10 +163,7 @@ const LandingPage: React.FC = () => {
         />
         <div className="relative mx-auto max-w-7xl grid items-center gap-16 lg:grid-cols-2">
           <div className="max-w-2xl text-left">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-4 py-1.5 text-xs font-bold text-blue-200">
-              <Star className="h-3.5 w-3.5 fill-blue-300 text-blue-300" />
-              SaaS de gestão condominial — simples e profissional
-            </div>
+
             <h1 className="text-4xl font-extrabold leading-[1.08] tracking-[-0.055em] sm:text-5xl md:text-6xl">
               Menos planilhas.{' '}
               <span className="bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent">
