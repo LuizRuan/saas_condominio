@@ -17,6 +17,7 @@ import { categoryLabels, formatDate, getUnitLabel, priorityColors, priorityLabel
 import api from '../../services/api';
 import { Issue, Unit } from '../../types';
 import toast from 'react-hot-toast';
+import { useDemo } from '../../contexts/DemoContext';
 
 const categoryOptions = [
   { value: 'noise', label: 'Barulho' },
