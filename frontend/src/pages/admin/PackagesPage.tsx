@@ -14,9 +14,11 @@ import api from '../../services/api';
 import { packageService, Package } from '../../services/packageService';
 import { Unit } from '../../types';
 import toast from 'react-hot-toast';
+import { useDemo } from '../../contexts/DemoContext';
 
 const PackagesPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
+  const { isDemo, blockAction } = useDemo();
   const queryClient = useQueryClient();
   
   const { data: packages = [], isLoading: loadingPackages } = useQuery<Package[]>({
@@ -136,7 +138,7 @@ const PackagesPage: React.FC = () => {
       searchPlaceholder="Buscar descrição, unidade ou rastreio..."
       actions={(
         <Button
-          onClick={openCreate}
+          onClick={isDemo ? blockAction : openCreate}
           icon={<Plus className="h-4 w-4" />}
           className="w-full rounded-xl border-violet-700 bg-violet-700 shadow-violet-700/20 hover:border-violet-800 hover:bg-violet-800 sm:w-auto"
         >
@@ -225,11 +227,11 @@ const PackagesPage: React.FC = () => {
                     <td className="px-7 py-4 text-right">
                       <div className="inline-flex items-center justify-end gap-1">
                         {pkg.status === 'pending' && (
-                          <button type="button" onClick={() => openDeliver(pkg)} className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50" title="Dar Baixa" aria-label="Marcar como entregue">
+                          <button type="button" onClick={() => isDemo ? blockAction() : openDeliver(pkg)} className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50" title="Dar Baixa" aria-label="Marcar como entregue">
                             <CheckCircle className="h-5 w-5" />
                           </button>
                         )}
-                        <button type="button" onClick={() => setDeleteTarget(pkg)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Excluir" aria-label="Excluir">
+                        <button type="button" onClick={() => isDemo ? blockAction() : setDeleteTarget(pkg)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Excluir" aria-label="Excluir">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>

@@ -18,6 +18,7 @@ import { formatDate, formatPhone, getUnitLabel, residentTypeLabels } from '../..
 import api from '../../services/api';
 import { Resident, Unit } from '../../types';
 import toast from 'react-hot-toast';
+import { useDemo } from '../../contexts/DemoContext';
 
 const getInitials = (name: string) =>
   name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'MO';
@@ -36,6 +37,7 @@ const shortTypeLabels: Record<Resident['type'], string> = {
 
 const ResidentsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
+  const { isDemo, blockAction } = useDemo();
   const queryClient = useQueryClient();
   
   const { data: residents = [], isLoading: loadingResidents } = useQuery<Resident[]>({
@@ -156,7 +158,7 @@ const ResidentsPage: React.FC = () => {
       onSearchChange={setSearch}
       searchPlaceholder="Buscar moradores, unidades..."
       actions={(
-        <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="w-full sm:w-auto">
+        <Button onClick={isDemo ? blockAction : openCreate} icon={<Plus className="h-4 w-4" />} className="w-full sm:w-auto">
           Novo morador
         </Button>
       )}
@@ -260,7 +262,7 @@ const ResidentsPage: React.FC = () => {
                           {!resident.userId && (
                             <button
                               type="button"
-                              onClick={() => generateInvite(resident)}
+                              onClick={() => isDemo ? blockAction() : generateInvite(resident)}
                               className="icon-button hover:bg-blue-50 hover:text-blue-600"
                               title="Gerar convite"
                               aria-label={`Gerar convite para ${resident.name}`}
@@ -270,7 +272,7 @@ const ResidentsPage: React.FC = () => {
                           )}
                           <button
                             type="button"
-                            onClick={() => openEdit(resident)}
+                            onClick={() => isDemo ? blockAction() : openEdit(resident)}
                             className="icon-button hover:bg-slate-100 hover:text-slate-700"
                             title="Editar morador"
                             aria-label={`Editar ${resident.name}`}
@@ -279,7 +281,7 @@ const ResidentsPage: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setDeleteTarget(resident)}
+                            onClick={() => isDemo ? blockAction() : setDeleteTarget(resident)}
                             className="icon-button hover:bg-red-50 hover:text-red-500"
                             title="Excluir morador"
                             aria-label={`Excluir ${resident.name}`}

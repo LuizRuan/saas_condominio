@@ -47,6 +47,7 @@ const readImageFiles = (files: FileList | null): Promise<string[]> => {
 
 const IssuesPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
+  const { isDemo, blockAction } = useDemo();
   const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
@@ -193,7 +194,7 @@ const IssuesPage: React.FC = () => {
       searchPlaceholder="Buscar ocorrências..."
       actions={(
         <Button
-          onClick={openCreate}
+          onClick={isDemo ? blockAction : openCreate}
           icon={<Plus className="h-4 w-4" />}
           className="w-full rounded-xl border-violet-700 bg-violet-700 shadow-violet-700/20 hover:border-violet-800 hover:bg-violet-800 sm:w-auto"
         >
@@ -264,7 +265,7 @@ const IssuesPage: React.FC = () => {
                   <div className="flex shrink-0 items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => setDeleteTarget(issue)}
+                      onClick={() => isDemo ? blockAction() : setDeleteTarget(issue)}
                       className="icon-button hover:border-red-100 hover:bg-red-50 hover:text-red-600"
                       title="Excluir ocorrência"
                       aria-label={`Excluir ocorrência ${issue.title}`}
@@ -364,14 +365,14 @@ const IssuesPage: React.FC = () => {
                 <input type="file" accept="image/*" multiple onChange={(event) => handleReplyPhotos(event.target.files)} className="hidden" />
               </label>
               <PhotoGrid photos={replyPhotos} title="Fotos da resposta" />
-              <Button onClick={sendReply} loading={saving} icon={<Send className="h-4 w-4" />} className="mt-4 w-full border-violet-700 bg-violet-700 hover:border-violet-800 hover:bg-violet-800">
+              <Button onClick={isDemo ? blockAction : sendReply} loading={saving} icon={<Send className="h-4 w-4" />} className="mt-4 w-full border-violet-700 bg-violet-700 hover:border-violet-800 hover:bg-violet-800">
                 Enviar resposta
               </Button>
             </div>
             <div className="flex flex-wrap gap-2 pt-2">
-              <Button variant="secondary" onClick={() => updateStatus('in_progress')} loading={saving}>Em análise</Button>
-              <Button variant="success" onClick={() => updateStatus('resolved')} loading={saving} icon={<CheckCircle2 className="h-4 w-4" />}>Resolvida</Button>
-              <Button variant="danger" onClick={() => setDeleteTarget(selected)} loading={saving} icon={<Trash2 className="h-4 w-4" />}>Excluir</Button>
+              <Button variant="secondary" onClick={() => isDemo ? blockAction() : updateStatus('in_progress')} loading={saving}>Em análise</Button>
+              <Button variant="success" onClick={() => isDemo ? blockAction() : updateStatus('resolved')} loading={saving} icon={<CheckCircle2 className="h-4 w-4" />}>Resolvida</Button>
+              <Button variant="danger" onClick={() => isDemo ? blockAction() : setDeleteTarget(selected)} loading={saving} icon={<Trash2 className="h-4 w-4" />}>Excluir</Button>
               <Button variant="ghost" onClick={() => setDetailOpen(false)}>Fechar</Button>
             </div>
           </div>

@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import { useAuth } from '../../contexts/AuthContext';
+import DemoBanner from '../demo/DemoBanner';
 
 const AppLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { isAdmin } = useAuth();
-
   return (
-    <div className="app-shell flex h-screen overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="app-main flex-1 overflow-y-auto">
-          <Outlet context={{ onMenuClick: () => setSidebarOpen(true) }} />
-        </main>
+    <div className="app-shell flex h-screen flex-col overflow-hidden">
+      <DemoBanner />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <main className="app-main flex-1 overflow-y-auto">
+            <Outlet context={{ onMenuClick: () => setSidebarOpen(true) }} />
+          </main>
+        </div>
       </div>
     </div>
   );

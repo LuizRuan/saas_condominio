@@ -27,6 +27,7 @@ import { categoryLabels, formatDate } from '../../utils/helpers';
 import api from '../../services/api';
 import { Announcement } from '../../types';
 import toast from 'react-hot-toast';
+import { useDemo } from '../../contexts/DemoContext';
 
 const catOptions = Object.entries(categoryLabels)
   .filter(([key]) => ['general', 'maintenance', 'assembly', 'security', 'financial'].includes(key))
@@ -224,6 +225,7 @@ const CompactAnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement
 
 const AnnouncementsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
+  const { isDemo, blockAction } = useDemo();
   const queryClient = useQueryClient();
   
   const { data: listResponse, isLoading: loading } = useQuery<{ data: Announcement[] }>({
@@ -378,7 +380,7 @@ const AnnouncementsPage: React.FC = () => {
       searchPlaceholder="Buscar comunicados..."
       actions={(
         <Button
-          onClick={openCreate}
+          onClick={isDemo ? blockAction : openCreate}
           icon={<Plus className="h-4 w-4" />}
           className="w-full rounded-xl border-violet-700 bg-violet-700 shadow-violet-700/20 hover:border-violet-800 hover:bg-violet-800 sm:w-auto"
         >
@@ -419,8 +421,8 @@ const AnnouncementsPage: React.FC = () => {
                   <FeaturedAnnouncementCard
                     announcement={featuredAnnouncement}
                     onCopy={copyText}
-                    onEdit={openEdit}
-                    onDelete={setDeleteTarget}
+                    onEdit={isDemo ? (a) => { void a; blockAction(); } : openEdit}
+                    onDelete={isDemo ? (a) => { void a; blockAction(); } : setDeleteTarget}
                   />
                 )}
 
@@ -431,8 +433,8 @@ const AnnouncementsPage: React.FC = () => {
                         key={announcement._id}
                         announcement={announcement}
                         onCopy={copyText}
-                        onEdit={openEdit}
-                        onDelete={setDeleteTarget}
+                        onEdit={isDemo ? (a) => { void a; blockAction(); } : openEdit}
+                        onDelete={isDemo ? (a) => { void a; blockAction(); } : setDeleteTarget}
                       />
                     ))}
                   </div>

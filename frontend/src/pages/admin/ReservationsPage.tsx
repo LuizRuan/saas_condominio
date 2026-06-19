@@ -15,9 +15,11 @@ import { COMMON_AREAS, formatDate, getUnitLabel } from '../../utils/helpers';
 import api from '../../services/api';
 import { Reservation, ReservationBlock, Unit } from '../../types';
 import toast from 'react-hot-toast';
+import { useDemo } from '../../contexts/DemoContext';
 
 const ReservationsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
+  const { isDemo, blockAction } = useDemo();
   const [list, setList] = useState<Reservation[]>([]);
   const [blocks, setBlocks] = useState<ReservationBlock[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -147,11 +149,11 @@ const ReservationsPage: React.FC = () => {
       searchPlaceholder="Buscar reservas, áreas..."
       actions={(
         <>
-          <Button variant="secondary" onClick={openBlock} icon={<Lock className="h-4 w-4" />} className="w-full sm:w-auto">
+          <Button variant="secondary" onClick={isDemo ? blockAction : openBlock} icon={<Lock className="h-4 w-4" />} className="w-full sm:w-auto">
             Bloquear horário
           </Button>
           <Button
-            onClick={openCreate}
+            onClick={isDemo ? blockAction : openCreate}
             icon={<Plus className="h-4 w-4" />}
             className="w-full rounded-xl border-violet-700 bg-violet-700 shadow-violet-700/20 hover:border-violet-800 hover:bg-violet-800 sm:w-auto"
           >
@@ -248,13 +250,13 @@ const ReservationsPage: React.FC = () => {
                   </div>
                   {reservation.status === 'pending' && (
                     <div className="flex shrink-0 flex-wrap gap-2">
-                      <Button size="sm" variant="success" onClick={() => approve(reservation._id)} icon={<CheckCircle className="h-3.5 w-3.5" />}>Aprovar</Button>
-                      <Button size="sm" variant="danger" onClick={() => reject(reservation._id)} icon={<XCircle className="h-3.5 w-3.5" />}>Recusar</Button>
+                      <Button size="sm" variant="success" onClick={() => isDemo ? blockAction() : approve(reservation._id)} icon={<CheckCircle className="h-3.5 w-3.5" />}>Aprovar</Button>
+                      <Button size="sm" variant="danger" onClick={() => isDemo ? blockAction() : reject(reservation._id)} icon={<XCircle className="h-3.5 w-3.5" />}>Recusar</Button>
                     </div>
                   )}
                   <button
                     type="button"
-                    onClick={() => setDeleteTarget(reservation)}
+                    onClick={() => isDemo ? blockAction() : setDeleteTarget(reservation)}
                     className="icon-button shrink-0 hover:border-red-100 hover:bg-red-50 hover:text-red-600"
                     title="Excluir reserva"
                     aria-label={`Excluir reserva ${reservation.area}`}

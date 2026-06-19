@@ -11,9 +11,11 @@ import { BRAZILIAN_STATES, formatCurrency, validatePixKey } from '../../utils/he
 import api from '../../services/api';
 import { Condominium } from '../../types';
 import toast from 'react-hot-toast';
+import { useDemo } from '../../contexts/DemoContext';
 
 const CondominiumPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
+  const { isDemo, blockAction } = useDemo();
   const [condo, setCondo] = useState<Condominium | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -86,12 +88,12 @@ const CondominiumPage: React.FC = () => {
             <Button variant="secondary" onClick={handleCancel} icon={<X className="h-4 w-4" />} className="w-full sm:w-auto">
               Cancelar
             </Button>
-            <Button onClick={handleSave} loading={saving} icon={<Save className="h-4 w-4" />} className="w-full sm:w-auto">
+            <Button onClick={isDemo ? blockAction : handleSave} loading={saving} icon={<Save className="h-4 w-4" />} className="w-full sm:w-auto">
               Salvar alterações
             </Button>
           </>
         ) : (
-          <Button onClick={handleEdit} icon={<Pencil className="h-4 w-4" />} className="w-full sm:w-auto">
+          <Button onClick={isDemo ? blockAction : handleEdit} icon={<Pencil className="h-4 w-4" />} className="w-full sm:w-auto">
             Editar dados
           </Button>
         )

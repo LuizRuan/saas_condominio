@@ -6,6 +6,7 @@ import Condominium from '../models/Condominium';
 import Resident from '../models/Resident';
 import { AuthRequest } from '../middlewares/auth';
 import { getJwtSecret } from '../config/env';
+import { seedDemo } from '../utils/seed-demo';
 
 const generateToken = (id: string): string => {
   return jwt.sign({}, getJwtSecret(), {
@@ -248,5 +249,47 @@ export const acceptInvite = async (req: AuthRequest, res: Response): Promise<voi
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao aceitar convite', details: error.message });
+  }
+};
+
+export const demoLogin = async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const DEMO_EMAIL = 'sindicotest@gmail.com';
+
+    // Se usuário demo não existe, roda o seed para criá-lo com todos os dados
+    let demoUser = await User.findOne({ email: DEMO_EMAIL }).select('+password');
+    if (!demoUser) {
+      await seedDemo();
+      demoUser = await User.findOne({ email: DEMO_EMAIL }).select('+password');
+    }
+
+    if (!demoUser) {
+      res.status(500).json({ error: 'Não foi possível inicializar o ambiente de demonstração.' });
+      return;
+    }
+
+    // Marcar como demo se ainda não estiver
+    if (!demoUser.isDemo) {
+      demoUser.isDemo = true;
+      await demoUser.save();
+    }
+
+    const token = generateToken((demoUser._id as any).toString());
+
+    res.json({
+      token,
+      isDemo: true,
+      user: {
+        id: demoUser._id,
+        name: demoUser.name,
+        email: demoUser.email,
+        phone: demoUser.phone,
+        role: demoUser.role,
+        isDemo: true,
+        condominiumId: demoUser.condominiumId,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao iniciar demonstração', details: error.message });
   }
 };

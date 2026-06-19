@@ -15,9 +15,11 @@ import { AlertTriangle, Building2, CheckCircle2, Home, Pencil, Plus, Trash2, Upl
 import api from '../../services/api';
 import { Unit } from '../../types';
 import toast from 'react-hot-toast';
+import { useDemo } from '../../contexts/DemoContext';
 
 const UnitsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
+  const { isDemo, blockAction } = useDemo();
   const queryClient = useQueryClient();
   
   const { data: unitsResponse, isLoading: loading } = useQuery<Unit[]>({
@@ -93,10 +95,10 @@ const UnitsPage: React.FC = () => {
       searchPlaceholder="Buscar unidades, blocos..."
       actions={(
         <div className="flex gap-3 w-full sm:w-auto">
-          <Button onClick={() => setWizardOpen(true)} variant="secondary" icon={<UploadCloud className="h-4 w-4" />} className="flex-1 sm:flex-none">
+          <Button onClick={isDemo ? blockAction : () => setWizardOpen(true)} variant="secondary" icon={<UploadCloud className="h-4 w-4" />} className="flex-1 sm:flex-none">
             Importar Excel/PDF
           </Button>
-          <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="flex-1 sm:flex-none">
+          <Button onClick={isDemo ? blockAction : openCreate} icon={<Plus className="h-4 w-4" />} className="flex-1 sm:flex-none">
             Nova unidade
           </Button>
         </div>
@@ -182,7 +184,7 @@ const UnitsPage: React.FC = () => {
                         <div className="inline-flex items-center justify-end gap-1">
                           <button
                             type="button"
-                            onClick={() => openEdit(unit)}
+                            onClick={() => isDemo ? blockAction() : openEdit(unit)}
                             className="icon-button hover:bg-blue-50 hover:text-blue-600"
                             title="Editar unidade"
                             aria-label={`Editar unidade ${unit.number}`}
@@ -191,7 +193,7 @@ const UnitsPage: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setDeleteTarget(unit)}
+                            onClick={() => isDemo ? blockAction() : setDeleteTarget(unit)}
                             className="icon-button hover:bg-red-50 hover:text-red-500"
                             title="Excluir unidade"
                             aria-label={`Excluir unidade ${unit.number}`}

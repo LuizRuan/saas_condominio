@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { DemoProvider } from './contexts/DemoContext';
 import AppLayout from './components/layout/AppLayout';
 import { AdminRoute, PublicOnlyRoute, ResidentRoute, ProtectedRoute } from './components/layout/RouteGuards';
 import LoadingSpinner from './components/ui/LoadingSpinner';
@@ -55,6 +56,7 @@ const App: React.FC = () => {
     <BrowserRouter>
       <ErrorBoundary>
         <AuthProvider>
+          <DemoProvider>
           <Toaster position="top-right" toastOptions={{
             duration: 3000,
             style: { background: '#1E293B', color: '#F8FAFC', fontSize: '14px', borderRadius: '10px' },
@@ -109,6 +111,7 @@ const App: React.FC = () => {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          </DemoProvider>
         </AuthProvider>
       </ErrorBoundary>
     </BrowserRouter>

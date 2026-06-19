@@ -17,6 +17,7 @@ import { formatCurrency, formatDate } from '../../utils/helpers';
 import api from '../../services/api';
 import { Expense, ExpenseCategory } from '../../types';
 import toast from 'react-hot-toast';
+import { useDemo } from '../../contexts/DemoContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,7 @@ const emptyForm = {
 
 const ExpensesPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
+  const { isDemo, blockAction } = useDemo();
   const queryClient = useQueryClient();
 
   // ── Filters
@@ -196,7 +198,7 @@ const ExpensesPage: React.FC = () => {
       onSearchChange={setSearch}
       searchPlaceholder="Buscar por descrição ou categoria..."
       actions={(
-        <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="w-full sm:w-auto">
+        <Button onClick={isDemo ? blockAction : openCreate} icon={<Plus className="h-4 w-4" />} className="w-full sm:w-auto">
           Nova despesa
         </Button>
       )}
@@ -322,7 +324,7 @@ const ExpensesPage: React.FC = () => {
                       <div className="flex items-center justify-end gap-2 opacity-0 transition group-hover:opacity-100">
                         <button
                           type="button"
-                          onClick={() => openEdit(expense)}
+                          onClick={() => isDemo ? blockAction() : openEdit(expense)}
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-600"
                           title="Editar"
                         >
@@ -330,7 +332,7 @@ const ExpensesPage: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setDeleteTarget(expense)}
+                          onClick={() => isDemo ? blockAction() : setDeleteTarget(expense)}
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600"
                           title="Excluir"
                         >

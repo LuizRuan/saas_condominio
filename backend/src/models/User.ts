@@ -6,6 +6,7 @@ export interface IUser extends Document {
   password: string;
   phone: string;
   role: 'admin' | 'resident';
+  isDemo?: boolean;
   condominiumId?: mongoose.Types.ObjectId;
   unitId?: mongoose.Types.ObjectId;
   resetToken?: string;
@@ -21,6 +22,7 @@ const UserSchema = new Schema<IUser>(
     password: { type: String, required: true, minlength: 6, select: false },
     phone: { type: String, default: '', trim: true },
     role: { type: String, enum: ['admin', 'resident'], default: 'resident' },
+    isDemo: { type: Boolean, default: false },
     condominiumId: { type: Schema.Types.ObjectId, ref: 'Condominium' },
     unitId: { type: Schema.Types.ObjectId, ref: 'Unit' },
     resetToken: { type: String, select: false },

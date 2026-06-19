@@ -7,12 +7,14 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
+  loginDemo: () => Promise<User>;
   register: (data: RegisterData) => Promise<User>;
   acceptInvite: (token: string, password: string) => Promise<User>;
   logout: () => void;
   updateUser: (user: User) => void;
   isAdmin: boolean;
   isResident: boolean;
+  isDemo: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -55,6 +57,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return data.user;
   };
 
+  const loginDemo = async (): Promise<User> => {
+    const { data } = await api.post('/auth/demo');
+    saveSession(data.token, data.user);
+    return data.user;
+  };
+
   const register = async (formData: RegisterData): Promise<User> => {
     const { data } = await api.post('/auth/register', formData);
     saveSession(data.token, data.user);
@@ -86,12 +94,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         token,
         loading,
         login,
+        loginDemo,
         register,
         acceptInvite,
         logout,
         updateUser,
         isAdmin: user?.role === 'admin',
         isResident: user?.role === 'resident',
+        isDemo: user?.isDemo === true,
       }}
     >
       {children}

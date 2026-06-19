@@ -31,9 +31,11 @@ import { generateWhatsAppMessage, openWhatsApp } from '../../utils/whatsapp';
 import api from '../../services/api';
 import { Charge, Condominium, Unit } from '../../types';
 import toast from 'react-hot-toast';
+import { useDemo } from '../../contexts/DemoContext';
 
 const ChargesPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
+  const { isDemo, blockAction } = useDemo();
   const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
@@ -209,9 +211,9 @@ const ChargesPage: React.FC = () => {
       searchPlaceholder="Buscar cobranças, unidades..."
       actions={(
         <>
-          <Button variant="secondary" onClick={() => setBulkOpen(true)} icon={<Layers className="h-4 w-4" />} className="w-full sm:w-auto">Em massa</Button>
+          <Button variant="secondary" onClick={isDemo ? blockAction : () => setBulkOpen(true)} icon={<Layers className="h-4 w-4" />} className="w-full sm:w-auto">Em massa</Button>
           <Button variant="secondary" onClick={exportCsv} icon={<Download className="h-4 w-4" />} className="w-full sm:w-auto">Exportar CSV</Button>
-          <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="w-full sm:w-auto">Nova cobrança</Button>
+          <Button onClick={isDemo ? blockAction : openCreate} icon={<Plus className="h-4 w-4" />} className="w-full sm:w-auto">Nova cobrança</Button>
         </>
       )}
     >
@@ -310,19 +312,19 @@ const ChargesPage: React.FC = () => {
                         <td className="text-right">
                           <div className="inline-flex items-center justify-end gap-1">
                             {charge.status !== 'paid' && (
-                              <button type="button" onClick={() => markPaid(charge._id)} title="Marcar como pago" aria-label="Marcar como pago" className="icon-button hover:bg-emerald-50 hover:text-emerald-600">
+                              <button type="button" onClick={() => isDemo ? blockAction() : markPaid(charge._id)} title="Marcar como pago" aria-label="Marcar como pago" className="icon-button hover:bg-emerald-50 hover:text-emerald-600">
                                 <CheckCircle className="h-4 w-4" />
                               </button>
                             )}
                             {charge.status === 'paid' && (
-                              <button type="button" onClick={() => markPending(charge._id)} title="Marcar como pendente" aria-label="Marcar como pendente" className="icon-button hover:bg-amber-50 hover:text-amber-600">
+                              <button type="button" onClick={() => isDemo ? blockAction() : markPending(charge._id)} title="Marcar como pendente" aria-label="Marcar como pendente" className="icon-button hover:bg-amber-50 hover:text-amber-600">
                                 <XCircle className="h-4 w-4" />
                               </button>
                             )}
                             <button type="button" onClick={() => { setSelectedCharge(charge); setWhatsOpen(true); }} title="WhatsApp" aria-label="WhatsApp" className="icon-button hover:bg-emerald-50 hover:text-emerald-600">
                               <MessageCircle className="h-4 w-4" />
                             </button>
-                            <button type="button" onClick={() => setDeleteTarget(charge)} title="Excluir" aria-label="Excluir cobrança" className="icon-button hover:bg-red-50 hover:text-red-500">
+                            <button type="button" onClick={() => isDemo ? blockAction() : setDeleteTarget(charge)} title="Excluir" aria-label="Excluir cobrança" className="icon-button hover:bg-red-50 hover:text-red-500">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>

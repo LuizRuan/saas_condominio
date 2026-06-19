@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { acceptInvite, register, login, getMe } from '../controllers/authController';
+import { acceptInvite, register, login, getMe, demoLogin } from '../controllers/authController';
 import { forgotPassword, resetPassword } from '../controllers/passwordController';
 import { authMiddleware } from '../middlewares/auth';
 
@@ -11,6 +11,6 @@ router.post('/accept-invite', acceptInvite);
 router.get('/me', authMiddleware, getMe);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
-
+router.post('/demo', demoLogin);
 
 export default router;

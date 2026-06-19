@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Building2, CheckCircle2, Shield, Zap, Users, Receipt,
   Megaphone, AlertTriangle, CalendarDays, Package, ArrowRight,
@@ -68,10 +68,24 @@ const LandingPage: React.FC = () => {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [isAnnual, setIsAnnual] = useState(false);
-  const { user, logout } = useAuth();
+  const [demoLoading, setDemoLoading] = useState(false);
+  const { user, logout, loginDemo } = useAuth();
+  const navigate = useNavigate();
 
   const handleAuthClick = () => {
     if (user) logout();
+  };
+
+  const handleDemo = async () => {
+    setDemoLoading(true);
+    try {
+      await loginDemo();
+      navigate('/dashboard');
+    } catch {
+      // toast de erro já é exibido pelo axios interceptor
+    } finally {
+      setDemoLoading(false);
+    }
   };
 
   return (
@@ -182,12 +196,13 @@ const LandingPage: React.FC = () => {
                 Começar grátis
                 <ArrowRight className="h-5 w-5" />
               </Link>
-              <a
-                href="#funcionalidades"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] px-7 py-4 text-base font-bold text-white transition hover:bg-white/[0.12] sm:w-auto"
+              <button
+                onClick={handleDemo}
+                disabled={demoLoading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] px-7 py-4 text-base font-bold text-white transition hover:bg-white/[0.12] disabled:opacity-60 sm:w-auto"
               >
-                Ver demonstração
-              </a>
+                {demoLoading ? 'Carregando demo...' : 'Ver demonstração'}
+              </button>
             </div>
             <div className="mt-10 flex flex-wrap items-center justify-start gap-5 text-xs font-semibold text-slate-400">
               {['Sem instalação', 'Configuração rápida', 'Financeiro integrado'].map((t) => (

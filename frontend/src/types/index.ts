@@ -4,6 +4,7 @@ export interface User {
   email: string;
   phone: string;
   role: 'admin' | 'resident';
+  isDemo?: boolean;
   condominiumId?: string;
   unitId?: string;
 }
