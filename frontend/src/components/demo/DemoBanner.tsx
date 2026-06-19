@@ -12,13 +12,15 @@ const DemoBanner: React.FC = () => {
   if (!isDemo) return null;
 
   const handleExit = () => {
-    logout();
-    navigate('/');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/';
   };
 
   const handleCreateAccount = () => {
-    logout();
-    navigate('/cadastro');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/cadastro';
   };
 
   return (
