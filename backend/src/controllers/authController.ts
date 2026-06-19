@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import User from '../models/User';
 import Condominium from '../models/Condominium';
+import Unit from '../models/Unit';
 import Resident from '../models/Resident';
 import { AuthRequest } from '../middlewares/auth';
 import { getJwtSecret } from '../config/env';
@@ -257,9 +258,27 @@ export const demoLogin = async (_req: AuthRequest, res: Response): Promise<void>
   try {
     const DEMO_EMAIL = 'sindicotest@gmail.com';
 
-    // Se usuário demo não existe, roda o seed para criá-lo com todos os dados
     let demoUser = await User.findOne({ email: DEMO_EMAIL });
+    let needsSeed = false;
+
     if (!demoUser) {
+      needsSeed = true;
+    } else if (!demoUser.condominiumId) {
+      needsSeed = true;
+    } else {
+      // Verifica se o condomínio e os dados realmente existem no banco
+      const condoExists = await Condominium.exists({ _id: demoUser.condominiumId });
+      if (!condoExists) {
+        needsSeed = true;
+      } else {
+        const unitsExist = await Unit.exists({ condominiumId: demoUser.condominiumId });
+        if (!unitsExist) {
+          needsSeed = true;
+        }
+      }
+    }
+
+    if (needsSeed) {
       await seedDemo();
       demoUser = await User.findOne({ email: DEMO_EMAIL });
     }
