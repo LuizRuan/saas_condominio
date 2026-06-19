@@ -37,28 +37,31 @@ const plans = [
     period: '/mês',
     desc: 'Para condomínios em operação.',
     items: ['Até 100 unidades', 'Tudo do Grátis', 'Relatórios PDF', 'WhatsApp integrado', 'Suporte prioritário'],
-    cta: 'Começar grátis',
+    cta: 'Plano Pro',
     href: '/cadastro',
     highlight: true,
   },
   {
-    name: 'Administradora',
+    name: 'Ultra',
     price: 'R$197',
     period: '/mês',
     desc: 'Para quem gerencia mais de um condomínio.',
     items: ['Unidades ilimitadas', 'Tudo do Pro', 'Multi-condomínio', 'Pix automático', 'SLA garantido'],
-    cta: 'Começar grátis',
+    cta: 'Plano Ultra',
     href: '/cadastro',
     highlight: false,
   },
 ];
 
 const faqs = [
-  { q: 'Preciso instalar alguma coisa?', a: 'Não. O Domus é 100% web. Funciona em qualquer dispositivo sem instalação.' },
-  { q: 'Os moradores precisam criar conta?', a: 'Você envia um link de convite por e-mail ou WhatsApp. O morador clica, cria a senha e já acessa o portal.' },
-  { q: 'Como funciona o trial?', a: 'O plano Starter é gratuito sem limite de tempo para até 20 unidades. Não precisa de cartão.' },
-  { q: 'Posso migrar meus dados de planilhas?', a: 'Sim. Oferecemos importação via CSV para unidades, moradores e histórico de cobranças.' },
-  { q: 'Os dados ficam seguros?', a: 'Sim. Utilizamos MongoDB Atlas com criptografia, HTTPS em toda comunicação e autenticação JWT.' },
+  { q: 'Preciso instalar alguma coisa?', a: 'Não. O Domus é 100% online e funciona direto pelo navegador, no computador, tablet ou celular.' },
+  { q: 'Os moradores precisam criar conta?', a: 'Sim, mas o processo é simples. O síndico envia um convite por link, e-mail ou WhatsApp. O morador cria a senha e acessa o portal em poucos minutos.' },
+  { q: 'Como funciona o plano grátis?', a: 'O plano Grátis pode ser usado sem limite de tempo para condomínios com até 20 unidades. Não precisa de cartão de crédito para começar.' },
+  { q: 'Posso migrar meus dados de planilhas?', a: 'Sim. Você pode importar unidades, moradores e cobranças por planilha, evitando cadastrar tudo manualmente.' },
+  { q: 'Os dados ficam seguros?', a: 'Sim. O Domus utiliza acesso seguro, criptografia e autenticação protegida para manter as informações do condomínio e dos moradores em segurança.' },
+  { q: 'Posso cancelar quando quiser?', a: 'Sim. Os planos pagos podem ser cancelados quando necessário, sem burocracia.' },
+  { q: 'O Domus serve para administradoras?', a: 'Sim. O plano Ultra permite gerenciar mais de um condomínio em uma única plataforma.' },
+  { q: 'Os moradores conseguem acessar pelo celular?', a: 'Sim. O portal do morador funciona pelo navegador do celular, sem necessidade de instalação.' },
 ];
 
 const LandingPage: React.FC = () => {
@@ -289,9 +292,9 @@ const LandingPage: React.FC = () => {
         <div className="mx-auto max-w-4xl">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             {[
-              { icon: Shield, label: 'Dados seguros', desc: 'HTTPS + JWT + MongoDB Atlas com criptografia.' },
-              { icon: Zap, label: 'Rápido de configurar', desc: 'Do cadastro ao primeiro morador em menos de 10 minutos.' },
-              { icon: CheckCircle2, label: 'Sempre disponível', desc: 'Infraestrutura na nuvem com uptime 99,9%.' },
+              { icon: Shield, label: 'Dados protegidos', desc: 'Informações do condomínio e dos moradores armazenadas com segurança.' },
+              { icon: Zap, label: 'Configuração rápida', desc: 'Cadastre o condomínio, unidades e moradores em poucos minutos.' },
+              { icon: CheckCircle2, label: 'Funciona em qualquer lugar', desc: 'Acesse pelo navegador, sem instalação e sem depender de planilhas.' },
             ].map(({ icon: Icon, label, desc }) => (
               <div key={label} className="flex items-start gap-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">

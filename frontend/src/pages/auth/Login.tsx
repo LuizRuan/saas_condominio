@@ -4,12 +4,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import BrandMark from '../../components/ui/BrandMark';
-import { ArrowRight, CheckCircle2, Lock, Mail, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Lock, Mail, ShieldCheck, Sparkles, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -42,10 +43,7 @@ const Login: React.FC = () => {
         </div>
 
         <div className="relative z-10 my-auto max-w-xl py-16">
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1.5 text-xs font-bold text-blue-200">
-            <Sparkles className="h-3.5 w-3.5" />
-            Gestão condominial sem ruído
-          </div>
+
           <h1 className="max-w-lg text-5xl font-extrabold leading-[1.08] tracking-[-0.055em] text-white xl:text-6xl">
             Gestão simples.
             <span className="block bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent">
@@ -98,12 +96,22 @@ const Login: React.FC = () => {
               />
               <Input
                 label="Senha"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="Sua senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 icon={<Lock className="w-4 h-4" />}
                 autoComplete="current-password"
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="flex h-full items-center justify-center p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                }
               />
               <Button type="submit" loading={loading} className="w-full" size="lg" icon={!loading ? <ArrowRight className="h-4 w-4" /> : undefined}>
                 Entrar na plataforma
