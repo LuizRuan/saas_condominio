@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Building2, Home } from 'lucide-react';
+import { ArrowLeft, Home } from 'lucide-react';
+import BrandMark from '../components/ui/BrandMark';
 
 const NotFound: React.FC = () => {
   const navigate = useNavigate();
@@ -23,14 +24,8 @@ const NotFound: React.FC = () => {
 
       <div className="relative z-10 flex flex-col items-center text-center">
         {/* Logo */}
-        <div className="mb-10 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-700 shadow-lg">
-            <Building2 className="h-5 w-5 text-white" strokeWidth={2.2} />
-          </div>
-          <div className="leading-none">
-            <p className="text-[15px] font-extrabold tracking-[-0.03em] text-white">Condomínio</p>
-            <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-blue-300">em Dia</p>
-          </div>
+        <div className="mb-10">
+          <BrandMark inverted />
         </div>
 
         {/* 404 Number */}

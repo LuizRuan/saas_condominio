@@ -5,6 +5,7 @@ import PremiumPage from '../../components/ui/PremiumPage';
 import MetricCard from '../../components/ui/MetricCard';
 import Button from '../../components/ui/Button';
 import Select from '../../components/ui/Select';
+import FilterSelect from '../../components/ui/FilterSelect';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StatusBadge from '../../components/ui/StatusBadge';
 import {
@@ -165,15 +166,15 @@ const ConciergeDashboard: React.FC = () => {
             <h2 className="section-title">Atividades de Acesso</h2>
             <p className="mt-0.5 text-xs font-medium text-slate-400">Visitantes, prestadores e entregas no condomínio</p>
           </div>
-          <Select
+          <FilterSelect
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={setFilterStatus}
             options={[
               { value: 'active', label: 'Presentes' },
               { value: 'finished', label: 'Já saíram' },
               { value: 'all', label: 'Todos' }
             ]}
-            className="w-40"
+            className="w-44"
           />
         </div>
 

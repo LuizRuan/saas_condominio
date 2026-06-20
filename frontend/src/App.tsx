@@ -80,6 +80,7 @@ const App: React.FC = () => {
               <Route path="/convite-staff/:token" element={<PublicOnlyRoute><AcceptStaffInvite /></PublicOnlyRoute>} />
               <Route path="/esqueci-senha" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
               <Route path="/redefinir-senha" element={<PublicOnlyRoute><ResetPassword /></PublicOnlyRoute>} />
+              <Route path="/reset-password" element={<PublicOnlyRoute><ResetPassword /></PublicOnlyRoute>} />
 
               {/* Admin-only routes */}
               <Route element={<AdminRoute><AppLayout /></AdminRoute>}>

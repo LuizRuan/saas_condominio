@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import FilterSelect from '../../components/ui/FilterSelect';
 import Textarea from '../../components/ui/Textarea';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -244,9 +245,9 @@ const IssuesPage: React.FC = () => {
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:w-[520px]">
-            <Select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+            <FilterSelect value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }}
               options={[{ value: 'open', label: 'Aberta' }, { value: 'in_progress', label: 'Em análise' }, { value: 'resolved', label: 'Resolvida' }]} placeholder="Todos os status" />
-            <Select value={filterPriority} onChange={(e) => { setFilterPriority(e.target.value); setPage(1); }}
+            <FilterSelect value={filterPriority} onChange={(v) => { setFilterPriority(v); setPage(1); }}
               options={[{ value: 'low', label: 'Baixa' }, { value: 'medium', label: 'Média' }, { value: 'high', label: 'Alta' }]} placeholder="Todas as prioridades" />
           </div>
         </div>

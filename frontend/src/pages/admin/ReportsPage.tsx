@@ -5,6 +5,7 @@ import PremiumPage from '../../components/ui/PremiumPage';
 import MetricCard from '../../components/ui/MetricCard';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Input from '../../components/ui/Input';
+import FilterMonth from '../../components/ui/FilterMonth';
 import { FinanceReport } from '../../types';
 import api from '../../services/api';
 import { formatCurrency } from '../../utils/helpers';
@@ -44,11 +45,10 @@ const ReportsPage: React.FC = () => {
       onMenuClick={onMenuClick}
       actions={
         <div className="flex w-full flex-col sm:w-auto sm:flex-row sm:items-center gap-3">
-          <Input 
-            type="month" 
-            value={filterMonth} 
-            onChange={(e) => setFilterMonth(e.target.value)} 
-            className="w-full sm:w-auto"
+          <FilterMonth
+            value={filterMonth}
+            onChange={setFilterMonth}
+            placeholder="Selecionar mês"
           />
           <button
             type="button"

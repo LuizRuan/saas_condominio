@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import FilterSelect from '../../components/ui/FilterSelect';
+import FilterMonth from '../../components/ui/FilterMonth';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -242,9 +244,9 @@ const ChargesPage: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+            <FilterSelect value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1); }}
               options={[{ value: 'pending', label: 'Pendente' }, { value: 'paid', label: 'Pago' }, { value: 'late', label: 'Atrasado' }]} placeholder="Todos os status" />
-            <Input type="month" value={filterMonth} onChange={(e) => { setFilterMonth(e.target.value); setPage(1); }} placeholder="Mês" />
+            <FilterMonth value={filterMonth} onChange={(v) => { setFilterMonth(v); setPage(1); }} />
           </div>
         </div>
 

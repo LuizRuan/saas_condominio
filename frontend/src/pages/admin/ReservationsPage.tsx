@@ -4,92 +4,127 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Textarea from '../../components/ui/Textarea';
-import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import PremiumPage from '../../components/ui/PremiumPage';
 import MetricCard from '../../components/ui/MetricCard';
-import { Ban, CalendarDays, CheckCircle, Clock3, Lock, MapPin, Plus, Trash2, XCircle } from 'lucide-react';
-import { COMMON_AREAS, formatDate, getUnitLabel } from '../../utils/helpers';
+import {
+  AlertTriangle, Ban, CalendarDays, CheckCircle, ChevronLeft, ChevronRight,
+  Clock3, Lock, Plus, Trash2, XCircle,
+} from 'lucide-react';
+import { COMMON_AREAS, getUnitLabel } from '../../utils/helpers';
 import api from '../../services/api';
 import { Reservation, ReservationBlock, Unit } from '../../types';
 import toast from 'react-hot-toast';
 import { useDemo } from '../../contexts/DemoContext';
+import { useAuth } from '../../contexts/AuthContext';
+
+const MONTH_NAMES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+const DAY_ABBRS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+const fmtDay = (dayStr: string): string => {
+  const [y, m, d] = dayStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('pt-BR', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+};
+
+const fmtShort = (dayStr: string): string => {
+  const [y, m, d] = dayStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('pt-BR');
+};
+
+const toArr = <T,>(raw: unknown): T[] => {
+  if (Array.isArray(raw)) return raw as T[];
+  const r = raw as any;
+  if (Array.isArray(r?.data)) return r.data;
+  if (Array.isArray(r?.items)) return r.items;
+  return [];
+};
+
+const timeOverlap = (s1: string, e1: string, s2: string, e2: string) =>
+  s1 < e2 && s2 < e1;
 
 const ReservationsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const { isDemo, blockAction } = useDemo();
+  const { isAdmin, isResident } = useAuth();
+
+  const canBlock = !isResident;
+  const canApprove = isAdmin;
+
+  // Data state
   const [list, setList] = useState<Reservation[]>([]);
   const [blocks, setBlocks] = useState<ReservationBlock[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [blockOpen, setBlockOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Reservation | null>(null);
   const [deleteBlockTarget, setDeleteBlockTarget] = useState<ReservationBlock | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ unitId: '', area: '', date: '', startTime: '', endTime: '', notes: '' });
-  const [blockForm, setBlockForm] = useState({ area: '', date: '', startTime: '', endTime: '', reason: '' });
+
+  // Form state (date injected from selectedDay at submit time)
+  const [form, setForm] = useState({ unitId: '', area: '', startTime: '', endTime: '', notes: '' });
+  const [blockForm, setBlockForm] = useState({ area: '', startTime: '', endTime: '', reason: '' });
+
+  // Calendar state
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const [calYear, setCalYear] = useState(now.getFullYear());
+  const [calMonth, setCalMonth] = useState(now.getMonth());
+  const [selectedDay, setSelectedDay] = useState<string>(todayStr);
+  const [panelMode, setPanelMode] = useState<'view' | 'create' | 'block'>('view');
 
   const load = async () => {
     try {
-      const [reservationsResponse, unitsResponse, blocksResponse] = await Promise.all([
+      const [res, unitsRes, blocksRes] = await Promise.all([
         api.get('/reservations'),
         api.get('/units'),
         api.get('/reservations/blocks/list'),
       ]);
-      setList(reservationsResponse.data);
-      setUnits(unitsResponse.data);
-      setBlocks(blocksResponse.data);
-    }
-    catch {} finally { setLoading(false); }
+      setList(toArr<Reservation>(res.data));
+      setUnits(toArr<Unit>(unitsRes.data));
+      setBlocks(toArr<ReservationBlock>(blocksRes.data));
+    } catch {} finally { setLoading(false); }
   };
+
   useEffect(() => { load(); }, []);
 
-  const openCreate = () => {
-    setForm({ unitId: '', area: '', date: '', startTime: '', endTime: '', notes: '' });
-    setModalOpen(true);
-  };
+  // Calendar computed
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(calYear, calMonth, 1).getDay();
 
-  const openBlock = () => {
-    setBlockForm({ area: '', date: '', startTime: '', endTime: '', reason: '' });
-    setBlockOpen(true);
-  };
+  const reservationsByDay = useMemo(() => {
+    const map = new Map<string, Reservation[]>();
+    list.forEach(r => {
+      const key = (r.date || '').slice(0, 10);
+      if (key) { if (!map.has(key)) map.set(key, []); map.get(key)!.push(r); }
+    });
+    return map;
+  }, [list]);
 
-  const handleCreate = async () => {
-    if (!form.unitId || !form.area || !form.date || !form.startTime || !form.endTime) {
-      toast.error('Unidade, área, data e horários são obrigatórios');
-      return;
-    }
+  const blocksByDay = useMemo(() => {
+    const map = new Map<string, ReservationBlock[]>();
+    blocks.forEach(b => {
+      const key = (b.date || '').slice(0, 10);
+      if (key) { if (!map.has(key)) map.set(key, []); map.get(key)!.push(b); }
+    });
+    return map;
+  }, [blocks]);
 
-    setSaving(true);
-    try {
-      await api.post('/reservations', form);
-      toast.success('Reserva criada!');
-      setModalOpen(false);
-      load();
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
-    finally { setSaving(false); }
-  };
+  const selectedDayReservations = useMemo(
+    () => reservationsByDay.get(selectedDay) ?? [],
+    [reservationsByDay, selectedDay],
+  );
+  const selectedDayBlocks = useMemo(
+    () => blocksByDay.get(selectedDay) ?? [],
+    [blocksByDay, selectedDay],
+  );
 
-  const handleBlockCreate = async () => {
-    if (!blockForm.area || !blockForm.date || !blockForm.startTime || !blockForm.endTime) {
-      toast.error('Área, data e horários são obrigatórios');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await api.post('/reservations/blocks', blockForm);
-      toast.success('Horário bloqueado!');
-      setBlockOpen(false);
-      load();
-    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
-    finally { setSaving(false); }
-  };
-
+  // Actions
   const approve = async (id: string) => {
     try { await api.patch(`/reservations/${id}/approve`); toast.success('Aprovada!'); load(); }
     catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
@@ -101,10 +136,9 @@ const ReservationsPage: React.FC = () => {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const deletedId = deleteTarget._id;
     setSaving(true);
     try {
-      await api.delete(`/reservations/${deletedId}`);
+      await api.delete(`/reservations/${deleteTarget._id}`);
       toast.success('Reserva excluída!');
       setDeleteTarget(null);
       load();
@@ -124,36 +158,105 @@ const ReservationsPage: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const filteredReservations = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return list;
+  const handlePanelCreate = async () => {
+    if (!form.unitId || !form.area || !form.startTime || !form.endTime) {
+      toast.error('Unidade, área e horários são obrigatórios');
+      return;
+    }
+    if (form.startTime >= form.endTime) {
+      toast.error('Hora fim deve ser maior que hora início');
+      return;
+    }
+    const hasBlockConflict = selectedDayBlocks.some(b =>
+      b.area === form.area && timeOverlap(form.startTime, form.endTime, b.startTime, b.endTime)
+    );
+    if (hasBlockConflict) {
+      toast.error('Este horário está bloqueado para esta área');
+      return;
+    }
+    const hasResConflict = selectedDayReservations.some(r =>
+      r.area === form.area && r.status === 'approved' &&
+      timeOverlap(form.startTime, form.endTime, r.startTime, r.endTime)
+    );
+    if (hasResConflict) {
+      toast.error('Já existe uma reserva aprovada neste horário para esta área');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post('/reservations', { ...form, date: selectedDay });
+      toast.success('Reserva criada!');
+      setPanelMode('view');
+      setForm({ unitId: '', area: '', startTime: '', endTime: '', notes: '' });
+      load();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
+    finally { setSaving(false); }
+  };
 
-    return list.filter((reservation) => [
-      reservation.area,
-      getUnitLabel(reservation.unitId),
-      reservation.date,
-      reservation.status,
-      reservation.notes,
-    ].some((value) => value?.toLowerCase().includes(query)));
-  }, [list, search]);
+  const handlePanelBlockCreate = async () => {
+    if (!blockForm.area || !blockForm.startTime || !blockForm.endTime) {
+      toast.error('Área e horários são obrigatórios');
+      return;
+    }
+    if (blockForm.startTime >= blockForm.endTime) {
+      toast.error('Hora fim deve ser maior que hora início');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post('/reservations/blocks', { ...blockForm, date: selectedDay });
+      toast.success('Horário bloqueado!');
+      setPanelMode('view');
+      setBlockForm({ area: '', startTime: '', endTime: '', reason: '' });
+      load();
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDayClick = (dayStr: string) => {
+    setSelectedDay(dayStr);
+    setPanelMode('view');
+  };
+
+  const prevMonth = () => {
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+    else setCalMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+    else setCalMonth(m => m + 1);
+  };
+
+  const openCreatePanel = () => {
+    setForm({ unitId: '', area: '', startTime: '', endTime: '', notes: '' });
+    setPanelMode('create');
+  };
+  const openBlockPanel = () => {
+    setBlockForm({ area: '', startTime: '', endTime: '', reason: '' });
+    setPanelMode('block');
+  };
 
   if (loading) return <LoadingSpinner text="Carregando..." />;
 
   return (
     <PremiumPage
       title="Reservas"
-      subtitle="Analise solicitações de áreas comuns com clareza e rapidez."
+      subtitle="Agenda interativa de áreas comuns e solicitações dos moradores."
       onMenuClick={onMenuClick}
-      searchValue={search}
-      onSearchChange={setSearch}
-      searchPlaceholder="Buscar reservas, áreas..."
       actions={(
         <>
-          <Button variant="secondary" onClick={isDemo ? blockAction : openBlock} icon={<Lock className="h-4 w-4" />} className="w-full sm:w-auto">
-            Bloquear horário
-          </Button>
+          {canBlock && (
+            <Button
+              variant="secondary"
+              onClick={isDemo ? blockAction : openBlockPanel}
+              icon={<Lock className="h-4 w-4" />}
+              className="w-full sm:w-auto"
+            >
+              Bloquear horário
+            </Button>
+          )}
           <Button
-            onClick={isDemo ? blockAction : openCreate}
+            onClick={isDemo ? blockAction : openCreatePanel}
             icon={<Plus className="h-4 w-4" />}
             className="w-full rounded-xl border-violet-700 bg-violet-700 shadow-violet-700/20 hover:border-violet-800 hover:bg-violet-800 sm:w-auto"
           >
@@ -162,193 +265,427 @@ const ReservationsPage: React.FC = () => {
         </>
       )}
     >
+      {/* Metric Cards */}
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="Reservas" value={list.length} helper="solicitações" icon={<CalendarDays className="h-4 w-4" />} />
-        <MetricCard label="Pendentes" value={list.filter((item) => item.status === 'pending').length} helper="para análise" icon={<Clock3 className="h-4 w-4" />} iconClass="bg-violet-100 text-violet-700" />
-        <MetricCard label="Aprovadas" value={list.filter((item) => item.status === 'approved').length} helper="confirmadas" icon={<CheckCircle className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" valueClassName="text-emerald-700" />
-        <MetricCard label="Recusadas" value={list.filter((item) => item.status === 'rejected').length} helper="negadas" icon={<XCircle className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />
+        <MetricCard label="Pendentes" value={list.filter(i => i.status === 'pending').length} helper="para análise" icon={<Clock3 className="h-4 w-4" />} iconClass="bg-violet-100 text-violet-700" />
+        <MetricCard label="Aprovadas" value={list.filter(i => i.status === 'approved').length} helper="confirmadas" icon={<CheckCircle className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" valueClassName="text-emerald-700" />
+        <MetricCard label="Recusadas" value={list.filter(i => i.status === 'rejected').length} helper="negadas" icon={<XCircle className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />
         <MetricCard label="Bloqueios" value={blocks.length} helper="agenda travada" icon={<Ban className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-700" />
       </section>
 
-      {blocks.length > 0 && (
-        <section className="mt-7 rounded-2xl border border-violet-100/80 bg-white/90 p-5 shadow-[0_18px_60px_rgba(76,29,149,0.07)] sm:p-6">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700">Agenda</p>
-              <h2 className="mt-1 text-lg font-extrabold tracking-[-0.03em] text-slate-950">Horários bloqueados</h2>
-            </div>
-            <Button size="sm" variant="secondary" onClick={openBlock} icon={<Lock className="h-3.5 w-3.5" />}>Novo bloqueio</Button>
+      {/* Calendar + Side Panel */}
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_360px]">
+
+        {/* Calendar */}
+        <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+          {/* Month navigation */}
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <button
+              type="button"
+              onClick={prevMonth}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <h2 className="text-base font-extrabold text-slate-900">
+              {MONTH_NAMES[calMonth]} {calYear}
+            </h2>
+            <button
+              type="button"
+              onClick={nextMonth}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {blocks.slice(0, 6).map((block) => (
-              <article key={block._id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-black text-slate-950">{block.area}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-500">{formatDate(block.date)} · {block.startTime} - {block.endTime}</p>
-                    {block.reason && <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{block.reason}</p>}
-                    {(block.createdBy as any)?.name && (
-                      <p className="mt-1 text-[10px] font-semibold text-slate-400">
-                        Bloqueado por: {(block.createdBy as any).name}
-                        {(block.createdBy as any).role === 'concierge' ? ' (Porteiro)' : ''}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteBlockTarget(block)}
-                    className="icon-button shrink-0 hover:border-red-100 hover:bg-red-50 hover:text-red-600"
-                    title="Remover bloqueio"
-                    aria-label={`Remover bloqueio de ${block.area}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </article>
+
+          {/* Day headers */}
+          <div className="grid grid-cols-7 border-b border-slate-50 px-3 pt-3">
+            {DAY_ABBRS.map(d => (
+              <div key={d} className="pb-2 text-center text-[11px] font-black uppercase tracking-wide text-slate-400">
+                {d}
+              </div>
             ))}
           </div>
-        </section>
-      )}
 
-      <section className="mt-7 overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-[0_18px_60px_rgba(76,29,149,0.07)]">
-        <div className="border-b border-violet-100/80 px-5 py-5 sm:px-7">
-          <h2 className="text-lg font-extrabold tracking-[-0.03em] text-slate-950">Lista de Reservas</h2>
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            {search ? `${filteredReservations.length} resultado(s) encontrados` : 'Solicitações de uso das áreas comuns'}
-          </p>
-        </div>
+          {/* Calendar grid — key triggers animate-scale-in on month change */}
+          <div key={`${calYear}-${calMonth}`} className="animate-scale-in grid grid-cols-7 gap-1 p-3">
+            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+              <div key={`pad-${i}`} />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const dayNum = i + 1;
+              const dayStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+              const dayRes = reservationsByDay.get(dayStr) ?? [];
+              const dayBlocks = blocksByDay.get(dayStr) ?? [];
+              const isSelected = dayStr === selectedDay;
+              const isToday = dayStr === todayStr;
+              const hasApproved = dayRes.some(r => r.status === 'approved');
+              const hasPending = dayRes.some(r => r.status === 'pending');
+              const hasBlock = dayBlocks.length > 0;
+              const activeCount = dayRes.filter(r => r.status !== 'rejected' && r.status !== 'cancelled').length + dayBlocks.length;
 
-        {filteredReservations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-violet-100 text-violet-700">
-              <CalendarDays className="h-7 w-7" />
-            </div>
-            <h3 className="mt-5 text-lg font-extrabold tracking-[-0.03em] text-slate-950">
-              {list.length === 0 ? 'Nenhuma reserva encontrada' : 'Nenhum resultado encontrado'}
-            </h3>
-            <p className="mt-2 max-w-md text-sm font-medium text-slate-500">
-              {list.length === 0 ? 'Crie uma reserva interna ou acompanhe as solicitações dos moradores por aqui.' : 'Tente buscar por outra área, unidade ou data.'}
-            </p>
-            {list.length === 0 && (
-              <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="mt-6 border-violet-700 bg-violet-700 hover:border-violet-800 hover:bg-violet-800">
-                Criar reserva
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="grid gap-4 p-5 sm:p-7 xl:grid-cols-2">
-            {filteredReservations.map((reservation) => (
-              <article key={reservation._id} className="rounded-2xl border border-violet-100/80 bg-white p-5 shadow-[0_14px_40px_rgba(76,29,149,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_50px_rgba(76,29,149,0.08)]">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <StatusBadge status={reservation.status} />
-                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                        <MapPin className="h-3.5 w-3.5" />
-                        {getUnitLabel(reservation.unitId)}
-                      </span>
-                    </div>
-                    <h3 className="text-base font-extrabold tracking-[-0.03em] text-slate-950">{reservation.area}</h3>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">
-                      {formatDate(reservation.date)} · {reservation.startTime} - {reservation.endTime}
-                    </p>
-                    {reservation.notes && <p className="mt-3 line-clamp-2 text-sm font-medium leading-6 text-slate-600">{reservation.notes}</p>}
-                  </div>
-                  {reservation.status === 'pending' && (
-                    <div className="flex shrink-0 flex-wrap gap-2">
-                      <Button size="sm" variant="success" onClick={() => isDemo ? blockAction() : approve(reservation._id)} icon={<CheckCircle className="h-3.5 w-3.5" />}>Aprovar</Button>
-                      <Button size="sm" variant="danger" onClick={() => isDemo ? blockAction() : reject(reservation._id)} icon={<XCircle className="h-3.5 w-3.5" />}>Recusar</Button>
+              return (
+                <button
+                  key={dayStr}
+                  type="button"
+                  onClick={() => handleDayClick(dayStr)}
+                  className={[
+                    'relative flex min-h-[52px] flex-col items-center justify-start gap-1 rounded-xl p-1.5 text-xs font-bold transition-all',
+                    isSelected
+                      ? 'bg-violet-700 text-white shadow-lg shadow-violet-700/25'
+                      : 'text-slate-700 hover:bg-violet-50',
+                    isToday && !isSelected ? 'ring-2 ring-violet-300 ring-offset-1' : '',
+                  ].join(' ')}
+                >
+                  <span className={`text-sm font-black leading-none ${isSelected ? 'text-white' : isToday ? 'text-violet-700' : 'text-slate-800'}`}>
+                    {dayNum}
+                  </span>
+                  {(hasApproved || hasPending || hasBlock) && (
+                    <div className="flex flex-wrap justify-center gap-0.5">
+                      {hasApproved && (
+                        <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-emerald-300' : 'bg-emerald-500'}`} />
+                      )}
+                      {hasPending && (
+                        <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-yellow-200' : 'bg-amber-400'}`} />
+                      )}
+                      {hasBlock && (
+                        <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-red-300' : 'bg-red-500'}`} />
+                      )}
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => isDemo ? blockAction() : setDeleteTarget(reservation)}
-                    className="icon-button shrink-0 hover:border-red-100 hover:bg-red-50 hover:text-red-600"
-                    title="Excluir reserva"
-                    aria-label={`Excluir reserva ${reservation.area}`}
+                  {activeCount > 1 && (
+                    <span className={`absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-black ${isSelected ? 'bg-white/20 text-white' : 'bg-violet-100 text-violet-700'}`}>
+                      {activeCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap items-center gap-4 border-t border-slate-50 px-4 py-3">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-[11px] font-semibold text-slate-400">Aprovada</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-amber-400" />
+              <span className="text-[11px] font-semibold text-slate-400">Pendente</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              <span className="text-[11px] font-semibold text-slate-400">Bloqueio</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full ring-2 ring-violet-300" />
+              <span className="text-[11px] font-semibold text-slate-400">Hoje</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Side Panel */}
+        <aside className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+          {/* Panel header */}
+          <div className="border-b border-slate-100 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                <CalendarDays className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="truncate text-sm font-extrabold capitalize text-slate-900">
+                  {fmtDay(selectedDay)}
+                </h2>
+                <p className="text-xs font-medium text-slate-400">
+                  {selectedDayReservations.length} reserva(s) · {selectedDayBlocks.length} bloqueio(s)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Panel body */}
+          <div className="overflow-y-auto" style={{ maxHeight: '560px' }}>
+
+            {/* VIEW MODE */}
+            {panelMode === 'view' && (
+              <div className="space-y-3 p-4">
+
+                {/* Block entries */}
+                {selectedDayBlocks.map(block => (
+                  <div key={block._id} className="rounded-xl border border-red-100 bg-red-50 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1.5 text-xs font-black text-red-700">
+                          <Ban className="h-3.5 w-3.5 shrink-0" />
+                          Bloqueio — {block.area}
+                        </div>
+                        <p className="mt-0.5 text-xs font-semibold text-red-600">
+                          {block.startTime} – {block.endTime}
+                        </p>
+                        {block.reason && (
+                          <p className="mt-1 text-xs text-red-500">{block.reason}</p>
+                        )}
+                        {(block.createdBy as any)?.name && (
+                          <p className="mt-1 text-[10px] font-semibold text-red-400">
+                            Por: {(block.createdBy as any).name}
+                          </p>
+                        )}
+                      </div>
+                      {canBlock && (
+                        <button
+                          type="button"
+                          onClick={() => setDeleteBlockTarget(block)}
+                          className="shrink-0 rounded-lg p-1 text-red-300 transition hover:bg-red-100 hover:text-red-600"
+                          title="Remover bloqueio"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Reservation entries */}
+                {selectedDayReservations.map(r => (
+                  <div key={r._id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <StatusBadge status={r.status} />
+                        <p className="mt-1.5 truncate text-sm font-bold text-slate-800">{r.area}</p>
+                        <p className="text-xs font-semibold text-slate-500">{r.startTime} – {r.endTime}</p>
+                        <p className="text-xs text-slate-400">{getUnitLabel(r.unitId)}</p>
+                        {r.notes && (
+                          <p className="mt-1 line-clamp-2 text-xs text-slate-500">{r.notes}</p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        {r.status === 'pending' && canApprove && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={() => isDemo ? blockAction() : approve(r._id)}
+                              icon={<CheckCircle className="h-3 w-3" />}
+                            >
+                              Aprovar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => isDemo ? blockAction() : reject(r._id)}
+                              icon={<XCircle className="h-3 w-3" />}
+                            >
+                              Recusar
+                            </Button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => isDemo ? blockAction() : setDeleteTarget(r)}
+                          className="rounded-lg p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                          title="Excluir reserva"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Empty state */}
+                {selectedDayReservations.length === 0 && selectedDayBlocks.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
+                      <CalendarDays className="h-6 w-6" />
+                    </div>
+                    <p className="mt-3 text-sm font-bold text-slate-600">Nenhuma reserva</p>
+                    <p className="mt-0.5 text-xs font-medium text-slate-400">
+                      Nenhuma atividade para este dia.
+                    </p>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="space-y-2 pt-2">
+                  <Button
+                    onClick={() => isDemo ? blockAction() : openCreatePanel()}
+                    icon={<Plus className="h-4 w-4" />}
+                    className="w-full border-violet-700 bg-violet-700 hover:border-violet-800 hover:bg-violet-800"
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                    Nova reserva
+                  </Button>
+                  {canBlock && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => isDemo ? blockAction() : openBlockPanel()}
+                      icon={<Lock className="h-4 w-4" />}
+                      className="w-full"
+                    >
+                      Bloquear horário
+                    </Button>
+                  )}
                 </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+              </div>
+            )}
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nova reserva" size="lg">
-        <div className="space-y-4">
-          <Select
-            label="Unidade *"
-            value={form.unitId}
-            onChange={(e) => setForm({ ...form, unitId: e.target.value })}
-            options={units.map((unit) => ({
-              value: unit._id,
-              label: `${unit.block ? `Bloco ${unit.block} - ` : ''}Apt ${unit.number}`,
-            }))}
-            placeholder="Selecione a unidade"
-          />
-          <Select
-            label="Área *"
-            value={form.area}
-            onChange={(e) => setForm({ ...form, area: e.target.value })}
-            options={COMMON_AREAS.map((area) => ({ value: area, label: area }))}
-            placeholder="Selecione a área"
-          />
-          <Input label="Data *" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Hora início *" type="time" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
-            <Input label="Hora fim *" type="time" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} />
-          </div>
-          <Textarea label="Observação" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} placeholder="Detalhes úteis para a reserva..." />
-          <div className="flex gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setModalOpen(false)} className="flex-1">Cancelar</Button>
-            <Button onClick={handleCreate} loading={saving} className="flex-1">Criar reserva</Button>
-          </div>
-        </div>
-      </Modal>
+            {/* CREATE MODE */}
+            {panelMode === 'create' && (
+              <div className="space-y-3 p-4">
+                <button
+                  type="button"
+                  onClick={() => setPanelMode('view')}
+                  className="flex items-center gap-1.5 text-xs font-bold text-slate-500 transition hover:text-violet-700"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Voltar
+                </button>
+                <h3 className="text-sm font-extrabold text-slate-900">Nova reserva</h3>
 
-      <Modal isOpen={blockOpen} onClose={() => setBlockOpen(false)} title="Bloquear horário" size="lg">
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-violet-100 bg-[#fbf8ff] p-4">
-            <p className="text-sm font-semibold leading-6 text-slate-600">
-              Use bloqueios para manutenção, eventos internos ou períodos indisponíveis. Moradores não conseguirão reservar nesse intervalo.
-            </p>
-          </div>
-          <Select
-            label="Área *"
-            value={blockForm.area}
-            onChange={(e) => setBlockForm({ ...blockForm, area: e.target.value })}
-            options={COMMON_AREAS.map((area) => ({ value: area, label: area }))}
-            placeholder="Selecione a área"
-          />
-          <Input label="Data *" type="date" value={blockForm.date} onChange={(e) => setBlockForm({ ...blockForm, date: e.target.value })} />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Hora início *" type="time" value={blockForm.startTime} onChange={(e) => setBlockForm({ ...blockForm, startTime: e.target.value })} />
-            <Input label="Hora fim *" type="time" value={blockForm.endTime} onChange={(e) => setBlockForm({ ...blockForm, endTime: e.target.value })} />
-          </div>
-          <Textarea label="Motivo" value={blockForm.reason} onChange={(e) => setBlockForm({ ...blockForm, reason: e.target.value })} rows={3} placeholder="Ex.: manutenção da churrasqueira..." />
-          <div className="flex gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setBlockOpen(false)} className="flex-1">Cancelar</Button>
-            <Button onClick={handleBlockCreate} loading={saving} className="flex-1">Bloquear agenda</Button>
-          </div>
-        </div>
-      </Modal>
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <CalendarDays className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+                  <span className="text-xs font-semibold capitalize text-slate-600">{fmtDay(selectedDay)}</span>
+                </div>
 
+                {selectedDayBlocks.length > 0 && (
+                  <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
+                    <p className="flex items-center gap-1.5 text-xs font-bold text-amber-700">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      Bloqueios ativos neste dia:
+                    </p>
+                    {selectedDayBlocks.map(b => (
+                      <p key={b._id} className="mt-0.5 text-xs text-amber-600">
+                        · {b.area}: {b.startTime}–{b.endTime}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                <Select
+                  label="Unidade *"
+                  value={form.unitId}
+                  onChange={e => setForm({ ...form, unitId: e.target.value })}
+                  options={units.map(u => ({ value: u._id, label: getUnitLabel(u) }))}
+                  placeholder="Selecione a unidade"
+                />
+                <Select
+                  label="Área *"
+                  value={form.area}
+                  onChange={e => setForm({ ...form, area: e.target.value })}
+                  options={COMMON_AREAS.map(a => ({ value: a, label: a }))}
+                  placeholder="Selecione a área"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Início *"
+                    type="time"
+                    value={form.startTime}
+                    onChange={e => setForm({ ...form, startTime: e.target.value })}
+                  />
+                  <Input
+                    label="Fim *"
+                    type="time"
+                    value={form.endTime}
+                    onChange={e => setForm({ ...form, endTime: e.target.value })}
+                  />
+                </div>
+                <Textarea
+                  label="Observação"
+                  value={form.notes}
+                  onChange={e => setForm({ ...form, notes: e.target.value })}
+                  rows={2}
+                  placeholder="Detalhes úteis..."
+                />
+                <div className="flex gap-2 pt-1">
+                  <Button variant="secondary" onClick={() => setPanelMode('view')} className="flex-1">
+                    Cancelar
+                  </Button>
+                  <Button onClick={handlePanelCreate} loading={saving} className="flex-1">
+                    Criar
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* BLOCK MODE */}
+            {panelMode === 'block' && (
+              <div className="space-y-3 p-4">
+                <button
+                  type="button"
+                  onClick={() => setPanelMode('view')}
+                  className="flex items-center gap-1.5 text-xs font-bold text-slate-500 transition hover:text-violet-700"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Voltar
+                </button>
+                <h3 className="text-sm font-extrabold text-slate-900">Bloquear horário</h3>
+
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <CalendarDays className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+                  <span className="text-xs font-semibold capitalize text-slate-600">{fmtDay(selectedDay)}</span>
+                </div>
+
+                <div className="rounded-xl border border-violet-100 bg-[#fbf8ff] p-3">
+                  <p className="text-xs font-semibold text-slate-600">
+                    Moradores não conseguirão reservar durante este intervalo.
+                  </p>
+                </div>
+
+                <Select
+                  label="Área *"
+                  value={blockForm.area}
+                  onChange={e => setBlockForm({ ...blockForm, area: e.target.value })}
+                  options={COMMON_AREAS.map(a => ({ value: a, label: a }))}
+                  placeholder="Selecione a área"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Início *"
+                    type="time"
+                    value={blockForm.startTime}
+                    onChange={e => setBlockForm({ ...blockForm, startTime: e.target.value })}
+                  />
+                  <Input
+                    label="Fim *"
+                    type="time"
+                    value={blockForm.endTime}
+                    onChange={e => setBlockForm({ ...blockForm, endTime: e.target.value })}
+                  />
+                </div>
+                <Textarea
+                  label="Motivo"
+                  value={blockForm.reason}
+                  onChange={e => setBlockForm({ ...blockForm, reason: e.target.value })}
+                  rows={2}
+                  placeholder="Ex.: manutenção da churrasqueira..."
+                />
+                <div className="flex gap-2 pt-1">
+                  <Button variant="secondary" onClick={() => setPanelMode('view')} className="flex-1">
+                    Cancelar
+                  </Button>
+                  <Button onClick={handlePanelBlockCreate} loading={saving} className="flex-1">
+                    Bloquear
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      {/* Confirm Dialogs */}
       <ConfirmDialog
         isOpen={Boolean(deleteTarget)}
         title="Excluir reserva?"
-        description={`A reserva de "${deleteTarget?.area || 'área comum'}" em ${deleteTarget ? formatDate(deleteTarget.date) : 'data selecionada'} será removida do histórico. Essa ação não pode ser desfeita.`}
+        description={`A reserva de "${deleteTarget?.area || 'área comum'}" em ${deleteTarget ? fmtShort(deleteTarget.date.slice(0, 10)) : 'data selecionada'} será removida. Essa ação não pode ser desfeita.`}
         confirmLabel="Excluir reserva"
         loading={saving}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
       />
-
       <ConfirmDialog
         isOpen={Boolean(deleteBlockTarget)}
         title="Remover bloqueio?"
-        description={`O bloqueio de "${deleteBlockTarget?.area || 'área comum'}" em ${deleteBlockTarget ? formatDate(deleteBlockTarget.date) : 'data selecionada'} deixará de impedir novas reservas.`}
+        description={`O bloqueio de "${deleteBlockTarget?.area || 'área comum'}" em ${deleteBlockTarget ? fmtShort(deleteBlockTarget.date.slice(0, 10)) : 'data selecionada'} deixará de impedir novas reservas.`}
         confirmLabel="Remover bloqueio"
         loading={saving}
         onClose={() => setDeleteBlockTarget(null)}

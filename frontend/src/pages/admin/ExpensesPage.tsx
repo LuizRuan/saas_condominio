@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import FilterSelect from '../../components/ui/FilterSelect';
+import FilterMonth from '../../components/ui/FilterMonth';
 import Textarea from '../../components/ui/Textarea';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -239,22 +241,22 @@ const ExpensesPage: React.FC = () => {
 
       {/* Filters */}
       <section className="mt-6 flex flex-wrap gap-3">
-        <Select
+        <FilterSelect
           value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          options={[{ value: '', label: 'Todas as categorias' }, ...categoryOptions]}
+          onChange={setFilterCategory}
+          options={categoryOptions}
+          placeholder="Todas as categorias"
           className="min-w-[200px]"
         />
-        <Select
+        <FilterSelect
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          options={[{ value: '', label: 'Todos os status' }, ...statusOptions]}
+          onChange={setFilterStatus}
+          options={statusOptions}
+          placeholder="Todos os status"
         />
-        <Input
-          type="month"
+        <FilterMonth
           value={filterMonth}
-          onChange={(e) => setFilterMonth(e.target.value)}
-          placeholder="Mês"
+          onChange={setFilterMonth}
         />
       </section>
 
