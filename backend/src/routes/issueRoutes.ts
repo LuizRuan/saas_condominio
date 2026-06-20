@@ -12,6 +12,6 @@ router.get('/:id', getIssue);
 router.put('/:id', roleMiddleware('admin'), updateIssue);
 router.patch('/:id/status', roleMiddleware('admin'), updateIssueStatus);
 router.post('/:id/messages', addIssueMessage);
-router.delete('/:id', roleMiddleware('admin'), deleteIssue);
+router.delete('/:id', roleMiddleware('admin', 'subadmin', 'concierge'), deleteIssue);
 
 export default router;

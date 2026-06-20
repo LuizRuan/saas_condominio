@@ -24,6 +24,14 @@ const quickLinks = [
   { to: '/unidades', label: 'Unidades', icon: Home, color: 'bg-indigo-50 text-indigo-700' },
 ];
 
+const toArr = <T,>(raw: unknown): T[] => {
+  if (Array.isArray(raw)) return raw as T[];
+  const r = raw as any;
+  if (Array.isArray(r?.data)) return r.data;
+  if (Array.isArray(r?.items)) return r.items;
+  return [];
+};
+
 const FinancialDashboard: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
 
@@ -33,17 +41,17 @@ const FinancialDashboard: React.FC = () => {
 
   const { data: charges = [], isLoading: loadingCharges } = useQuery<Charge[]>({
     queryKey: ['charges'],
-    queryFn: async () => { const { data } = await api.get('/charges'); return data; }
+    queryFn: async () => { try { const { data } = await api.get('/charges'); return toArr<Charge>(data); } catch { return []; } }
   });
 
   const { data: expenses = [], isLoading: loadingExpenses } = useQuery<ExpenseData[]>({
     queryKey: ['expenses'],
-    queryFn: async () => { const { data } = await api.get('/expenses'); return data; }
+    queryFn: async () => { try { const { data } = await api.get('/expenses'); return toArr<ExpenseData>(data); } catch { return []; } }
   });
 
   const { data: units = [], isLoading: loadingUnits } = useQuery<Unit[]>({
     queryKey: ['units'],
-    queryFn: async () => { const { data } = await api.get('/units'); return data; }
+    queryFn: async () => { try { const { data } = await api.get('/units'); return toArr<Unit>(data); } catch { return []; } }
   });
 
   if (loadingCharges || loadingExpenses || loadingUnits) return <LoadingSpinner text="Carregando..." />;

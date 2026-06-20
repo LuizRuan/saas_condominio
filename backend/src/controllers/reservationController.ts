@@ -279,7 +279,7 @@ export const getReservationBlocks = async (req: AuthRequest, res: Response): Pro
     if (req.query.area) filter.area = req.query.area;
     if (req.query.date) filter.date = new Date(String(req.query.date));
 
-    const blocks = await ReservationBlock.find(filter).sort({ date: 1, startTime: 1 });
+    const blocks = await ReservationBlock.find(filter).populate('createdBy', 'name role').sort({ date: 1, startTime: 1 });
     res.json(blocks);
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar bloqueios', details: error.message });

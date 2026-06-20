@@ -187,6 +187,12 @@ const ReservationsPage: React.FC = () => {
                     <p className="text-sm font-black text-slate-950">{block.area}</p>
                     <p className="mt-1 text-xs font-bold text-slate-500">{formatDate(block.date)} · {block.startTime} - {block.endTime}</p>
                     {block.reason && <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{block.reason}</p>}
+                    {(block.createdBy as any)?.name && (
+                      <p className="mt-1 text-[10px] font-semibold text-slate-400">
+                        Bloqueado por: {(block.createdBy as any).name}
+                        {(block.createdBy as any).role === 'concierge' ? ' (Porteiro)' : ''}
+                      </p>
+                    )}
                   </div>
                   <button
                     type="button"

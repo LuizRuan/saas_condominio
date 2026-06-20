@@ -22,6 +22,6 @@ const staffRoles = ['admin', 'subadmin', 'concierge'];
 router.post('/', roleMiddleware(...staffRoles), createPackage);
 router.get('/', roleMiddleware(...staffRoles), getPackages);
 router.patch('/:id/deliver', roleMiddleware(...staffRoles), markAsDelivered);
-router.delete('/:id', roleMiddleware('admin', 'subadmin'), deletePackage);
+router.delete('/:id', roleMiddleware('admin', 'subadmin', 'concierge'), deletePackage);
 
 export default router;
