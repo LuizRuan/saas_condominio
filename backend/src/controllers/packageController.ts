@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import Package from '../models/Package';
+import AuditLog from '../models/AuditLog';
 import { AuthRequest } from '../middlewares/auth';
 import { notify } from '../utils/notifications';
 import { audit } from '../utils/audit';
@@ -104,15 +105,10 @@ export const markAsDelivered = async (req: AuthRequest, res: Response): Promise<
 export const deletePackage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    await Package.findByIdAndDelete(id);
-    
-    await audit(req, {
-      action: 'package_deleted',
-      entity: 'Package',
-      entityId: id as string,
-      message: 'Registro de encomenda excluído',
-      metadata: { packageId: id }
-    });
+    const pkg = await Package.findOneAndDelete({ _id: id, condominiumId: req.user!.condominiumId });
+    if (!pkg) { res.status(404).json({ message: 'Encomenda não encontrada' }); return; }
+
+    await AuditLog.deleteMany({ entityId: id, condominiumId: req.user!.condominiumId }).catch(() => undefined);
 
     res.json({ message: 'Encomenda excluída com sucesso' });
   } catch (error: any) {

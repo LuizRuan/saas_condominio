@@ -18,6 +18,19 @@ import { formatCurrency, formatDate, getUnitLabel } from '../../utils/helpers';
 import api from '../../services/api';
 import { AdminDashboard as DashboardData, AuditLog } from '../../types';
 
+const ENTITY_LABELS: Record<string, string> = {
+  package: 'Encomenda', Package: 'Encomenda',
+  issue: 'Ocorrência', Issue: 'Ocorrência',
+  reservation: 'Reserva', reservation_block: 'Reserva',
+  announcement: 'Comunicado',
+  charge: 'Cobrança',
+  expense: 'Despesa',
+  unit: 'Unidade',
+  resident: 'Morador',
+  access: 'Acesso',
+};
+const entityLabel = (entity: string) => ENTITY_LABELS[entity] ?? entity;
+
 interface ChartsData {
   revenue: { month: string; received: number; pending: number; late: number }[];
   issuesTrend: { month: string; open: number; resolved: number }[];
@@ -261,8 +274,8 @@ const AdminDashboard: React.FC = () => {
                       <p className="truncate text-sm font-bold text-slate-900">{log.message}</p>
                       <p className="mt-1 text-xs font-medium text-slate-500">{log.actorName} · {formatDate(log.createdAt)}</p>
                     </div>
-                    <span className="shrink-0 rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black uppercase text-violet-700 ring-1 ring-violet-100">
-                      {log.entity}
+                    <span className="shrink-0 rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black text-violet-700 ring-1 ring-violet-100">
+                      {entityLabel(log.entity)}
                     </span>
                   </div>
                 </div>

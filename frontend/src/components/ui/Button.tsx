@@ -12,7 +12,7 @@ const Button: React.FC<ButtonProps> = ({
   children, variant = 'primary', size = 'md', loading = false,
   icon, className = '', disabled, ...props
 }) => {
-  const base = 'inline-flex select-none items-center justify-center whitespace-nowrap rounded-xl font-bold tracking-[-0.01em] transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-offset-1 active:translate-y-px disabled:pointer-events-none disabled:opacity-50';
+  const base = 'inline-flex select-none items-center justify-center whitespace-nowrap rounded-xl font-bold tracking-[-0.01em] transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-offset-1 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50';
 
   const variants: Record<string, string> = {
     primary: 'border border-violet-700 bg-violet-700 text-white shadow-lg shadow-violet-700/20 hover:border-violet-800 hover:bg-violet-800 hover:shadow-violet-800/25 focus:ring-violet-500/20',

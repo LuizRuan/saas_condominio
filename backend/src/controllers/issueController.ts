@@ -2,6 +2,7 @@ import { Response } from 'express';
 import Issue from '../models/Issue';
 import Unit from '../models/Unit';
 import Resident from '../models/Resident';
+import AuditLog from '../models/AuditLog';
 import { AuthRequest } from '../middlewares/auth';
 import { findResidentForUser } from '../utils/residentContext';
 import { notify } from '../utils/notifications';
@@ -202,12 +203,7 @@ export const deleteIssue = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    await audit(req, {
-      action: 'delete',
-      entity: 'issue',
-      entityId: issue._id as any,
-      message: `Ocorrência "${issue.title}" excluída`,
-    });
+    await AuditLog.deleteMany({ entityId: issue._id, condominiumId: req.user!.condominiumId }).catch(() => undefined);
 
     res.json({ message: 'Ocorrência excluída com sucesso' });
   } catch (error: any) {

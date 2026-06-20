@@ -11,9 +11,20 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import PremiumPage from '../../components/ui/PremiumPage';
 import MetricCard from '../../components/ui/MetricCard';
 import ImportWizard from '../../components/units/ImportWizard';
-import { AlertTriangle, Building2, CheckCircle2, Home, Pencil, Plus, Trash2, UploadCloud } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, Home, Pencil, Plus, Trash2, UploadCloud, Users } from 'lucide-react';
 import api from '../../services/api';
-import { Unit } from '../../types';
+import { Unit, Resident } from '../../types';
+
+const toArr = <T,>(raw: unknown): T[] => {
+  if (Array.isArray(raw)) return raw as T[];
+  const r = raw as any;
+  if (Array.isArray(r?.data)) return r.data;
+  if (Array.isArray(r?.items)) return r.items;
+  return [];
+};
+
+const typeLabel = (type: Resident['type']) =>
+  type === 'owner' ? 'Proprietário' : type === 'tenant' ? 'Inquilino' : 'Resp. financeiro';
 import toast from 'react-hot-toast';
 import { useDemo } from '../../contexts/DemoContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -40,6 +51,24 @@ const UnitsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [residentsModalUnit, setResidentsModalUnit] = useState<Unit | null>(null);
+
+  const { data: residentsRaw } = useQuery<Resident[]>({
+    queryKey: ['residents'],
+    queryFn: async () => { try { const { data } = await api.get('/residents'); return toArr<Resident>(data); } catch { return []; } },
+  });
+  const allResidents: Resident[] = residentsRaw ?? [];
+
+  const residentsByUnit = useMemo(() => {
+    const map = new Map<string, Resident[]>();
+    allResidents.forEach(r => {
+      const uid = typeof r.unitId === 'string' ? r.unitId : (r.unitId as any)?._id;
+      if (!uid) return;
+      if (!map.has(uid)) map.set(uid, []);
+      map.get(uid)!.push(r);
+    });
+    return map;
+  }, [allResidents]);
 
   const openCreate = () => {
     setEditing(null);
@@ -161,6 +190,7 @@ const UnitsPage: React.FC = () => {
                     <th>Unidade</th>
                     <th>Bloco</th>
                     <th>Status</th>
+                    <th>Morador responsável</th>
                     <th>Observações</th>
                     <th className="text-right">Ações</th>
                   </tr>
@@ -181,6 +211,26 @@ const UnitsPage: React.FC = () => {
                       </td>
                       <td className="font-semibold text-slate-700">{unit.block || '—'}</td>
                       <td><StatusBadge status={unit.status} /></td>
+                      <td>
+                        {(() => {
+                          const residents = residentsByUnit.get(unit._id) ?? [];
+                          const owner = residents.find(r => r.type === 'owner') ?? residents[0];
+                          if (!owner) return <span className="text-xs text-slate-400">Sem morador vinculado</span>;
+                          const others = residents.length - 1;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => setResidentsModalUnit(unit)}
+                              className="text-left text-sm font-semibold text-slate-800 hover:text-violet-700 transition-colors"
+                            >
+                              {owner.name}
+                              {others > 0 && (
+                                <span className="ml-1.5 text-xs font-bold text-violet-500">+{others}</span>
+                              )}
+                            </button>
+                          );
+                        })()}
+                      </td>
                       <td className="max-w-[200px] truncate text-slate-500">{unit.notes || 'Sem observações'}</td>
                       <td className="text-right">
                         {!isFinancial && (
@@ -242,11 +292,56 @@ const UnitsPage: React.FC = () => {
         onConfirm={handleDelete}
       />
 
-      <ImportWizard 
-        isOpen={wizardOpen} 
-        onClose={() => setWizardOpen(false)} 
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['units'] })} 
+      <ImportWizard
+        isOpen={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['units'] })}
       />
+
+      <Modal
+        isOpen={Boolean(residentsModalUnit)}
+        onClose={() => setResidentsModalUnit(null)}
+        title="Integrantes da Unidade"
+      >
+        {residentsModalUnit && (() => {
+          const residents = residentsByUnit.get(residentsModalUnit._id) ?? [];
+          return (
+            <div>
+              <p className="mb-4 text-sm font-semibold text-slate-500">
+                {residentsModalUnit.block ? `Bloco ${residentsModalUnit.block} · ` : ''}Unidade {residentsModalUnit.number}
+              </p>
+              {residents.length === 0 ? (
+                <div className="flex flex-col items-center py-8 text-center text-slate-400">
+                  <Users className="h-8 w-8 mb-2 opacity-40" />
+                  <p className="text-sm">Nenhum integrante vinculado a esta unidade.</p>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {residents.map(r => (
+                    <li key={r._id} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700 text-sm font-black">
+                          {r.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-extrabold text-slate-900">{r.name}</p>
+                          <p className="text-xs font-semibold text-violet-600">{typeLabel(r.type)}</p>
+                        </div>
+                      </div>
+                      {(r.email || r.phone) && (
+                        <div className="mt-2 space-y-0.5 pl-12 text-xs text-slate-500">
+                          {r.email && <p>{r.email}</p>}
+                          {r.phone && <p>{r.phone}</p>}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })()}
+      </Modal>
     </PremiumPage>
   );
 };

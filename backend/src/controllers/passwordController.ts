@@ -1,7 +1,38 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import { Resend } from 'resend';
 import User from '../models/User';
+
+const sendResetEmail = async (toEmail: string, resetUrl: string): Promise<void> => {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  if (!apiKey || !from) {
+    console.error('[EMAIL] Variáveis RESEND_API_KEY ou EMAIL_FROM não configuradas — e-mail de recuperação NÃO enviado.');
+    return;
+  }
+  const resend = new Resend(apiKey);
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/></head>
+<body style="font-family:sans-serif;background:#f5f7fb;margin:0;padding:40px 20px;">
+  <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:20px;padding:40px;box-shadow:0 4px 40px rgba(0,0,0,0.08);">
+    <div style="text-align:center;margin-bottom:28px;">
+      <span style="font-size:24px;font-weight:900;letter-spacing:-0.04em;color:#0f172a;">Domus</span>
+    </div>
+    <h2 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 10px;">Redefinição de senha</h2>
+    <p style="font-size:14px;color:#64748b;line-height:1.6;margin:0 0 28px;">
+      Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha.
+    </p>
+    <div style="text-align:center;margin-bottom:28px;">
+      <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#4f46e5);color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:12px;">
+        Redefinir senha
+      </a>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;text-align:center;">Este link expira em 1 hora.</p>
+    <p style="font-size:12px;color:#94a3b8;text-align:center;">Se você não solicitou a redefinição, ignore este e-mail com segurança.</p>
+  </div>
+</body></html>`;
+  await resend.emails.send({ from, to: toEmail, subject: 'Redefinição de senha - Domus', html });
+};
 
 // ─── Forgot Password ─────────────────────────────────────────────────────────
 // POST /api/auth/forgot-password
@@ -29,11 +60,13 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     user.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1h
     await user.save();
 
-    // TODO: Replace with your email service call (SendGrid, Resend, SES, etc.)
-    // Example: await emailService.sendPasswordReset(user.email, token)
-    // The token is intentionally NOT returned in production responses
-    if (process.env.NODE_ENV !== 'production') {
-      console.info(`[DEV ONLY — Password Reset] Token for ${user.email}: ${token}`);
+    const clientUrl = (process.env.CLIENT_URL || '').replace(/\/+$/, '');
+    const resetUrl = `${clientUrl}/reset-password?token=${token}`;
+
+    try {
+      await sendResetEmail(user.email, resetUrl);
+    } catch (emailErr: any) {
+      console.error(`[EMAIL] Falha ao enviar recuperação de senha para ${user.email}:`, emailErr?.message);
     }
 
     res.json({ message: 'Se este e-mail estiver cadastrado, você receberá um link em breve.' });

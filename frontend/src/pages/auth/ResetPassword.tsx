@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, CheckCircle2, Lock } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Lock } from 'lucide-react';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import BrandMark from '../../components/ui/BrandMark';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -20,6 +21,7 @@ const ResetPassword: React.FC = () => {
     e.preventDefault();
     if (!password || !confirm) { toast.error('Preencha todos os campos.'); return; }
     if (password.length < 6) { toast.error('A senha deve ter pelo menos 6 caracteres.'); return; }
+    if (password === '123456') { toast.error('Escolha uma senha diferente da senha padrão.'); return; }
     if (password !== confirm) { toast.error('As senhas não coincidem.'); return; }
     if (!token) { toast.error('Link inválido. Solicite um novo.'); return; }
 
@@ -41,15 +43,7 @@ const ResetPassword: React.FC = () => {
 
         {/* Brand */}
         <div className="mb-8 flex justify-center">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-700 shadow-lg">
-              <Building2 className="h-5 w-5 text-white" strokeWidth={2.2} />
-            </div>
-            <div className="leading-none">
-              <p className="text-[15px] font-extrabold tracking-[-0.03em] text-slate-950">Condomínio</p>
-              <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-blue-600">em Dia</p>
-            </div>
-          </div>
+          <BrandMark />
         </div>
 
         <div className="rounded-[28px] border border-white bg-white/95 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.11)] ring-1 ring-slate-200/70 sm:p-9">

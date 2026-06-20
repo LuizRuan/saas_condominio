@@ -3,6 +3,7 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import PremiumPage from '../components/ui/PremiumPage';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import Modal from '../components/ui/Modal';
 import { useAuth } from '../contexts/AuthContext';
 import { KeyRound, ShieldCheck, UserRound, ArrowLeft } from 'lucide-react';
 import api from '../services/api';
@@ -10,12 +11,13 @@ import { User } from '../types';
 import toast from 'react-hot-toast';
 
 const ProfilePage: React.FC = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const navigate = useNavigate();
 
   const [loadingData, setLoadingData] = useState(false);
   const [loadingPassword, setLoadingPassword] = useState(false);
+  const [pwdModalOpen, setPwdModalOpen] = useState(false);
 
   const [dataForm, setDataForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
   const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -43,27 +45,37 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleUpdatePassword = async () => {
+  const validateAndOpenModal = () => {
     if (!pwdForm.currentPassword || !pwdForm.newPassword || !pwdForm.confirmPassword) {
       toast.error('Preencha todos os campos de senha');
-      return;
-    }
-    if (pwdForm.newPassword !== pwdForm.confirmPassword) {
-      toast.error('A nova senha e a confirmação não conferem');
       return;
     }
     if (pwdForm.newPassword.length < 6) {
       toast.error('A nova senha deve ter pelo menos 6 caracteres');
       return;
     }
+    if (pwdForm.newPassword === '123456') {
+      toast.error('Escolha uma senha diferente da senha padrão');
+      return;
+    }
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+      toast.error('A nova senha e a confirmação não conferem');
+      return;
+    }
+    setPwdModalOpen(true);
+  };
 
+  const confirmPasswordChange = async () => {
     setLoadingPassword(true);
     try {
       await api.put('/users/profile/password', { currentPassword: pwdForm.currentPassword, newPassword: pwdForm.newPassword });
-      toast.success('Senha alterada com sucesso!');
-      setPwdForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setPwdModalOpen(false);
+      toast.success('Senha alterada com sucesso. Faça login novamente.');
+      logout();
+      navigate('/login');
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Erro ao alterar senha');
+      setPwdModalOpen(false);
     } finally {
       setLoadingPassword(false);
     }
@@ -155,7 +167,7 @@ const ProfilePage: React.FC = () => {
                   type="password"
                   value={pwdForm.currentPassword}
                   onChange={(e) => setPwdForm({ ...pwdForm, currentPassword: e.target.value })}
-                  placeholder="Sua senha atual"
+                  placeholder="●●●●●●●"
                   containerClassName="sm:col-span-2"
                 />
                 <Input
@@ -174,7 +186,10 @@ const ProfilePage: React.FC = () => {
                 />
               </div>
               <div className="mt-6 flex justify-end border-t border-slate-100 pt-5">
-                <Button variant="secondary" onClick={handleUpdatePassword} loading={loadingPassword}>
+                <Button
+                  onClick={validateAndOpenModal}
+                  disabled={!pwdForm.currentPassword || !pwdForm.newPassword || !pwdForm.confirmPassword}
+                >
                   Atualizar senha
                 </Button>
               </div>
@@ -204,6 +219,34 @@ const ProfilePage: React.FC = () => {
         </aside>
 
       </div>
+
+      <Modal
+        isOpen={pwdModalOpen}
+        onClose={() => !loadingPassword && setPwdModalOpen(false)}
+        title="Confirmar alteração de senha"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => setPwdModalOpen(false)}
+              disabled={loadingPassword}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmPasswordChange}
+              loading={loadingPassword}
+            >
+              Confirmar troca
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm font-medium leading-6 text-slate-600">
+          Tem certeza que deseja trocar sua senha? Após confirmar, sua senha será atualizada e você será redirecionado para a tela de login.
+        </p>
+      </Modal>
     </PremiumPage>
   );
 };
