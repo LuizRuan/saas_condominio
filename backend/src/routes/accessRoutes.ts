@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { getAccesses, createAccess, finishAccess } from '../controllers/accessController';
-import { protect, restrictTo } from '../middleware/auth';
+import { authMiddleware } from '../middlewares/auth';
+import { roleMiddleware } from '../middlewares/role';
 
 const router = Router();
 
-router.use(protect);
-router.use(restrictTo('admin', 'subadmin', 'concierge'));
+router.use(authMiddleware);
+router.use(roleMiddleware('admin', 'subadmin', 'concierge'));
 
 router.route('/')
   .get(getAccesses)

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Access from '../models/Access';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middlewares/auth';
 
 export const getAccesses = async (req: AuthRequest, res: Response) => {
   try {

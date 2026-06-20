@@ -48,7 +48,7 @@ export const createIssue = async (req: AuthRequest, res: Response): Promise<void
       photos: normalizePhotos(req.body.photos),
       messages: [{
         authorId: req.user!._id,
-        authorRole: req.user!.role,
+        authorRole: (req.user!.role === 'resident' ? 'resident' : 'admin') as 'admin' | 'resident',
         authorName: req.user!.name,
         message: description.trim(),
         photos: normalizePhotos(req.body.photos),
@@ -238,7 +238,7 @@ export const addIssueMessage = async (req: AuthRequest, res: Response): Promise<
 
     issue.messages.push({
       authorId: req.user!._id as any,
-      authorRole: req.user!.role,
+      authorRole: (req.user!.role === 'resident' ? 'resident' : 'admin') as 'admin' | 'resident',
       authorName: req.user!.name,
       message: message || 'Foto anexada',
       photos,

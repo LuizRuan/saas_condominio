@@ -205,7 +205,7 @@ const ConciergeDashboard: React.FC = () => {
                           Dar saída
                         </Button>
                       ) : (
-                        <StatusBadge status="resolved" label="Finalizado" />
+                        <StatusBadge status="resolved" />
                       )}
                     </td>
                   </tr>
