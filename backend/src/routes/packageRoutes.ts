@@ -17,11 +17,11 @@ router.use(authMiddleware);
 // Resident routes
 router.get('/resident', getResidentPackages);
 
-// Admin routes
-router.use(roleMiddleware('admin'));
-router.post('/', createPackage);
-router.get('/', getPackages);
-router.patch('/:id/deliver', markAsDelivered);
-router.delete('/:id', deletePackage);
+// Staff routes (admin, subadmin, concierge)
+const staffRoles = ['admin', 'subadmin', 'concierge'];
+router.post('/', roleMiddleware(...staffRoles), createPackage);
+router.get('/', roleMiddleware(...staffRoles), getPackages);
+router.patch('/:id/deliver', roleMiddleware(...staffRoles), markAsDelivered);
+router.delete('/:id', roleMiddleware('admin', 'subadmin'), deletePackage);
 
 export default router;

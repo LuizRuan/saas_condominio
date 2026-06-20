@@ -6,7 +6,7 @@ import { roleMiddleware } from '../middlewares/role';
 const router = Router();
 
 router.use(authMiddleware);
-router.use(roleMiddleware('admin')); // Both cashflow and reports are admin-only
+router.use(roleMiddleware('admin', 'subadmin', 'financial'));
 
 router.get('/cashflow', getCashflow);
 router.get('/reports', getReport);

@@ -6,7 +6,7 @@ import { roleMiddleware } from '../middlewares/role';
 const router = Router();
 
 router.use(authMiddleware);
-router.use(roleMiddleware('admin'));
+router.use(roleMiddleware('admin', 'subadmin', 'financial'));
 
 router.get('/', getExpenses);
 router.post('/', createExpense);
