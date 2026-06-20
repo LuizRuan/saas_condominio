@@ -265,6 +265,11 @@ const STAFF_ROLES = ['concierge', 'financial', 'subadmin'] as const;
 type StaffRole = typeof STAFF_ROLES[number];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+const ALLOWED_EMAIL_DOMAINS = new Set([
+  'gmail.com', 'icloud.com', 'outlook.com', 'hotmail.com',
+  'yahoo.com', 'yahoo.com.br', 'live.com', 'msn.com',
+  'proton.me', 'protonmail.com',
+]);
 const INITIAL_PASSWORD = '123456';
 
 export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -284,7 +289,13 @@ export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void
     }
 
     if (!EMAIL_REGEX.test(email)) {
-      res.status(400).json({ error: 'Digite um e-mail válido, exemplo: nome@gmail.com' });
+      res.status(400).json({ error: 'Digite um e-mail válido. Exemplo: nome@gmail.com' });
+      return;
+    }
+
+    const domain = email.split('@')[1];
+    if (!ALLOWED_EMAIL_DOMAINS.has(domain)) {
+      res.status(400).json({ error: 'Use um e-mail válido com domínio conhecido, como gmail.com, icloud.com, outlook.com ou hotmail.com.' });
       return;
     }
 

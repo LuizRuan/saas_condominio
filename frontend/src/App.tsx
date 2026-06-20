@@ -30,6 +30,7 @@ const ExpensesPage = React.lazy(() => import('./pages/admin/ExpensesPage'));
 const CashflowPage = React.lazy(() => import('./pages/admin/CashflowPage'));
 const ReportsPage = React.lazy(() => import('./pages/admin/ReportsPage'));
 const FinancialDashboard = React.lazy(() => import('./pages/admin/FinancialDashboard'));
+const ConciergeDashboard = React.lazy(() => import('./pages/admin/ConciergeDashboard'));
 
 // Shared — lazy loaded
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
@@ -107,7 +108,7 @@ const App: React.FC = () => {
 
               {/* Concierge routes */}
               <Route element={<ConciergeRoute><AppLayout /></ConciergeRoute>}>
-                <Route path="/portaria" element={<PackagesPage />} /> {/* Placeholder */}
+                <Route path="/portaria" element={<ConciergeDashboard />} />
               </Route>
 
               {/* Resident routes */}

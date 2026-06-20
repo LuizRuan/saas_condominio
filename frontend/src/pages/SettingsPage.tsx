@@ -19,6 +19,13 @@ const CARGO_LABELS: Record<string, string> = {
   subadmin: 'Gestão',
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+const ALLOWED_DOMAINS = new Set([
+  'gmail.com', 'icloud.com', 'outlook.com', 'hotmail.com',
+  'yahoo.com', 'yahoo.com.br', 'live.com', 'msn.com',
+  'proton.me', 'protonmail.com',
+]);
+
 const SettingsPage: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -31,8 +38,6 @@ const SettingsPage: React.FC = () => {
   const [inviteRole, setInviteRole] = useState('concierge');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
-
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
 
   const roleLabel = user?.role === 'admin' ? 'Síndico'
     : user?.role === 'subadmin' ? 'Gestão'
@@ -55,9 +60,17 @@ const SettingsPage: React.FC = () => {
   }, []);
 
   const validateEmail = (val: string) => {
-    const v = val.trim();
+    const v = val.trim().toLowerCase();
     if (!v) { setInviteEmailError('E-mail é obrigatório'); return false; }
-    if (!EMAIL_RE.test(v)) { setInviteEmailError('Digite um e-mail válido, exemplo: nome@gmail.com'); return false; }
+    if (!EMAIL_RE.test(v)) {
+      setInviteEmailError('Digite um e-mail válido. Exemplo: nome@gmail.com');
+      return false;
+    }
+    const domain = v.split('@')[1];
+    if (!ALLOWED_DOMAINS.has(domain)) {
+      setInviteEmailError('Use um e-mail válido com domínio conhecido, como gmail.com, icloud.com, outlook.com ou hotmail.com.');
+      return false;
+    }
     setInviteEmailError('');
     return true;
   };
@@ -148,7 +161,7 @@ const SettingsPage: React.FC = () => {
                 type="email"
                 placeholder="E-mail do colaborador"
                 value={inviteEmail}
-                onChange={(e) => { setInviteEmail(e.target.value); if (inviteEmailError || e.target.value.length > 3) validateEmail(e.target.value); }}
+                onChange={(e) => { setInviteEmail(e.target.value); if (e.target.value.trim().length > 0) validateEmail(e.target.value); }}
                 onBlur={(e) => validateEmail(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                 className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${inviteEmailError ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20' : 'border-violet-100 focus:border-violet-400 focus:ring-violet-500/20'} bg-white`}
@@ -167,7 +180,7 @@ const SettingsPage: React.FC = () => {
             <button
               type="button"
               onClick={handleInvite}
-              disabled={inviteLoading}
+              disabled={inviteLoading || !!inviteEmailError}
               className="flex items-center justify-center gap-1.5 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-violet-800 disabled:opacity-60"
             >
               {inviteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
