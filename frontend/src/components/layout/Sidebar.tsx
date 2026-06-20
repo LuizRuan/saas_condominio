@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Building2, Home, Users, Receipt, Megaphone,
   AlertTriangle, CalendarDays, LogOut, X, Package,
-  ChevronRight, TrendingDown, Wallet, FileText,
+  ChevronRight, TrendingDown, Wallet, FileText, Settings,
 } from 'lucide-react';
 import BrandMark from '../ui/BrandMark';
 
@@ -29,8 +29,6 @@ const adminLinks = [
 ];
 
 const residentLinks = [
-  { to: '/morador', icon: LayoutDashboard, label: 'Meu Painel', section: 'principal' },
-  { to: '/morador/cobrancas', icon: Receipt, label: 'Minhas Cobranças', section: 'financeiro' },
   { to: '/morador/comunicados', icon: Megaphone, label: 'Comunicados', section: 'serviços' },
   { to: '/morador/encomendas', icon: Package, label: 'Encomendas', section: 'serviços' },
   { to: '/morador/ocorrencias', icon: AlertTriangle, label: 'Ocorrências', section: 'serviços' },
@@ -166,6 +164,30 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
           ))}
         </nav>
+
+        {/* Settings link */}
+        <div className="relative border-t border-white/[0.07] px-3 py-2">
+          <NavLink
+            to="/settings"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-all duration-150 ${
+                isActive
+                  ? 'bg-white text-slate-950 shadow-lg shadow-black/20'
+                  : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-100'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-150 ${isActive ? 'bg-blue-600 text-white' : 'bg-white/[0.06] text-slate-500 group-hover:bg-white/10 group-hover:text-slate-200'}`}>
+                  <Settings className="h-[15px] w-[15px]" strokeWidth={isActive ? 2.5 : 2} />
+                </span>
+                <span className="flex-1">Configurações</span>
+              </>
+            )}
+          </NavLink>
+        </div>
 
         {/* User card */}
         <div className="relative border-t border-white/[0.07] p-3">

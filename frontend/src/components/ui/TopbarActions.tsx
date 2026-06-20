@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
   Bell,
-  Building2,
   CalendarDays,
-  ChevronRight,
   CreditCard,
   LayoutDashboard,
   Loader2,
@@ -13,14 +11,9 @@ import {
   Megaphone,
   Settings,
   ShieldCheck,
-  Trash2,
-  UserCog,
-  UserPlus,
   UserRound,
-  Users,
   type LucideIcon,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { AppNotification } from '../../types';
 import { formatDate } from '../../utils/helpers';
@@ -28,28 +21,8 @@ import api from '../../services/api';
 import Button from './Button';
 import Modal from './Modal';
 
-interface StaffMember {
-  _id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
-const CARGO_LABELS: Record<string, string> = {
-  concierge: 'Porteiro',
-  financial: 'Financeiro',
-  subadmin: 'Gestão',
-};
-
 type PanelKey = 'notifications';
 type NotificationTone = 'violet' | 'emerald' | 'orange' | 'blue' | 'slate';
-
-interface ActionItem {
-  label: string;
-  description: string;
-  to: string;
-  icon: LucideIcon;
-}
 
 const getInitials = (name?: string) => (
   name
@@ -111,69 +84,15 @@ const notificationTags: Record<AppNotification['type'], string> = {
 };
 
 const TopbarActions: React.FC = () => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [openPanel, setOpenPanel] = useState<PanelKey | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notificationsLoaded, setNotificationsLoaded] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Collaborators state (admin only, pure admin role)
-  const isPureAdmin = user?.role === 'admin';
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [staffLoaded, setStaffLoaded] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<string>('concierge');
-  const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteLink, setInviteLink] = useState('');
-
-  const loadStaff = async () => {
-    try {
-      const { data } = await api.get<StaffMember[]>('/auth/staff');
-      setStaff(data);
-      setStaffLoaded(true);
-    } catch {
-      // silently ignore
-    }
-  };
-
-  useEffect(() => {
-    if (settingsOpen && isPureAdmin && !staffLoaded) {
-      loadStaff();
-    }
-  }, [settingsOpen]);
-
-  const handleInviteStaff = async () => {
-    if (!inviteEmail) { toast.error('Informe um e-mail'); return; }
-    setInviteLoading(true);
-    setInviteLink('');
-    try {
-      const { data } = await api.post('/auth/invite-staff', { email: inviteEmail, role: inviteRole });
-      setInviteLink(data.inviteUrl);
-      setInviteEmail('');
-      setStaffLoaded(false);
-      loadStaff();
-      toast.success('Convite gerado!');
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Erro ao gerar convite');
-    } finally {
-      setInviteLoading(false);
-    }
-  };
-
-  const handleRemoveStaff = async (id: string) => {
-    try {
-      await api.delete(`/auth/staff/${id}`);
-      setStaff((prev) => prev.filter((s) => s._id !== id));
-      toast.success('Colaborador removido');
-    } catch {
-      toast.error('Erro ao remover colaborador');
-    }
-  };
 
   useEffect(() => {
     if (!openPanel) return;
@@ -197,25 +116,8 @@ const TopbarActions: React.FC = () => {
     };
   }, [openPanel]);
 
-  const homePath = isAdmin ? '/dashboard' : '/morador';
-  const settingsPath = isAdmin ? '/condominio' : '/morador';
-  const roleLabel = isAdmin ? 'Síndico administrador' : 'Morador';
-
-  const settingsItems: ActionItem[] = isAdmin
-    ? [
-      { label: 'Dados do condomínio', description: 'Endereço, cobrança padrão e chave Pix.', to: '/condominio', icon: Building2 },
-      { label: 'Unidades', description: 'Estrutura, ocupação e inadimplência.', to: '/unidades', icon: LayoutDashboard },
-      { label: 'Moradores', description: 'Responsáveis, perfis e vínculos.', to: '/moradores', icon: Users },
-      { label: 'Cobranças', description: 'Configurar e acompanhar pagamentos.', to: '/cobrancas', icon: CreditCard },
-      { label: 'Comunicados', description: 'Gerenciar avisos e fotos publicadas.', to: '/comunicados', icon: Megaphone },
-      { label: 'Reservas', description: 'Revisar solicitações de áreas comuns.', to: '/reservas', icon: CalendarDays },
-    ]
-    : [
-      { label: 'Meu painel', description: 'Resumo da sua unidade e pendências.', to: '/morador', icon: LayoutDashboard },
-      { label: 'Minhas cobranças', description: 'Consultar pagamentos e vencimentos.', to: '/morador/cobrancas', icon: CreditCard },
-      { label: 'Minhas reservas', description: 'Preferências de áreas comuns.', to: '/morador/reservas', icon: CalendarDays },
-      { label: 'Minhas ocorrências', description: 'Histórico de solicitações abertas.', to: '/morador/ocorrencias', icon: AlertTriangle },
-    ];
+  const homePath = user?.role === 'resident' ? '/morador' : user?.role === 'financial' ? '/cobrancas' : '/dashboard';
+  const roleLabel = user?.role === 'admin' ? 'Síndico' : user?.role === 'subadmin' ? 'Gestão' : user?.role === 'concierge' ? 'Porteiro' : user?.role === 'financial' ? 'Financeiro' : 'Morador';
 
   const loadNotifications = async () => {
     setNotificationsLoading(true);
@@ -240,7 +142,6 @@ const TopbarActions: React.FC = () => {
 
   const goTo = (to: string) => {
     setOpenPanel(null);
-    setSettingsOpen(false);
     setProfileOpen(false);
     navigate(to);
   };
@@ -273,7 +174,6 @@ const TopbarActions: React.FC = () => {
 
   const handleLogout = () => {
     setOpenPanel(null);
-    setSettingsOpen(false);
     setProfileOpen(false);
     logout();
     navigate('/login');
@@ -291,14 +191,7 @@ const TopbarActions: React.FC = () => {
 
   const openProfile = () => {
     setOpenPanel(null);
-    setSettingsOpen(false);
     setProfileOpen(true);
-  };
-
-  const openSettings = () => {
-    setOpenPanel(null);
-    setProfileOpen(false);
-    setSettingsOpen(true);
   };
 
   const actionButtonClass = 'relative h-10 w-10 items-center justify-center rounded-2xl border border-violet-100 bg-white text-slate-600 shadow-sm transition hover:border-violet-200 hover:text-violet-700 focus:outline-none focus:ring-4 focus:ring-violet-500/10';
@@ -325,9 +218,9 @@ const TopbarActions: React.FC = () => {
 
         <button
           type="button"
-          onClick={openSettings}
+          onClick={() => navigate('/settings')}
           className={`${actionButtonClass} hidden sm:inline-flex`}
-          aria-label="Abrir configurações"
+          aria-label="Ir para configurações"
         >
           <Settings className="h-4 w-4" />
         </button>
@@ -430,162 +323,6 @@ const TopbarActions: React.FC = () => {
           </div>
         )}
       </div>
-
-      <Modal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} title="Configurações" size="lg">
-        <div className="space-y-5">
-          <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-violet-950 via-slate-950 to-blue-950 p-5 text-white shadow-[0_20px_70px_rgba(76,29,149,0.2)]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Centro de controle</p>
-                <h3 className="mt-2 text-2xl font-black tracking-[-0.05em]">Configurações do sistema</h3>
-                <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-violet-100">
-                  Ajuste cadastros, operação e preferências principais do Domus em um só lugar.
-                </p>
-              </div>
-              <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15 sm:flex">
-                <Settings className="h-6 w-6" />
-              </div>
-            </div>
-          </div>
-
-          <section>
-            <div className="mb-3 flex items-end justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">Atalhos</p>
-                <h4 className="mt-1 text-lg font-black tracking-[-0.04em] text-slate-950">Configurar operação</h4>
-              </div>
-              <span className="rounded-full bg-violet-50 px-3 py-1 text-[11px] font-black text-violet-700 ring-1 ring-violet-100">
-                {isAdmin ? 'Admin' : 'Morador'}
-              </span>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {settingsItems.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <button
-                    key={item.to}
-                    type="button"
-                    onClick={() => goTo(item.to)}
-                    className="group rounded-2xl border border-violet-100 bg-white p-4 text-left shadow-[0_12px_35px_rgba(76,29,149,0.06)] transition hover:-translate-y-0.5 hover:border-violet-200 hover:bg-violet-50"
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-700 transition group-hover:bg-violet-700 group-hover:text-white">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-black text-slate-950">{item.label}</span>
-                        <span className="mt-1 block text-xs font-semibold leading-5 text-slate-500">{item.description}</span>
-                      </span>
-                      <ChevronRight className="mt-1 h-4 w-4 text-slate-300 transition group-hover:text-violet-700" />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-violet-100 bg-[#fbf8ff] p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Conta</p>
-              <p className="mt-2 text-sm font-extrabold text-slate-950">{user?.email || 'Sem e-mail'}</p>
-            </div>
-            <div className="rounded-2xl border border-violet-100 bg-[#fbf8ff] p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Perfil</p>
-              <p className="mt-2 text-sm font-extrabold text-slate-950">{roleLabel}</p>
-            </div>
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Segurança</p>
-              <p className="mt-2 text-sm font-extrabold text-emerald-800">Sessão ativa</p>
-            </div>
-          </section>
-
-          {isPureAdmin && (
-            <section>
-              <div className="mb-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">Colaboradores</p>
-                <h4 className="mt-1 text-lg font-black tracking-[-0.04em] text-slate-950">Adicionar por cargo</h4>
-              </div>
-
-              <div className="mb-3 flex gap-2">
-                <input
-                  type="email"
-                  placeholder="E-mail do colaborador"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="flex-1 rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
-                />
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-950 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
-                >
-                  <option value="concierge">Porteiro</option>
-                  <option value="financial">Financeiro</option>
-                  <option value="subadmin">Gestão</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={handleInviteStaff}
-                  disabled={inviteLoading}
-                  className="flex items-center gap-1.5 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-violet-800 disabled:opacity-60"
-                >
-                  {inviteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-                  Convidar
-                </button>
-              </div>
-
-              {inviteLink && (
-                <div className="mb-3 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                  <p className="flex-1 truncate text-xs font-semibold text-emerald-800">{inviteLink}</p>
-                  <button
-                    type="button"
-                    onClick={() => { navigator.clipboard.writeText(inviteLink); toast.success('Link copiado!'); }}
-                    className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-800"
-                  >
-                    Copiar
-                  </button>
-                </div>
-              )}
-
-              {staff.length > 0 && (
-                <div className="space-y-2">
-                  {staff.map((member) => (
-                    <div key={member._id} className="flex items-center gap-3 rounded-xl border border-violet-100 bg-white px-4 py-3">
-                      <UserCog className="h-4 w-4 shrink-0 text-violet-500" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-black text-slate-950">{member.name}</p>
-                        <p className="truncate text-xs font-semibold text-slate-500">{member.email} · {CARGO_LABELS[member.role] || member.role}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveStaff(member._id)}
-                        className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {staffLoaded && staff.length === 0 && (
-                <p className="text-sm font-semibold text-slate-400">Nenhum colaborador cadastrado ainda.</p>
-              )}
-            </section>
-          )}
-
-          <div className="flex flex-col gap-3 border-t border-violet-100 pt-4 sm:flex-row">
-            <Button variant="secondary" onClick={() => goTo('/perfil')} icon={<UserRound className="h-4 w-4" />} className="flex-1">
-              Perfil e dados
-            </Button>
-            <Button variant="danger" onClick={handleLogout} icon={<LogOut className="h-4 w-4" />} className="flex-1">
-              Encerrar sessão
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       <Modal isOpen={profileOpen} onClose={() => setProfileOpen(false)} title="Perfil do usuário" size="md">
         <div className="space-y-5">

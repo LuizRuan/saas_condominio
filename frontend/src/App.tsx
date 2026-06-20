@@ -32,6 +32,7 @@ const ReportsPage = React.lazy(() => import('./pages/admin/ReportsPage'));
 
 // Shared — lazy loaded
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
+const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 
 // Resident pages — lazy loaded
 const ResidentDashboard = React.lazy(() => import('./pages/resident/ResidentDashboard'));
@@ -50,7 +51,9 @@ const HomeRedirect: React.FC = () => {
   if (loading) return <LoadingSpinner text="Carregando..." />;
   if (!user) return <Navigate to="/" replace />;
   if (user.role === 'concierge') return <Navigate to="/portaria" replace />;
-  return <Navigate to={user.role === 'resident' ? '/morador' : '/dashboard'} replace />;
+  if (user.role === 'financial') return <Navigate to="/cobrancas" replace />;
+  if (user.role === 'resident') return <Navigate to="/morador/comunicados" replace />;
+  return <Navigate to="/dashboard" replace />;
 };
 
 const App: React.FC = () => {
@@ -121,6 +124,7 @@ const App: React.FC = () => {
               {/* Shared routes */}
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/perfil" element={<ProfilePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
 
               {/* 404 */}
