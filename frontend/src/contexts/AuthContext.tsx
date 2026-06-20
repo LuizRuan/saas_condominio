@@ -17,6 +17,7 @@ interface AuthContextType {
   isResident: boolean;
   isConcierge: boolean;
   isSubadmin: boolean;
+  isFinancial: boolean;
   isDemo: boolean;
 }
 
@@ -108,6 +109,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isResident: user?.role === 'resident',
         isConcierge: user?.role === 'concierge',
         isSubadmin: user?.role === 'subadmin',
+        isFinancial: user?.role === 'financial',
         isDemo: user?.isDemo === true,
       }}
     >

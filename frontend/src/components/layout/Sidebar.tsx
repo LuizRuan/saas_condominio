@@ -39,8 +39,18 @@ const residentLinks = [
 
 const conciergeLinks = [
   { to: '/portaria', icon: LayoutDashboard, label: 'Painel da Portaria', section: 'principal' },
+  { to: '/moradores', icon: Users, label: 'Moradores', section: 'serviços' },
+  { to: '/comunicados', icon: Megaphone, label: 'Comunicados', section: 'serviços' },
   { to: '/encomendas', icon: Package, label: 'Encomendas', section: 'serviços' },
   { to: '/ocorrencias', icon: AlertTriangle, label: 'Ocorrências', section: 'serviços' },
+  { to: '/reservas', icon: CalendarDays, label: 'Reservas', section: 'serviços' },
+];
+
+const financialLinks = [
+  { to: '/cobrancas', icon: Receipt, label: 'Cobranças', section: 'financeiro' },
+  { to: '/despesas', icon: TrendingDown, label: 'Despesas', section: 'financeiro' },
+  { to: '/caixa', icon: Wallet, label: 'Caixa', section: 'financeiro' },
+  { to: '/relatorios', icon: FileText, label: 'Relatórios', section: 'financeiro' },
 ];
 
 const sectionLabel: Record<string, string> = {
@@ -52,7 +62,7 @@ const sectionLabel: Record<string, string> = {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, logout, isAdmin, isConcierge, isSubadmin } = useAuth();
+  const { user, logout, isAdmin, isConcierge, isSubadmin, isFinancial } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -60,8 +70,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   let links = residentLinks;
   if (isConcierge) {
     links = conciergeLinks;
+  } else if (isFinancial) {
+    links = financialLinks;
   } else if (isAdmin) {
-    links = isSubadmin ? adminLinks.filter(link => link.section !== 'financeiro') : adminLinks;
+    links = adminLinks;
   }
 
   // Group links by section
@@ -167,7 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-bold text-white">{user?.name}</p>
                 <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-500">
-                  {isConcierge ? 'Portaria' : isSubadmin ? 'Sub-síndico' : isAdmin ? 'Síndico' : 'Morador'}
+                  {isConcierge ? 'Porteiro' : isFinancial ? 'Financeiro' : isSubadmin ? 'Gestão' : isAdmin ? 'Síndico' : 'Morador'}
                 </p>
               </div>
             </div>

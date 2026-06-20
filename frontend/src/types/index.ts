@@ -3,7 +3,7 @@ export interface User {
   name: string;
   email: string;
   phone: string;
-  role: 'admin' | 'resident' | 'concierge' | 'subadmin';
+  role: 'admin' | 'resident' | 'concierge' | 'subadmin' | 'financial';
   isDemo?: boolean;
   condominiumId?: string;
   unitId?: string;

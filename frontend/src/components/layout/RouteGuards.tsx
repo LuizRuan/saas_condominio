@@ -3,6 +3,14 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
+export const FinancialRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading, isAdmin, isFinancial } = useAuth();
+  if (loading) return <LoadingSpinner text="Carregando..." />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isAdmin && !isFinancial) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
+
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <LoadingSpinner text="Carregando..." />;
@@ -45,10 +53,10 @@ export const ConciergeRoute: React.FC<{ children: React.ReactNode }> = ({ childr
 };
 
 export const FinanceRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading, isAdmin, isSubadmin } = useAuth();
+  const { user, loading, isAdmin, isFinancial } = useAuth();
   if (loading) return <LoadingSpinner text="Carregando..." />;
   if (!user) return <Navigate to="/login" replace />;
-  if (!isAdmin || isSubadmin) return <Navigate to="/dashboard" replace />;
+  if (!isAdmin && !isFinancial) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 };
 

@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DemoProvider } from './contexts/DemoContext';
 import AppLayout from './components/layout/AppLayout';
-import { AdminRoute, PublicOnlyRoute, ResidentRoute, ProtectedRoute, ConciergeRoute, FinanceRoute, StaffRoute } from './components/layout/RouteGuards';
+import { AdminRoute, PublicOnlyRoute, ResidentRoute, ProtectedRoute, ConciergeRoute, FinanceRoute, StaffRoute, FinancialRoute } from './components/layout/RouteGuards';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 
@@ -12,6 +12,7 @@ import ErrorBoundary from './components/ui/ErrorBoundary';
 const Login = React.lazy(() => import('./pages/auth/Login'));
 const Register = React.lazy(() => import('./pages/auth/Register'));
 const AcceptInvite = React.lazy(() => import('./pages/auth/AcceptInvite'));
+const AcceptStaffInvite = React.lazy(() => import('./pages/auth/AcceptStaffInvite'));
 const ForgotPassword = React.lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = React.lazy(() => import('./pages/auth/ResetPassword'));
 
@@ -71,27 +72,28 @@ const App: React.FC = () => {
               <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
               <Route path="/cadastro" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
               <Route path="/convite/:token" element={<PublicOnlyRoute><AcceptInvite /></PublicOnlyRoute>} />
+              <Route path="/convite-staff/:token" element={<PublicOnlyRoute><AcceptStaffInvite /></PublicOnlyRoute>} />
               <Route path="/esqueci-senha" element={<PublicOnlyRoute><ForgotPassword /></PublicOnlyRoute>} />
               <Route path="/redefinir-senha" element={<PublicOnlyRoute><ResetPassword /></PublicOnlyRoute>} />
 
-              {/* Admin routes */}
+              {/* Admin-only routes */}
               <Route element={<AdminRoute><AppLayout /></AdminRoute>}>
                 <Route path="/dashboard" element={<AdminDashboard />} />
                 <Route path="/condominio" element={<CondominiumPage />} />
                 <Route path="/unidades" element={<UnitsPage />} />
-                <Route path="/moradores" element={<ResidentsPage />} />
-                <Route path="/comunicados" element={<AnnouncementsPage />} />
-                <Route path="/reservas" element={<ReservationsPage />} />
               </Route>
 
               {/* Staff routes (Admin + Concierge) */}
               <Route element={<StaffRoute><AppLayout /></StaffRoute>}>
+                <Route path="/moradores" element={<ResidentsPage />} />
+                <Route path="/comunicados" element={<AnnouncementsPage />} />
+                <Route path="/reservas" element={<ReservationsPage />} />
                 <Route path="/encomendas" element={<PackagesPage />} />
                 <Route path="/ocorrencias" element={<IssuesPage />} />
               </Route>
 
-              {/* Finance routes (Admin only) */}
-              <Route element={<FinanceRoute><AppLayout /></FinanceRoute>}>
+              {/* Finance routes (Admin + Financial role) */}
+              <Route element={<FinancialRoute><AppLayout /></FinancialRoute>}>
                 <Route path="/cobrancas" element={<ChargesPage />} />
                 <Route path="/despesas" element={<ExpensesPage />} />
                 <Route path="/caixa" element={<CashflowPage />} />

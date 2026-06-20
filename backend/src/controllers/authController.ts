@@ -2,6 +2,7 @@ import { Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 import User from '../models/User';
 import Condominium from '../models/Condominium';
 import Unit from '../models/Unit';
@@ -255,6 +256,151 @@ export const acceptInvite = async (req: AuthRequest, res: Response): Promise<voi
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao aceitar convite', details: error.message });
+  }
+};
+
+const STAFF_ROLES = ['concierge', 'financial', 'subadmin'] as const;
+type StaffRole = typeof STAFF_ROLES[number];
+
+export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      res.status(403).json({ error: 'Apenas o síndico pode convidar colaboradores' });
+      return;
+    }
+
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const role = String(req.body.role || '') as StaffRole;
+    const name = String(req.body.name || '').trim() || email.split('@')[0];
+
+    if (!email || !role) {
+      res.status(400).json({ error: 'E-mail e cargo são obrigatórios' });
+      return;
+    }
+
+    if (!STAFF_ROLES.includes(role)) {
+      res.status(400).json({ error: 'Cargo inválido. Use: concierge, financial ou subadmin' });
+      return;
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
+
+    const existing = await User.findOne({ email });
+    if (existing) {
+      if (existing.condominiumId?.toString() !== req.user.condominiumId?.toString()) {
+        res.status(409).json({ error: 'Este e-mail já está em uso em outro condomínio' });
+        return;
+      }
+      // Reutiliza o usuário existente atualizando o token
+      await User.updateOne({ _id: existing._id }, {
+        $set: { staffInviteToken: token, staffInviteTokenExpiry: expiry, role, condominiumId: req.user.condominiumId },
+      });
+    } else {
+      await User.create({
+        name,
+        email,
+        password: crypto.randomBytes(16).toString('hex'), // senha temporária inutilizável
+        phone: '',
+        role,
+        condominiumId: req.user.condominiumId,
+        staffInviteToken: token,
+        staffInviteTokenExpiry: expiry,
+      });
+    }
+
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const inviteUrl = `${baseUrl}/convite-staff/${token}`;
+
+    res.json({ inviteUrl, role, email });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao gerar convite', details: error.message });
+  }
+};
+
+export const acceptStaffInvite = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const token = String(req.params.token || '');
+    const password = String(req.body.password || '');
+
+    if (!token || password.length < 6) {
+      res.status(400).json({ error: 'Token e senha de pelo menos 6 caracteres são obrigatórios' });
+      return;
+    }
+
+    const staffUser = await User.findOne({ staffInviteToken: token }).select('+staffInviteToken +staffInviteTokenExpiry');
+
+    if (!staffUser || !staffUser.staffInviteTokenExpiry || staffUser.staffInviteTokenExpiry < new Date()) {
+      res.status(404).json({ error: 'Convite inválido ou expirado' });
+      return;
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    staffUser.password = hashedPassword;
+    staffUser.staffInviteToken = undefined;
+    staffUser.staffInviteTokenExpiry = undefined;
+    await staffUser.save();
+
+    const authToken = generateToken((staffUser._id as any).toString());
+    res.json({
+      token: authToken,
+      user: {
+        id: staffUser._id,
+        name: staffUser.name,
+        email: staffUser.email,
+        phone: staffUser.phone,
+        role: staffUser.role,
+        isDemo: staffUser.isDemo,
+        condominiumId: staffUser.condominiumId,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao aceitar convite', details: error.message });
+  }
+};
+
+export const getStaff = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      res.status(403).json({ error: 'Acesso negado' });
+      return;
+    }
+
+    const staff = await User.find({
+      condominiumId: req.user.condominiumId,
+      role: { $in: STAFF_ROLES },
+    }).select('name email role createdAt').lean();
+
+    res.json(staff);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao buscar colaboradores', details: error.message });
+  }
+};
+
+export const removeStaff = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      res.status(403).json({ error: 'Acesso negado' });
+      return;
+    }
+
+    const staffUser = await User.findOne({
+      _id: req.params.id,
+      condominiumId: req.user.condominiumId,
+      role: { $in: STAFF_ROLES },
+    });
+
+    if (!staffUser) {
+      res.status(404).json({ error: 'Colaborador não encontrado' });
+      return;
+    }
+
+    await staffUser.deleteOne();
+    res.json({ message: 'Colaborador removido com sucesso' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao remover colaborador', details: error.message });
   }
 };
 

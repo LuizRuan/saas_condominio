@@ -13,16 +13,33 @@ import {
   Megaphone,
   Settings,
   ShieldCheck,
+  Trash2,
+  UserCog,
+  UserPlus,
   UserRound,
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { AppNotification } from '../../types';
 import { formatDate } from '../../utils/helpers';
 import api from '../../services/api';
 import Button from './Button';
 import Modal from './Modal';
+
+interface StaffMember {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+const CARGO_LABELS: Record<string, string> = {
+  concierge: 'Porteiro',
+  financial: 'Financeiro',
+  subadmin: 'Gestão',
+};
 
 type PanelKey = 'notifications';
 type NotificationTone = 'violet' | 'emerald' | 'orange' | 'blue' | 'slate';
@@ -104,6 +121,59 @@ const TopbarActions: React.FC = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Collaborators state (admin only, pure admin role)
+  const isPureAdmin = user?.role === 'admin';
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [staffLoaded, setStaffLoaded] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<string>('concierge');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteLink, setInviteLink] = useState('');
+
+  const loadStaff = async () => {
+    try {
+      const { data } = await api.get<StaffMember[]>('/auth/staff');
+      setStaff(data);
+      setStaffLoaded(true);
+    } catch {
+      // silently ignore
+    }
+  };
+
+  useEffect(() => {
+    if (settingsOpen && isPureAdmin && !staffLoaded) {
+      loadStaff();
+    }
+  }, [settingsOpen]);
+
+  const handleInviteStaff = async () => {
+    if (!inviteEmail) { toast.error('Informe um e-mail'); return; }
+    setInviteLoading(true);
+    setInviteLink('');
+    try {
+      const { data } = await api.post('/auth/invite-staff', { email: inviteEmail, role: inviteRole });
+      setInviteLink(data.inviteUrl);
+      setInviteEmail('');
+      setStaffLoaded(false);
+      loadStaff();
+      toast.success('Convite gerado!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Erro ao gerar convite');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleRemoveStaff = async (id: string) => {
+    try {
+      await api.delete(`/auth/staff/${id}`);
+      setStaff((prev) => prev.filter((s) => s._id !== id));
+      toast.success('Colaborador removido');
+    } catch {
+      toast.error('Erro ao remover colaborador');
+    }
+  };
 
   useEffect(() => {
     if (!openPanel) return;
@@ -430,6 +500,81 @@ const TopbarActions: React.FC = () => {
               <p className="mt-2 text-sm font-extrabold text-emerald-800">Sessão ativa</p>
             </div>
           </section>
+
+          {isPureAdmin && (
+            <section>
+              <div className="mb-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">Colaboradores</p>
+                <h4 className="mt-1 text-lg font-black tracking-[-0.04em] text-slate-950">Adicionar por cargo</h4>
+              </div>
+
+              <div className="mb-3 flex gap-2">
+                <input
+                  type="email"
+                  placeholder="E-mail do colaborador"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="flex-1 rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                />
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                  className="rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-950 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                >
+                  <option value="concierge">Porteiro</option>
+                  <option value="financial">Financeiro</option>
+                  <option value="subadmin">Gestão</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={handleInviteStaff}
+                  disabled={inviteLoading}
+                  className="flex items-center gap-1.5 rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-violet-800 disabled:opacity-60"
+                >
+                  {inviteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                  Convidar
+                </button>
+              </div>
+
+              {inviteLink && (
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                  <p className="flex-1 truncate text-xs font-semibold text-emerald-800">{inviteLink}</p>
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(inviteLink); toast.success('Link copiado!'); }}
+                    className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-800"
+                  >
+                    Copiar
+                  </button>
+                </div>
+              )}
+
+              {staff.length > 0 && (
+                <div className="space-y-2">
+                  {staff.map((member) => (
+                    <div key={member._id} className="flex items-center gap-3 rounded-xl border border-violet-100 bg-white px-4 py-3">
+                      <UserCog className="h-4 w-4 shrink-0 text-violet-500" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-black text-slate-950">{member.name}</p>
+                        <p className="truncate text-xs font-semibold text-slate-500">{member.email} · {CARGO_LABELS[member.role] || member.role}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveStaff(member._id)}
+                        className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {staffLoaded && staff.length === 0 && (
+                <p className="text-sm font-semibold text-slate-400">Nenhum colaborador cadastrado ainda.</p>
+              )}
+            </section>
+          )}
 
           <div className="flex flex-col gap-3 border-t border-violet-100 pt-4 sm:flex-row">
             <Button variant="secondary" onClick={() => goTo('/perfil')} icon={<UserRound className="h-4 w-4" />} className="flex-1">
