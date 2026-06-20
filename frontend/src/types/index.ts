@@ -5,6 +5,7 @@ export interface User {
   phone: string;
   role: 'admin' | 'resident' | 'concierge' | 'subadmin' | 'financial';
   isDemo?: boolean;
+  mustChangePassword?: boolean;
   condominiumId?: string;
   unitId?: string;
 }

@@ -27,9 +27,12 @@ const SettingsPage: React.FC = () => {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [staffLoaded, setStaffLoaded] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteEmailError, setInviteEmailError] = useState('');
   const [inviteRole, setInviteRole] = useState('concierge');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
   const roleLabel = user?.role === 'admin' ? 'Síndico'
     : user?.role === 'subadmin' ? 'Gestão'
@@ -51,18 +54,25 @@ const SettingsPage: React.FC = () => {
     if (isPureAdmin) loadStaff();
   }, []);
 
+  const validateEmail = (val: string) => {
+    if (!val) { setInviteEmailError('E-mail é obrigatório'); return false; }
+    if (!EMAIL_RE.test(val)) { setInviteEmailError('Formato de e-mail inválido'); return false; }
+    setInviteEmailError('');
+    return true;
+  };
+
   const handleInvite = async () => {
-    if (!inviteEmail) { toast.error('Informe um e-mail'); return; }
+    if (!validateEmail(inviteEmail)) return;
     setInviteLoading(true);
     setInviteLink('');
     try {
-      const { data } = await api.post('/auth/invite-staff', { email: inviteEmail, role: inviteRole });
-      setInviteLink(data.inviteUrl);
+      await api.post('/auth/invite-staff', { email: inviteEmail, role: inviteRole });
+      setInviteLink(`${window.location.origin}/login`);
       setInviteEmail('');
       loadStaff();
-      toast.success('Convite gerado!');
+      toast.success('Colaborador adicionado! Senha inicial: 123456');
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Erro ao gerar convite');
+      toast.error(err.response?.data?.error || 'Erro ao adicionar colaborador');
     } finally {
       setInviteLoading(false);
     }
@@ -131,14 +141,18 @@ const SettingsPage: React.FC = () => {
           <h2 className="mb-4 text-base font-black tracking-[-0.03em] text-slate-950">Adicionar por cargo</h2>
 
           <div className="mb-3 flex flex-col gap-2 sm:flex-row">
-            <input
-              type="email"
-              placeholder="E-mail do colaborador"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
-              className="flex-1 rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
-            />
+            <div className="flex flex-1 flex-col gap-1">
+              <input
+                type="email"
+                placeholder="E-mail do colaborador"
+                value={inviteEmail}
+                onChange={(e) => { setInviteEmail(e.target.value); if (inviteEmailError) validateEmail(e.target.value); }}
+                onBlur={(e) => validateEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
+                className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${inviteEmailError ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20' : 'border-violet-100 focus:border-violet-400 focus:ring-violet-500/20'} bg-white`}
+              />
+              {inviteEmailError && <p className="text-xs font-semibold text-red-600">{inviteEmailError}</p>}
+            </div>
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value)}
@@ -160,7 +174,9 @@ const SettingsPage: React.FC = () => {
           </div>
 
           {inviteLink && (
-            <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+            <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">Acesso criado · senha inicial: 123456</p>
+              <div className="flex items-center gap-2">
               <p className="flex-1 truncate text-xs font-semibold text-emerald-800">{inviteLink}</p>
               <button
                 type="button"
@@ -169,6 +185,7 @@ const SettingsPage: React.FC = () => {
               >
                 Copiar
               </button>
+              </div>
             </div>
           )}
 

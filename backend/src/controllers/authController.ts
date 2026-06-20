@@ -146,6 +146,7 @@ export const login = async (req: AuthRequest, res: Response): Promise<void> => {
         phone: user.phone,
         role: user.role,
         isDemo: user.isDemo,
+        mustChangePassword: user.mustChangePassword ?? false,
         condominiumId: user.condominiumId,
         unitId: user.unitId,
       },
@@ -176,6 +177,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
         phone: user.phone,
         role: user.role,
         isDemo: user.isDemo,
+        mustChangePassword: user.mustChangePassword ?? false,
         condominiumId: user.condominiumId,
         unitId: user.unitId,
       },
@@ -262,6 +264,9 @@ export const acceptInvite = async (req: AuthRequest, res: Response): Promise<voi
 const STAFF_ROLES = ['concierge', 'financial', 'subadmin'] as const;
 type StaffRole = typeof STAFF_ROLES[number];
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const INITIAL_PASSWORD = '123456';
+
 export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user || req.user.role !== 'admin') {
@@ -273,8 +278,13 @@ export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void
     const role = String(req.body.role || '') as StaffRole;
     const name = String(req.body.name || '').trim() || email.split('@')[0];
 
-    if (!email || !role) {
-      res.status(400).json({ error: 'E-mail e cargo são obrigatórios' });
+    if (!email) {
+      res.status(400).json({ error: 'E-mail é obrigatório' });
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      res.status(400).json({ error: 'Formato de e-mail inválido' });
       return;
     }
 
@@ -283,8 +293,8 @@ export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(INITIAL_PASSWORD, salt);
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -292,29 +302,24 @@ export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void
         res.status(409).json({ error: 'Este e-mail já está em uso em outro condomínio' });
         return;
       }
-      // Reutiliza o usuário existente atualizando o token
       await User.updateOne({ _id: existing._id }, {
-        $set: { staffInviteToken: token, staffInviteTokenExpiry: expiry, role, condominiumId: req.user.condominiumId },
+        $set: { role, password: hashedPassword, mustChangePassword: true, condominiumId: req.user.condominiumId },
       });
     } else {
       await User.create({
         name,
         email,
-        password: crypto.randomBytes(16).toString('hex'), // senha temporária inutilizável
+        password: hashedPassword,
         phone: '',
         role,
         condominiumId: req.user.condominiumId,
-        staffInviteToken: token,
-        staffInviteTokenExpiry: expiry,
+        mustChangePassword: true,
       });
     }
 
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const inviteUrl = `${baseUrl}/convite-staff/${token}`;
-
-    res.json({ inviteUrl, role, email });
+    res.json({ email, role });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao gerar convite', details: error.message });
+    res.status(500).json({ error: 'Erro ao adicionar colaborador', details: error.message });
   }
 };
 
@@ -401,6 +406,38 @@ export const removeStaff = async (req: AuthRequest, res: Response): Promise<void
     res.json({ message: 'Colaborador removido com sucesso' });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao remover colaborador', details: error.message });
+  }
+};
+
+export const changePassword = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Não autenticado' });
+      return;
+    }
+
+    const newPassword = String(req.body.newPassword || '');
+
+    if (newPassword.length < 6) {
+      res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres' });
+      return;
+    }
+
+    if (newPassword === '123456') {
+      res.status(400).json({ error: 'Escolha uma senha diferente da senha inicial' });
+      return;
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await User.updateOne({ _id: req.user._id }, {
+      $set: { password: hashedPassword, mustChangePassword: false },
+    });
+
+    res.json({ message: 'Senha alterada com sucesso', mustChangePassword: false });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao alterar senha', details: error.message });
   }
 };
 
