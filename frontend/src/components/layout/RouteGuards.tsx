@@ -14,7 +14,8 @@ export const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ child
   const { user, loading } = useAuth();
   if (loading) return <LoadingSpinner text="Carregando..." />;
   if (user) {
-    return <Navigate to={user.role === 'admin' ? '/dashboard' : '/morador'} replace />;
+    if (user.role === 'concierge') return <Navigate to="/portaria" replace />;
+    return <Navigate to={user.role === 'resident' ? '/morador' : '/dashboard'} replace />;
   }
   return <>{children}</>;
 };
@@ -32,5 +33,29 @@ export const ResidentRoute: React.FC<{ children: React.ReactNode }> = ({ childre
   if (loading) return <LoadingSpinner text="Carregando..." />;
   if (!user) return <Navigate to="/login" replace />;
   if (!isResident) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
+
+export const ConciergeRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading, isConcierge } = useAuth();
+  if (loading) return <LoadingSpinner text="Carregando..." />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isConcierge) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
+
+export const FinanceRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading, isAdmin, isSubadmin } = useAuth();
+  if (loading) return <LoadingSpinner text="Carregando..." />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isAdmin || isSubadmin) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
+
+export const StaffRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading, isAdmin, isConcierge } = useAuth();
+  if (loading) return <LoadingSpinner text="Carregando..." />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isAdmin && !isConcierge) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 };

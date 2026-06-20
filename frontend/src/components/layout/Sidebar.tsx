@@ -37,6 +37,12 @@ const residentLinks = [
   { to: '/morador/reservas', icon: CalendarDays, label: 'Reservas', section: 'serviços' },
 ];
 
+const conciergeLinks = [
+  { to: '/portaria', icon: LayoutDashboard, label: 'Painel da Portaria', section: 'principal' },
+  { to: '/encomendas', icon: Package, label: 'Encomendas', section: 'serviços' },
+  { to: '/ocorrencias', icon: AlertTriangle, label: 'Ocorrências', section: 'serviços' },
+];
+
 const sectionLabel: Record<string, string> = {
   principal: 'Principal',
   gestão: 'Gestão',
@@ -46,12 +52,17 @@ const sectionLabel: Record<string, string> = {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isConcierge, isSubadmin } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
-  const links = isAdmin ? adminLinks : residentLinks;
+  let links = residentLinks;
+  if (isConcierge) {
+    links = conciergeLinks;
+  } else if (isAdmin) {
+    links = isSubadmin ? adminLinks.filter(link => link.section !== 'financeiro') : adminLinks;
+  }
 
   // Group links by section
   const sections = links.reduce<Record<string, typeof links>>((acc, link) => {
@@ -156,7 +167,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-bold text-white">{user?.name}</p>
                 <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-500">
-                  {isAdmin ? 'Síndico' : 'Morador'}
+                  {isConcierge ? 'Portaria' : isSubadmin ? 'Sub-síndico' : isAdmin ? 'Síndico' : 'Morador'}
                 </p>
               </div>
             </div>

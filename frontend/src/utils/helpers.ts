@@ -112,3 +112,32 @@ export const validatePixKey = (raw: string): { valid: boolean; error?: string } 
   }
   return { valid: true };
 };
+
+export const exportToCSV = (data: any[], filename: string, columns: { key: string; label: string; format?: (val: any) => string }[]) => {
+  if (!data || !data.length) return;
+
+  const header = columns.map(c => `"${c.label}"`).join(',');
+  const rows = data.map(item =>
+    columns.map(c => {
+      let val = item[c.key];
+      if (c.key.includes('.')) {
+        val = c.key.split('.').reduce((acc, part) => acc && acc[part], item);
+      }
+      if (c.format) {
+        val = c.format(val);
+      }
+      const safeVal = String(val ?? '').replace(/"/g, '""');
+      return `"${safeVal}"`;
+    }).join(',')
+  );
+
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${filename}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};

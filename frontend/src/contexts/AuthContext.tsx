@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { RegisterData, User } from '../types';
 
@@ -14,6 +15,8 @@ interface AuthContextType {
   updateUser: (user: User) => void;
   isAdmin: boolean;
   isResident: boolean;
+  isConcierge: boolean;
+  isSubadmin: boolean;
   isDemo: boolean;
 }
 
@@ -22,6 +25,7 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
@@ -80,6 +84,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
+    queryClient.clear();
   };
 
   const updateUser = (updatedUser: User) => {
@@ -99,8 +104,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         acceptInvite,
         logout,
         updateUser,
-        isAdmin: user?.role === 'admin',
+        isAdmin: user?.role === 'admin' || user?.role === 'subadmin',
         isResident: user?.role === 'resident',
+        isConcierge: user?.role === 'concierge',
+        isSubadmin: user?.role === 'subadmin',
         isDemo: user?.isDemo === true,
       }}
     >

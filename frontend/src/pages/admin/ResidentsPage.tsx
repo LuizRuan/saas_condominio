@@ -12,9 +12,10 @@ import MetricCard from '../../components/ui/MetricCard';
 import {
   CheckCircle2, Copy, Link2, MessageCircle,
   Pencil, Plus, Send, Trash2,
-  UserRoundCog, Users, WalletCards,
+  UserRoundCog, Users, WalletCards, Download
 } from 'lucide-react';
-import { formatDate, formatPhone, getUnitLabel, residentTypeLabels } from '../../utils/helpers';
+import { formatDate, formatPhone, getUnitLabel, residentTypeLabels, exportToCSV } from '../../utils/helpers';
+import Pagination from '../../components/ui/Pagination';
 import api from '../../services/api';
 import { Resident, Unit } from '../../types';
 import toast from 'react-hot-toast';
@@ -65,6 +66,8 @@ const ResidentsPage: React.FC = () => {
   const [inviteResult, setInviteResult] = useState<{ inviteUrl: string; whatsappText: string; expiresAt: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 10;
   const [form, setForm] = useState({ name: '', phone: '', email: '', unitId: '', type: 'owner', isFinancialResponsible: false, createAccount: false, password: '123456' });
 
 
@@ -139,6 +142,23 @@ const ResidentsPage: React.FC = () => {
     );
   }, [residents, search]);
 
+  const paginatedResidents = useMemo(() => {
+    const start = (page - 1) * limit;
+    return filteredResidents.slice(start, start + limit);
+  }, [filteredResidents, page]);
+
+  const handleExport = () => {
+    exportToCSV(filteredResidents, 'moradores', [
+      { key: 'name', label: 'Nome' },
+      { key: 'email', label: 'E-mail' },
+      { key: 'phone', label: 'Telefone', format: (val) => val ? formatPhone(val) : '' },
+      { key: 'unitId', label: 'Unidade', format: (val) => getUnitLabel(val) },
+      { key: 'type', label: 'Tipo', format: (val) => residentTypeLabels[val] || val },
+      { key: 'isFinancialResponsible', label: 'Resp. Financeiro', format: (val) => val ? 'Sim' : 'Não' },
+      { key: 'userId', label: 'Acesso', format: (val) => val ? 'Ativo' : 'Pendente' }
+    ]);
+  };
+
   const monthlyNew = useMemo(() => {
     const now = new Date();
     return residents.filter((r) => {
@@ -155,12 +175,17 @@ const ResidentsPage: React.FC = () => {
       subtitle="Organize responsáveis, proprietários e inquilinos do condomínio."
       onMenuClick={onMenuClick}
       searchValue={search}
-      onSearchChange={setSearch}
+      onSearchChange={(val) => { setSearch(val); setPage(1); }}
       searchPlaceholder="Buscar moradores, unidades..."
       actions={(
-        <Button onClick={isDemo ? blockAction : openCreate} icon={<Plus className="h-4 w-4" />} className="w-full sm:w-auto">
-          Novo morador
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="secondary" onClick={handleExport} icon={<Download className="h-4 w-4" />} className="flex-1 sm:flex-none">
+            Exportar
+          </Button>
+          <Button onClick={isDemo ? blockAction : openCreate} icon={<Plus className="h-4 w-4" />} className="flex-1 sm:flex-none">
+            Novo
+          </Button>
+        </div>
       )}
     >
       {/* Métricas */}
@@ -221,7 +246,7 @@ const ResidentsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredResidents.map((resident) => (
+                  {paginatedResidents.map((resident) => (
                     <tr key={resident._id}>
                       <td>
                         <div className="flex items-center gap-3">
@@ -295,9 +320,13 @@ const ResidentsPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            <div className="border-t border-slate-100 px-5 py-3.5 text-xs font-semibold text-slate-400">
-              Mostrando <span className="font-bold text-slate-600">{filteredResidents.length}</span> de <span className="font-bold text-slate-600">{residents.length}</span> moradores
-            </div>
+            <Pagination
+              page={page}
+              total={filteredResidents.length}
+              totalPages={Math.ceil(filteredResidents.length / limit)}
+              limit={limit}
+              onPageChange={setPage}
+            />
           </>
         )}
       </section>

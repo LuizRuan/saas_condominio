@@ -3,7 +3,7 @@ export interface User {
   name: string;
   email: string;
   phone: string;
-  role: 'admin' | 'resident';
+  role: 'admin' | 'resident' | 'concierge' | 'subadmin';
   isDemo?: boolean;
   condominiumId?: string;
   unitId?: string;
@@ -143,6 +143,24 @@ export interface ReservationBlock {
   endTime: string;
   reason: string;
   createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Access {
+  _id: string;
+  condominiumId: string;
+  unitId: string | { _id: string; block: string; number: string };
+  visitorName: string;
+  documentType?: 'rg' | 'cpf' | 'other';
+  documentNumber?: string;
+  type: 'visitor' | 'service_provider' | 'delivery';
+  status: 'active' | 'finished';
+  vehiclePlate?: string;
+  entryTime: string;
+  exitTime?: string;
+  notes?: string;
+  createdBy: string | { _id: string; name: string };
   createdAt: string;
   updatedAt: string;
 }

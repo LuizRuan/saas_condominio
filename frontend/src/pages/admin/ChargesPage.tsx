@@ -27,6 +27,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { formatCurrency, formatDate, getUnitLabel } from '../../utils/helpers';
+import Pagination from '../../components/ui/Pagination';
 import { generateWhatsAppMessage, openWhatsApp } from '../../utils/whatsapp';
 import api from '../../services/api';
 import { Charge, Condominium, Unit } from '../../types';
@@ -77,6 +78,8 @@ const ChargesPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<Charge | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 10;
   const [form, setForm] = useState({ unitId: '', referenceMonth: '', amount: '', dueDate: '', description: 'Taxa condominial' });
   const [bulkForm, setBulkForm] = useState({ referenceMonth: '', amount: '', dueDate: '', description: 'Taxa condominial' });
 
@@ -195,6 +198,11 @@ const ChargesPage: React.FC = () => {
     });
   }, [charges, search]);
 
+  const paginatedCharges = useMemo(() => {
+    const start = (page - 1) * limit;
+    return filteredCharges.slice(start, start + limit);
+  }, [filteredCharges, page]);
+
   const sumByStatus = (status: Charge['status']) => charges
     .filter((charge) => charge.status === status)
     .reduce((total, charge) => total + charge.amount, 0);
@@ -207,7 +215,7 @@ const ChargesPage: React.FC = () => {
       subtitle="Gerencie vencimentos, status e mensagens de cobrança em um só lugar."
       onMenuClick={onMenuClick}
       searchValue={search}
-      onSearchChange={setSearch}
+      onSearchChange={(val) => { setSearch(val); setPage(1); }}
       searchPlaceholder="Buscar cobranças, unidades..."
       actions={(
         <>
@@ -234,9 +242,9 @@ const ChargesPage: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+            <Select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
               options={[{ value: 'pending', label: 'Pendente' }, { value: 'paid', label: 'Pago' }, { value: 'late', label: 'Atrasado' }]} placeholder="Todos os status" />
-            <Input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} placeholder="Mês" />
+            <Input type="month" value={filterMonth} onChange={(e) => { setFilterMonth(e.target.value); setPage(1); }} placeholder="Mês" />
           </div>
         </div>
 
@@ -276,7 +284,7 @@ const ChargesPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCharges.map((charge) => {
+                  {paginatedCharges.map((charge) => {
                     const resident = typeof charge.residentId === 'object' ? charge.residentId : null;
                     return (
                       <tr key={charge._id}>
@@ -335,9 +343,13 @@ const ChargesPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            <div className="border-t border-slate-100 px-5 py-3.5 text-xs font-semibold text-slate-400">
-              Mostrando <span className="font-bold text-slate-600">{filteredCharges.length}</span> de <span className="font-bold text-slate-600">{charges.length}</span> cobranças
-            </div>
+            <Pagination
+              page={page}
+              total={filteredCharges.length}
+              totalPages={Math.ceil(filteredCharges.length / limit)}
+              limit={limit}
+              onPageChange={setPage}
+            />
           </>
         )}
       </section>

@@ -12,8 +12,9 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import PremiumPage from '../../components/ui/PremiumPage';
 import MetricCard from '../../components/ui/MetricCard';
 import PhotoGrid from '../../components/ui/PhotoGrid';
-import { AlertTriangle, CheckCircle2, Clock3, ImageIcon, MessageSquareText, Plus, Send, Siren, Trash2, Upload } from 'lucide-react';
-import { categoryLabels, formatDate, getUnitLabel, priorityColors, priorityLabels } from '../../utils/helpers';
+import { AlertTriangle, CheckCircle2, Clock3, ImageIcon, MessageSquareText, Plus, Send, Siren, Trash2, Upload, Download } from 'lucide-react';
+import { categoryLabels, formatDate, getUnitLabel, priorityColors, priorityLabels, exportToCSV } from '../../utils/helpers';
+import Pagination from '../../components/ui/Pagination';
 import api from '../../services/api';
 import { Issue, Unit } from '../../types';
 import toast from 'react-hot-toast';
@@ -77,6 +78,8 @@ const IssuesPage: React.FC = () => {
   const [selected, setSelected] = useState<Issue | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Issue | null>(null);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 10;
   const [response, setResponse] = useState('');
   const [replyPhotos, setReplyPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -183,6 +186,23 @@ const IssuesPage: React.FC = () => {
     ].some((value) => value?.toLowerCase().includes(query)));
   }, [issues, search]);
 
+  const paginatedIssues = useMemo(() => {
+    const start = (page - 1) * limit;
+    return filteredIssues.slice(start, start + limit);
+  }, [filteredIssues, page]);
+
+  const handleExport = () => {
+    exportToCSV(filteredIssues, 'ocorrencias', [
+      { key: 'title', label: 'Título' },
+      { key: 'unitId', label: 'Unidade', format: (val) => getUnitLabel(val) },
+      { key: 'category', label: 'Categoria', format: (val) => categoryLabels[val] || val },
+      { key: 'priority', label: 'Prioridade', format: (val) => priorityLabels[val] || val },
+      { key: 'status', label: 'Status' },
+      { key: 'description', label: 'Descrição' },
+      { key: 'createdAt', label: 'Data Abertura', format: (val) => formatDate(val) },
+    ]);
+  };
+
   if (loading) return <LoadingSpinner text="Carregando..." />;
 
   return (
@@ -191,16 +211,21 @@ const IssuesPage: React.FC = () => {
       subtitle="Acompanhe solicitações dos moradores com prioridade e histórico."
       onMenuClick={onMenuClick}
       searchValue={search}
-      onSearchChange={setSearch}
+      onSearchChange={(val) => { setSearch(val); setPage(1); }}
       searchPlaceholder="Buscar ocorrências..."
       actions={(
-        <Button
-          onClick={isDemo ? blockAction : openCreate}
-          icon={<Plus className="h-4 w-4" />}
-          className="w-full rounded-xl border-violet-700 bg-violet-700 shadow-violet-700/20 hover:border-violet-800 hover:bg-violet-800 sm:w-auto"
-        >
-          Nova ocorrência
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="secondary" onClick={handleExport} icon={<Download className="h-4 w-4" />} className="flex-1 sm:flex-none">
+            Exportar
+          </Button>
+          <Button
+            onClick={isDemo ? blockAction : openCreate}
+            icon={<Plus className="h-4 w-4" />}
+            className="flex-1 rounded-xl border-violet-700 bg-violet-700 shadow-violet-700/20 hover:border-violet-800 hover:bg-violet-800 sm:flex-none"
+          >
+            Nova
+          </Button>
+        </div>
       )}
     >
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -219,9 +244,9 @@ const IssuesPage: React.FC = () => {
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:w-[520px]">
-            <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+            <Select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
               options={[{ value: 'open', label: 'Aberta' }, { value: 'in_progress', label: 'Em análise' }, { value: 'resolved', label: 'Resolvida' }]} placeholder="Todos os status" />
-            <Select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}
+            <Select value={filterPriority} onChange={(e) => { setFilterPriority(e.target.value); setPage(1); }}
               options={[{ value: 'low', label: 'Baixa' }, { value: 'medium', label: 'Média' }, { value: 'high', label: 'Alta' }]} placeholder="Todas as prioridades" />
           </div>
         </div>
@@ -244,9 +269,10 @@ const IssuesPage: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="grid gap-4 p-5 sm:p-7 xl:grid-cols-2">
-            {filteredIssues.map((issue) => (
-              <article
+          <>
+            <div className="grid gap-4 p-5 sm:p-7 xl:grid-cols-2">
+              {paginatedIssues.map((issue) => (
+                <article
                 key={issue._id}
                 className="rounded-2xl border border-violet-100/80 bg-white p-5 text-left shadow-[0_14px_40px_rgba(76,29,149,0.05)] transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-[0_20px_50px_rgba(76,29,149,0.08)]"
               >
@@ -277,7 +303,15 @@ const IssuesPage: React.FC = () => {
                 </div>
               </article>
             ))}
-          </div>
+            </div>
+            <Pagination
+              page={page}
+              total={filteredIssues.length}
+              totalPages={Math.ceil(filteredIssues.length / limit)}
+              limit={limit}
+              onPageChange={setPage}
+            />
+          </>
         )}
       </section>
 

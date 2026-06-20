@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DemoProvider } from './contexts/DemoContext';
 import AppLayout from './components/layout/AppLayout';
-import { AdminRoute, PublicOnlyRoute, ResidentRoute, ProtectedRoute } from './components/layout/RouteGuards';
+import { AdminRoute, PublicOnlyRoute, ResidentRoute, ProtectedRoute, ConciergeRoute, FinanceRoute, StaffRoute } from './components/layout/RouteGuards';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 
@@ -48,7 +48,8 @@ const HomeRedirect: React.FC = () => {
   const { user, loading } = useAuth();
   if (loading) return <LoadingSpinner text="Carregando..." />;
   if (!user) return <Navigate to="/" replace />;
-  return <Navigate to={user.role === 'admin' ? '/dashboard' : '/morador'} replace />;
+  if (user.role === 'concierge') return <Navigate to="/portaria" replace />;
+  return <Navigate to={user.role === 'resident' ? '/morador' : '/dashboard'} replace />;
 };
 
 const App: React.FC = () => {
@@ -79,14 +80,27 @@ const App: React.FC = () => {
                 <Route path="/condominio" element={<CondominiumPage />} />
                 <Route path="/unidades" element={<UnitsPage />} />
                 <Route path="/moradores" element={<ResidentsPage />} />
+                <Route path="/comunicados" element={<AnnouncementsPage />} />
+                <Route path="/reservas" element={<ReservationsPage />} />
+              </Route>
+
+              {/* Staff routes (Admin + Concierge) */}
+              <Route element={<StaffRoute><AppLayout /></StaffRoute>}>
+                <Route path="/encomendas" element={<PackagesPage />} />
+                <Route path="/ocorrencias" element={<IssuesPage />} />
+              </Route>
+
+              {/* Finance routes (Admin only) */}
+              <Route element={<FinanceRoute><AppLayout /></FinanceRoute>}>
                 <Route path="/cobrancas" element={<ChargesPage />} />
                 <Route path="/despesas" element={<ExpensesPage />} />
                 <Route path="/caixa" element={<CashflowPage />} />
                 <Route path="/relatorios" element={<ReportsPage />} />
-                <Route path="/comunicados" element={<AnnouncementsPage />} />
-                <Route path="/encomendas" element={<PackagesPage />} />
-                <Route path="/ocorrencias" element={<IssuesPage />} />
-                <Route path="/reservas" element={<ReservationsPage />} />
+              </Route>
+
+              {/* Concierge routes */}
+              <Route element={<ConciergeRoute><AppLayout /></ConciergeRoute>}>
+                <Route path="/portaria" element={<PackagesPage />} /> {/* Placeholder */}
               </Route>
 
               {/* Resident routes */}
