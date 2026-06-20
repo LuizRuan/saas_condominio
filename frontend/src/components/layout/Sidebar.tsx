@@ -45,6 +45,8 @@ const conciergeLinks = [
 ];
 
 const financialLinks = [
+  { to: '/financeiro', icon: LayoutDashboard, label: 'Painel Financeiro', section: 'principal' },
+  { to: '/unidades', icon: Home, label: 'Unidades', section: 'financeiro' },
   { to: '/cobrancas', icon: Receipt, label: 'Cobranças', section: 'financeiro' },
   { to: '/despesas', icon: TrendingDown, label: 'Despesas', section: 'financeiro' },
   { to: '/caixa', icon: Wallet, label: 'Caixa', section: 'financeiro' },

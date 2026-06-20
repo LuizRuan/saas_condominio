@@ -16,10 +16,12 @@ import api from '../../services/api';
 import { Unit } from '../../types';
 import toast from 'react-hot-toast';
 import { useDemo } from '../../contexts/DemoContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const UnitsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const { isDemo, blockAction } = useDemo();
+  const { isFinancial } = useAuth();
   const queryClient = useQueryClient();
   
   const { data: unitsResponse, isLoading: loading } = useQuery<Unit[]>({
@@ -93,7 +95,7 @@ const UnitsPage: React.FC = () => {
       searchValue={search}
       onSearchChange={setSearch}
       searchPlaceholder="Buscar unidades, blocos..."
-      actions={(
+      actions={!isFinancial ? (
         <div className="flex gap-3 w-full sm:w-auto">
           <Button onClick={isDemo ? blockAction : () => setWizardOpen(true)} variant="secondary" icon={<UploadCloud className="h-4 w-4" />} className="flex-1 sm:flex-none">
             Importar Excel/PDF
@@ -102,7 +104,7 @@ const UnitsPage: React.FC = () => {
             Nova unidade
           </Button>
         </div>
-      )}
+      ) : undefined}
     >
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Total de unidades" value={units.length} helper="cadastradas" icon={<Building2 className="h-4 w-4" />} />
@@ -139,7 +141,7 @@ const UnitsPage: React.FC = () => {
                 'Tente buscar por outro bloco, número ou observação.'
               )}
             </p>
-            {units.length === 0 && (
+            {units.length === 0 && !isFinancial && (
               <div className="mt-6 flex gap-3">
                 <Button onClick={() => setWizardOpen(true)} variant="secondary" icon={<UploadCloud className="h-4 w-4" />}>
                   Importar Excel/PDF
@@ -181,26 +183,28 @@ const UnitsPage: React.FC = () => {
                       <td><StatusBadge status={unit.status} /></td>
                       <td className="max-w-[200px] truncate text-slate-500">{unit.notes || 'Sem observações'}</td>
                       <td className="text-right">
-                        <div className="inline-flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => isDemo ? blockAction() : openEdit(unit)}
-                            className="icon-button hover:bg-blue-50 hover:text-blue-600"
-                            title="Editar unidade"
-                            aria-label={`Editar unidade ${unit.number}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => isDemo ? blockAction() : setDeleteTarget(unit)}
-                            className="icon-button hover:bg-red-50 hover:text-red-500"
-                            title="Excluir unidade"
-                            aria-label={`Excluir unidade ${unit.number}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                        {!isFinancial && (
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => isDemo ? blockAction() : openEdit(unit)}
+                              className="icon-button hover:bg-blue-50 hover:text-blue-600"
+                              title="Editar unidade"
+                              aria-label={`Editar unidade ${unit.number}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => isDemo ? blockAction() : setDeleteTarget(unit)}
+                              className="icon-button hover:bg-red-50 hover:text-red-500"
+                              title="Excluir unidade"
+                              aria-label={`Excluir unidade ${unit.number}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}

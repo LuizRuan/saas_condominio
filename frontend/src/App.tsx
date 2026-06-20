@@ -29,6 +29,7 @@ const PackagesPage = React.lazy(() => import('./pages/admin/PackagesPage'));
 const ExpensesPage = React.lazy(() => import('./pages/admin/ExpensesPage'));
 const CashflowPage = React.lazy(() => import('./pages/admin/CashflowPage'));
 const ReportsPage = React.lazy(() => import('./pages/admin/ReportsPage'));
+const FinancialDashboard = React.lazy(() => import('./pages/admin/FinancialDashboard'));
 
 // Shared — lazy loaded
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
@@ -51,7 +52,7 @@ const HomeRedirect: React.FC = () => {
   if (loading) return <LoadingSpinner text="Carregando..." />;
   if (!user) return <Navigate to="/" replace />;
   if (user.role === 'concierge') return <Navigate to="/portaria" replace />;
-  if (user.role === 'financial') return <Navigate to="/cobrancas" replace />;
+  if (user.role === 'financial') return <Navigate to="/financeiro" replace />;
   if (user.role === 'resident') return <Navigate to="/morador/comunicados" replace />;
   return <Navigate to="/dashboard" replace />;
 };
@@ -83,7 +84,6 @@ const App: React.FC = () => {
               <Route element={<AdminRoute><AppLayout /></AdminRoute>}>
                 <Route path="/dashboard" element={<AdminDashboard />} />
                 <Route path="/condominio" element={<CondominiumPage />} />
-                <Route path="/unidades" element={<UnitsPage />} />
               </Route>
 
               {/* Staff routes (Admin + Concierge) */}
@@ -97,6 +97,8 @@ const App: React.FC = () => {
 
               {/* Finance routes (Admin + Financial role) */}
               <Route element={<FinancialRoute><AppLayout /></FinancialRoute>}>
+                <Route path="/financeiro" element={<FinancialDashboard />} />
+                <Route path="/unidades" element={<UnitsPage />} />
                 <Route path="/cobrancas" element={<ChargesPage />} />
                 <Route path="/despesas" element={<ExpensesPage />} />
                 <Route path="/caixa" element={<CashflowPage />} />

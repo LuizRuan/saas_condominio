@@ -23,7 +23,7 @@ export const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ child
   if (loading) return <LoadingSpinner text="Carregando..." />;
   if (user) {
     if (user.role === 'concierge') return <Navigate to="/portaria" replace />;
-    if (user.role === 'financial') return <Navigate to="/cobrancas" replace />;
+    if (user.role === 'financial') return <Navigate to="/financeiro" replace />;
     if (user.role === 'resident') return <Navigate to="/morador/comunicados" replace />;
     return <Navigate to="/dashboard" replace />;
   }

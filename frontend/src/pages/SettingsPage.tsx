@@ -32,7 +32,7 @@ const SettingsPage: React.FC = () => {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
 
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
 
   const roleLabel = user?.role === 'admin' ? 'Síndico'
     : user?.role === 'subadmin' ? 'Gestão'
@@ -55,18 +55,20 @@ const SettingsPage: React.FC = () => {
   }, []);
 
   const validateEmail = (val: string) => {
-    if (!val) { setInviteEmailError('E-mail é obrigatório'); return false; }
-    if (!EMAIL_RE.test(val)) { setInviteEmailError('Formato de e-mail inválido'); return false; }
+    const v = val.trim();
+    if (!v) { setInviteEmailError('E-mail é obrigatório'); return false; }
+    if (!EMAIL_RE.test(v)) { setInviteEmailError('Digite um e-mail válido, exemplo: nome@gmail.com'); return false; }
     setInviteEmailError('');
     return true;
   };
 
   const handleInvite = async () => {
-    if (!validateEmail(inviteEmail)) return;
+    const email = inviteEmail.trim();
+    if (!validateEmail(email)) return;
     setInviteLoading(true);
     setInviteLink('');
     try {
-      await api.post('/auth/invite-staff', { email: inviteEmail, role: inviteRole });
+      await api.post('/auth/invite-staff', { email, role: inviteRole });
       setInviteLink(`${window.location.origin}/login`);
       setInviteEmail('');
       loadStaff();
@@ -146,7 +148,7 @@ const SettingsPage: React.FC = () => {
                 type="email"
                 placeholder="E-mail do colaborador"
                 value={inviteEmail}
-                onChange={(e) => { setInviteEmail(e.target.value); if (inviteEmailError) validateEmail(e.target.value); }}
+                onChange={(e) => { setInviteEmail(e.target.value); if (inviteEmailError || e.target.value.length > 3) validateEmail(e.target.value); }}
                 onBlur={(e) => validateEmail(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                 className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-semibold text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${inviteEmailError ? 'border-red-300 focus:border-red-400 focus:ring-red-500/20' : 'border-violet-100 focus:border-violet-400 focus:ring-violet-500/20'} bg-white`}

@@ -264,7 +264,7 @@ export const acceptInvite = async (req: AuthRequest, res: Response): Promise<voi
 const STAFF_ROLES = ['concierge', 'financial', 'subadmin'] as const;
 type StaffRole = typeof STAFF_ROLES[number];
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
 const INITIAL_PASSWORD = '123456';
 
 export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -284,7 +284,7 @@ export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void
     }
 
     if (!EMAIL_REGEX.test(email)) {
-      res.status(400).json({ error: 'Formato de e-mail inválido' });
+      res.status(400).json({ error: 'Digite um e-mail válido, exemplo: nome@gmail.com' });
       return;
     }
 

@@ -20,6 +20,7 @@ import api from '../../services/api';
 import { Resident, Unit } from '../../types';
 import toast from 'react-hot-toast';
 import { useDemo } from '../../contexts/DemoContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const getInitials = (name: string) =>
   name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'MO';
@@ -39,6 +40,7 @@ const shortTypeLabels: Record<Resident['type'], string> = {
 const ResidentsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const { isDemo, blockAction } = useDemo();
+  const { isConcierge } = useAuth();
   const queryClient = useQueryClient();
   
   const { data: residents = [], isLoading: loadingResidents } = useQuery<Resident[]>({
@@ -177,7 +179,7 @@ const ResidentsPage: React.FC = () => {
       searchValue={search}
       onSearchChange={(val) => { setSearch(val); setPage(1); }}
       searchPlaceholder="Buscar moradores, unidades..."
-      actions={(
+      actions={!isConcierge ? (
         <div className="flex gap-2 w-full sm:w-auto">
           <Button variant="secondary" onClick={handleExport} icon={<Download className="h-4 w-4" />} className="flex-1 sm:flex-none">
             Exportar
@@ -186,7 +188,7 @@ const ResidentsPage: React.FC = () => {
             Novo
           </Button>
         </div>
-      )}
+      ) : undefined}
     >
       {/* Métricas */}
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -225,7 +227,7 @@ const ResidentsPage: React.FC = () => {
                 'Tente buscar por outro nome, e-mail, telefone ou unidade.'
               )}
             </p>
-            {residents.length === 0 && (
+            {residents.length === 0 && !isConcierge && (
               <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="mt-6">
                 Cadastrar morador
               </Button>
@@ -283,37 +285,39 @@ const ResidentsPage: React.FC = () => {
                         )}
                       </td>
                       <td className="text-right">
-                        <div className="inline-flex items-center justify-end gap-1">
-                          {!resident.userId && (
+                        {!isConcierge && (
+                          <div className="inline-flex items-center justify-end gap-1">
+                            {!resident.userId && (
+                              <button
+                                type="button"
+                                onClick={() => isDemo ? blockAction() : generateInvite(resident)}
+                                className="icon-button hover:bg-blue-50 hover:text-blue-600"
+                                title="Gerar convite"
+                                aria-label={`Gerar convite para ${resident.name}`}
+                              >
+                                <Send className="h-4 w-4" />
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={() => isDemo ? blockAction() : generateInvite(resident)}
-                              className="icon-button hover:bg-blue-50 hover:text-blue-600"
-                              title="Gerar convite"
-                              aria-label={`Gerar convite para ${resident.name}`}
+                              onClick={() => isDemo ? blockAction() : openEdit(resident)}
+                              className="icon-button hover:bg-slate-100 hover:text-slate-700"
+                              title="Editar morador"
+                              aria-label={`Editar ${resident.name}`}
                             >
-                              <Send className="h-4 w-4" />
+                              <Pencil className="h-4 w-4" />
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => isDemo ? blockAction() : openEdit(resident)}
-                            className="icon-button hover:bg-slate-100 hover:text-slate-700"
-                            title="Editar morador"
-                            aria-label={`Editar ${resident.name}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => isDemo ? blockAction() : setDeleteTarget(resident)}
-                            className="icon-button hover:bg-red-50 hover:text-red-500"
-                            title="Excluir morador"
-                            aria-label={`Excluir ${resident.name}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() => isDemo ? blockAction() : setDeleteTarget(resident)}
+                              className="icon-button hover:bg-red-50 hover:text-red-500"
+                              title="Excluir morador"
+                              aria-label={`Excluir ${resident.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
