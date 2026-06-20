@@ -31,36 +31,40 @@ const ConciergeDashboard: React.FC = () => {
   const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState('active');
 
+  const toArray = <T,>(raw: unknown): T[] => Array.isArray(raw) ? raw as T[] : (Array.isArray((raw as any)?.data) ? (raw as any).data : []);
+
   const { data: residents = [] } = useQuery<Resident[]>({
     queryKey: ['residents'],
-    queryFn: async () => { const { data } = await api.get('/residents'); return data; }
+    queryFn: async () => { const { data } = await api.get('/residents'); return toArray<Resident>(data); }
   });
 
   const { data: packages = [] } = useQuery<PkgData[]>({
     queryKey: ['packages'],
-    queryFn: async () => { const { data } = await api.get('/packages'); return data; }
+    queryFn: async () => { const { data } = await api.get('/packages'); return toArray<PkgData>(data); }
   });
 
   const { data: issues = [] } = useQuery<Issue[]>({
     queryKey: ['issues'],
-    queryFn: async () => { const { data } = await api.get('/issues'); return data; }
+    queryFn: async () => { try { const { data } = await api.get('/issues'); return toArray<Issue>(data); } catch { return []; } }
   });
 
   const { data: reservations = [] } = useQuery<Reservation[]>({
     queryKey: ['reservations'],
-    queryFn: async () => { const { data } = await api.get('/reservations'); return data; }
+    queryFn: async () => { try { const { data } = await api.get('/reservations'); return toArray<Reservation>(data); } catch { return []; } }
   });
 
   const { data: announcements = [] } = useQuery<Announcement[]>({
     queryKey: ['announcements'],
-    queryFn: async () => { const { data } = await api.get('/announcements'); return data; }
+    queryFn: async () => { try { const { data } = await api.get('/announcements'); return toArray<Announcement>(data); } catch { return []; } }
   });
 
   const { data: accesses = [], isLoading: loadingAccesses } = useQuery<Access[]>({
     queryKey: ['accesses', filterStatus],
     queryFn: async () => {
-      const { data } = await api.get('/access', { params: { status: filterStatus !== 'all' ? filterStatus : undefined } });
-      return data;
+      try {
+        const { data } = await api.get('/access', { params: { status: filterStatus !== 'all' ? filterStatus : undefined } });
+        return toArray<Access>(data);
+      } catch { return []; }
     }
   });
 
