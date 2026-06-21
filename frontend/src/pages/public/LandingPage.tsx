@@ -429,7 +429,20 @@ const LandingPage: React.FC = () => {
                   </button>
                 ) : (
                   <Link
-                    to={plan.href}
+                    to={
+                      plan.name === 'Grátis'
+                        ? '/cadastro'
+                        : `/cadastro?plan=${plan.name.toLowerCase()}&cycle=${isAnnual ? 'yearly' : 'monthly'}`
+                    }
+                    onClick={() => {
+                      if (plan.name !== 'Grátis') {
+                        localStorage.setItem('pendingPlan', JSON.stringify({
+                          plan: plan.name.toLowerCase(),
+                          billingCycle: isAnnual ? 'yearly' : 'monthly',
+                          expiresAt: Date.now() + 2 * 60 * 60 * 1000,
+                        }));
+                      }
+                    }}
                     className={`block w-full rounded-xl py-3 text-center text-sm font-bold transition ${
                       plan.highlight
                         ? 'bg-white text-blue-700 hover:bg-blue-50'

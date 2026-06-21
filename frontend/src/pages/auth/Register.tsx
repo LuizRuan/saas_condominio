@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -8,6 +8,7 @@ import BrandMark from '../../components/ui/BrandMark';
 import { ArrowLeft, ArrowRight, Building2, CheckCircle2, UserRound } from 'lucide-react';
 import { BRAZILIAN_STATES, validatePixKey } from '../../utils/helpers';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const Register: React.FC = () => {
   const [form, setForm] = useState({
@@ -16,8 +17,33 @@ const Register: React.FC = () => {
     defaultFee: '', dueDay: '10',
   });
   const [loading, setLoading] = useState(false);
+  const [paymentStep, setPaymentStep] = useState(false);
+  const [subscribeLoading, setSubscribeLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const pendingPlan = ((): string => {
+    const fromUrl = searchParams.get('plan') || '';
+    if (fromUrl === 'pro' || fromUrl === 'ultra') return fromUrl;
+    try {
+      const raw = localStorage.getItem('pendingPlan');
+      if (!raw) return '';
+      const p = JSON.parse(raw);
+      if (p.expiresAt && Date.now() > p.expiresAt) { localStorage.removeItem('pendingPlan'); return ''; }
+      return (p.plan === 'pro' || p.plan === 'ultra') ? String(p.plan) : '';
+    } catch { return ''; }
+  })();
+
+  const pendingCycle = ((): 'monthly' | 'yearly' => {
+    const fromUrl = searchParams.get('cycle') || '';
+    if (fromUrl === 'yearly') return 'yearly';
+    if (fromUrl === 'monthly') return 'monthly';
+    try {
+      const p = JSON.parse(localStorage.getItem('pendingPlan') || '{}');
+      return p.billingCycle === 'yearly' ? 'yearly' : 'monthly';
+    } catch { return 'monthly'; }
+  })();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -58,11 +84,31 @@ const Register: React.FC = () => {
         dueDay: Number(form.dueDay) || 10,
       });
       toast.success('Conta criada com sucesso!');
-      navigate('/dashboard');
+      if (pendingPlan === 'pro' || pendingPlan === 'ultra') {
+        setPaymentStep(true);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Erro ao criar conta');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleContinueToPayment = async () => {
+    setSubscribeLoading(true);
+    try {
+      const res = await api.post('/billing/mercadopago/subscribe', {
+        plan: pendingPlan,
+        billingCycle: pendingCycle,
+      });
+      localStorage.removeItem('pendingPlan');
+      window.location.href = res.data.checkoutUrl;
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Erro ao criar assinatura. Tente novamente.');
+    } finally {
+      setSubscribeLoading(false);
     }
   };
 
@@ -105,6 +151,38 @@ const Register: React.FC = () => {
             <Link to="/login" className="text-xs font-bold text-blue-600">Entrar</Link>
           </div>
 
+          {paymentStep ? (
+            <div className="surface-card p-8 text-center">
+              <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-500" />
+              <h2 className="mt-5 text-2xl font-extrabold tracking-[-0.04em] text-slate-950">
+                Conta criada com sucesso!
+              </h2>
+              <p className="mt-3 text-sm font-medium leading-6 text-slate-500">
+                Finalize sua assinatura no Mercado Pago para ativar o{' '}
+                <strong>Plano {pendingPlan === 'pro' ? 'Pro' : 'Ultra'}{' '}
+                ({pendingCycle === 'yearly' ? 'Anual' : 'Mensal'})</strong>.
+              </p>
+              <div className="mt-8 flex flex-col gap-3">
+                <Button
+                  loading={subscribeLoading}
+                  onClick={handleContinueToPayment}
+                  size="lg"
+                  icon={!subscribeLoading ? <ArrowRight className="h-4 w-4" /> : undefined}
+                  className="w-full"
+                >
+                  Continuar para pagamento
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => { localStorage.removeItem('pendingPlan'); navigate('/dashboard'); }}
+                  className="text-sm font-bold text-slate-400 hover:text-slate-700 transition"
+                >
+                  Continuar sem assinar
+                </button>
+              </div>
+            </div>
+          ) : (
+          <>
           <div className="mb-8">
             <p className="eyebrow mb-3">Nova conta</p>
             <h1 className="text-3xl font-extrabold tracking-[-0.045em] text-slate-950 sm:text-4xl">Configure sua gestão</h1>
@@ -112,6 +190,16 @@ const Register: React.FC = () => {
               Informe seus dados e as configurações iniciais do condomínio. Você poderá editar tudo depois.
             </p>
           </div>
+
+          {(pendingPlan === 'pro' || pendingPlan === 'ultra') && (
+            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm font-semibold text-blue-700">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-500" />
+              Plano escolhido:{' '}
+              <strong className="font-extrabold">
+                {pendingPlan === 'pro' ? 'Pro' : 'Ultra'} — {pendingCycle === 'yearly' ? 'Anual' : 'Mensal'}
+              </strong>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <section className="surface-card p-5 sm:p-7">
@@ -163,6 +251,8 @@ const Register: React.FC = () => {
               </Button>
             </div>
           </form>
+          </>
+          )}
         </div>
       </main>
       </div>

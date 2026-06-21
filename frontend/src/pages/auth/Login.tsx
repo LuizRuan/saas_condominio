@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button';
 import BrandMark from '../../components/ui/BrandMark';
 import { ArrowRight, CheckCircle2, Lock, Mail, ShieldCheck, Sparkles, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -24,6 +25,44 @@ const Login: React.FC = () => {
     setLoading(true);
     try {
       const loggedUser = await login(email.trim(), password);
+
+      // Verificar plano pendente no localStorage
+      let pending: { plan: string; billingCycle: string; expiresAt?: number } | null = null;
+      try {
+        const raw = localStorage.getItem('pendingPlan');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          pending = (parsed.expiresAt && Date.now() > parsed.expiresAt) ? null : parsed;
+          if (!pending) localStorage.removeItem('pendingPlan');
+        }
+      } catch { localStorage.removeItem('pendingPlan'); }
+
+      if (pending && (pending.plan === 'pro' || pending.plan === 'ultra')) {
+        if (loggedUser.role === 'admin' && !loggedUser.isDemo) {
+          toast.success('Login realizado com sucesso!');
+          const loadingId = toast.loading('Redirecionando para pagamento...');
+          try {
+            const res = await api.post('/billing/mercadopago/subscribe', {
+              plan: pending.plan,
+              billingCycle: pending.billingCycle || 'monthly',
+            });
+            localStorage.removeItem('pendingPlan');
+            toast.dismiss(loadingId);
+            window.location.href = res.data.checkoutUrl;
+          } catch (err: any) {
+            toast.dismiss(loadingId);
+            toast.error(err?.response?.data?.error || 'Erro ao criar assinatura. Tente novamente.');
+            localStorage.removeItem('pendingPlan');
+            navigate('/dashboard');
+          }
+          return;
+        }
+        localStorage.removeItem('pendingPlan');
+        if (loggedUser.role !== 'admin') {
+          toast.error('Apenas o síndico pode contratar planos.');
+        }
+      }
+
       toast.success('Login realizado com sucesso!');
       navigate(loggedUser.role === 'admin' ? '/dashboard' : '/morador');
     } catch (error: any) {
