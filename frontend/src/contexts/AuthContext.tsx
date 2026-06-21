@@ -19,6 +19,7 @@ interface AuthContextType {
   isSubadmin: boolean;
   isFinancial: boolean;
   isDemo: boolean;
+  overrideDemoRole: (role: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -30,6 +31,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+  const [demoRoleOverride, setDemoRoleOverride] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -85,6 +87,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
+    setDemoRoleOverride(null);
     queryClient.clear();
   };
 
@@ -92,6 +95,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('user', JSON.stringify(updatedUser));
     setUser(updatedUser);
   };
+
+  const overrideDemoRole = (role: string) => setDemoRoleOverride(role);
+  const effectiveRole = (user?.isDemo && demoRoleOverride) ? demoRoleOverride : user?.role;
 
   return (
     <AuthContext.Provider
@@ -105,12 +111,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         acceptInvite,
         logout,
         updateUser,
-        isAdmin: user?.role === 'admin' || user?.role === 'subadmin',
-        isResident: user?.role === 'resident',
-        isConcierge: user?.role === 'concierge',
-        isSubadmin: user?.role === 'subadmin',
-        isFinancial: user?.role === 'financial',
+        isAdmin: effectiveRole === 'admin' || effectiveRole === 'subadmin',
+        isResident: effectiveRole === 'resident',
+        isConcierge: effectiveRole === 'concierge',
+        isSubadmin: effectiveRole === 'subadmin',
+        isFinancial: effectiveRole === 'financial',
         isDemo: user?.isDemo === true,
+        overrideDemoRole,
       }}
     >
       {children}

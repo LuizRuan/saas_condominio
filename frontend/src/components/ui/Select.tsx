@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 
 interface SelectProps {
@@ -21,6 +22,7 @@ const Select: React.FC<SelectProps> = ({
   const [open, setOpen] = useState(false);
   const [dropStyle, setDropStyle] = useState<React.CSSProperties>({});
   const ref = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
   const selected = options.find(o => o.value === value);
 
@@ -45,10 +47,16 @@ const Select: React.FC<SelectProps> = ({
     setOpen(o => !o);
   }, [disabled, options.length, placeholder]);
 
+  // Click-outside: check both the trigger wrapper AND the portal dropdown
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (
+        (ref.current && ref.current.contains(target)) ||
+        (dropdownRef.current && dropdownRef.current.contains(target))
+      ) return;
+      setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -87,8 +95,9 @@ const Select: React.FC<SelectProps> = ({
         <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
+          ref={dropdownRef}
           style={{ position: 'fixed', zIndex: 9999, ...dropStyle }}
           className="animate-scale-in w-max max-h-60 overflow-y-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-[0_8px_32px_rgba(15,23,42,0.12)]"
         >
@@ -117,7 +126,8 @@ const Select: React.FC<SelectProps> = ({
               {opt.label}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
 
       {error && <p className="mt-1.5 text-xs font-medium text-red-600">{error}</p>}

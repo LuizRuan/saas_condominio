@@ -1,18 +1,26 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
 
 interface DemoContextType {
   isDemo: boolean;
   blockAction: () => void;
+  demoRole: string;
+  setDemoRole: (role: string) => void;
 }
 
-const DemoContext = createContext<DemoContextType>({ isDemo: false, blockAction: () => {} });
+const DemoContext = createContext<DemoContextType>({
+  isDemo: false,
+  blockAction: () => {},
+  demoRole: 'admin',
+  setDemoRole: () => {},
+});
 
 export const useDemo = () => useContext(DemoContext);
 
 export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { isDemo } = useAuth();
+  const { isDemo, overrideDemoRole } = useAuth();
+  const [demoRole, setDemoRoleState] = useState('admin');
 
   const blockAction = () => {
     toast('🎭 Você está em modo demonstração. Crie uma conta gratuita para usar esta função.', {
@@ -28,8 +36,13 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  const setDemoRole = (role: string) => {
+    setDemoRoleState(role);
+    overrideDemoRole(role);
+  };
+
   return (
-    <DemoContext.Provider value={{ isDemo, blockAction }}>
+    <DemoContext.Provider value={{ isDemo, blockAction, demoRole, setDemoRole }}>
       {children}
     </DemoContext.Provider>
   );

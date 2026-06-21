@@ -279,17 +279,18 @@ const ReservationsPage: React.FC = () => {
         </>
       )}
     >
-      {/* Metric Cards */}
-      <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Reservas" value={list.length} helper="solicitações" icon={<CalendarDays className="h-4 w-4" />} />
-        <MetricCard label="Pendentes" value={list.filter(i => i.status === 'pending').length} helper="para análise" icon={<Clock3 className="h-4 w-4" />} iconClass="bg-violet-100 text-violet-700" />
-        <MetricCard label="Aprovadas" value={list.filter(i => i.status === 'approved').length} helper="confirmadas" icon={<CheckCircle className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" valueClassName="text-emerald-700" />
-        <MetricCard label="Recusadas" value={list.filter(i => i.status === 'rejected').length} helper="negadas" icon={<XCircle className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />
-        <MetricCard label="Bloqueios" value={blocks.length} helper="agenda travada" icon={<Ban className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-700" />
-      </section>
+      {!isResident && (
+        <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <MetricCard label="Reservas" value={list.length} helper="solicitações" icon={<CalendarDays className="h-4 w-4" />} />
+          <MetricCard label="Pendentes" value={list.filter(i => i.status === 'pending').length} helper="para análise" icon={<Clock3 className="h-4 w-4" />} iconClass="bg-violet-100 text-violet-700" />
+          <MetricCard label="Aprovadas" value={list.filter(i => i.status === 'approved').length} helper="confirmadas" icon={<CheckCircle className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" valueClassName="text-emerald-700" />
+          <MetricCard label="Recusadas" value={list.filter(i => i.status === 'rejected').length} helper="negadas" icon={<XCircle className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />
+          <MetricCard label="Bloqueios" value={blocks.length} helper="agenda travada" icon={<Ban className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-700" />
+        </section>
+      )}
 
       {/* Calendar + Side Panel */}
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_400px]">
+      <div className="mt-6 grid gap-6 xl:max-w-[920px] xl:grid-cols-[1fr_400px]">
 
         {/* Calendar */}
         <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
