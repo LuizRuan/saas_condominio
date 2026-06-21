@@ -8,6 +8,7 @@ export interface User {
   mustChangePassword?: boolean;
   condominiumId?: string;
   unitId?: string;
+  plan?: 'free' | 'pro' | 'ultra';
 }
 
 export interface Condominium {

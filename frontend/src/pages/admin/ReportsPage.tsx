@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
 import PremiumPage from '../../components/ui/PremiumPage';
 import MetricCard from '../../components/ui/MetricCard';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -25,7 +27,8 @@ const categoryLabels: Record<string, string> = {
 
 const ReportsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
-  
+  const { plan } = useAuth();
+
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
 
@@ -52,10 +55,12 @@ const ReportsPage: React.FC = () => {
           />
           <button
             type="button"
-            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-violet-800 focus:ring-4 focus:ring-violet-500/20"
+            onClick={() => plan === 'free' ? toast.error('A exportação de PDF está disponível nos planos Pro e Ultra.') : undefined}
+            className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition focus:ring-4 focus:ring-violet-500/20 ${plan === 'free' ? 'bg-slate-300 cursor-not-allowed' : 'bg-violet-700 hover:bg-violet-800'}`}
           >
             <Download className="h-4 w-4" />
             Exportar PDF
+            {plan === 'free' && <span className="ml-1 rounded bg-slate-400/30 px-1 py-0.5 text-[9px] font-black uppercase tracking-wide">Pro</span>}
           </button>
         </div>
       }

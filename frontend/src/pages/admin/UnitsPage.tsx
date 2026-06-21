@@ -32,9 +32,9 @@ import { useAuth } from '../../contexts/AuthContext';
 const UnitsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const { isDemo, blockAction } = useDemo();
-  const { isFinancial } = useAuth();
+  const { isFinancial, plan } = useAuth();
   const queryClient = useQueryClient();
-  
+
   const { data: unitsResponse, isLoading: loading } = useQuery<Unit[]>({
     queryKey: ['units'],
     queryFn: async () => {
@@ -43,6 +43,13 @@ const UnitsPage: React.FC = () => {
     },
   });
   const units: Unit[] = unitsResponse ?? [];
+
+  const UNIT_LIMITS: Record<string, number> = { free: 20, pro: 100, ultra: Infinity };
+  const unitLimit = UNIT_LIMITS[plan] ?? 20;
+  const atLimit = isFinite(unitLimit) && units.length >= unitLimit;
+  const limitMsg = plan === 'free'
+    ? 'O plano Grátis permite até 20 unidades. Faça upgrade para o Pro ou Ultra para continuar.'
+    : 'O plano Pro permite até 100 unidades. Para adicionar mais unidades, faça upgrade para o Ultra.';
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);
@@ -129,14 +136,19 @@ const UnitsPage: React.FC = () => {
           <Button onClick={isDemo ? blockAction : () => setWizardOpen(true)} variant="secondary" icon={<UploadCloud className="h-4 w-4" />} className="flex-1 sm:flex-none">
             Importar Excel/PDF
           </Button>
-          <Button onClick={isDemo ? blockAction : openCreate} icon={<Plus className="h-4 w-4" />} className="flex-1 sm:flex-none">
+          <Button
+            onClick={isDemo ? blockAction : atLimit ? () => toast.error(limitMsg) : openCreate}
+            icon={<Plus className="h-4 w-4" />}
+            className="flex-1 sm:flex-none"
+            disabled={!isDemo && atLimit}
+          >
             Nova unidade
           </Button>
         </div>
       ) : undefined}
     >
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Total de unidades" value={units.length} helper="cadastradas" icon={<Building2 className="h-4 w-4" />} />
+        <MetricCard label="Total de unidades" value={units.length} helper={`de ${isFinite(unitLimit) ? unitLimit : '∞'} permitidas`} icon={<Building2 className="h-4 w-4" />} />
         <MetricCard label="Ocupadas" value={units.filter((u) => u.status === 'occupied').length} helper="em uso" icon={<CheckCircle2 className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" />
         <MetricCard label="Vazias" value={units.filter((u) => u.status === 'empty').length} helper="disponíveis" icon={<Home className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-600" />
         <MetricCard label="Inadimplentes" value={units.filter((u) => u.status === 'late').length} helper="atenção" icon={<AlertTriangle className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />

@@ -62,7 +62,7 @@ const sectionLabel: Record<string, string> = {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, logout, isAdmin, isConcierge, isSubadmin, isFinancial } = useAuth();
+  const { user, logout, isAdmin, isConcierge, isSubadmin, isFinancial, isDemo, isResident, plan } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -76,8 +76,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     links = adminLinks;
   }
 
+  // In demo + resident mode, point Reservas to the full calendar page
+  const effectiveLinks = (isDemo && isResident)
+    ? links.map(l => l.to === '/morador/reservas' ? { ...l, to: '/reservas' } : l)
+    : links;
+
   // Group links by section
-  const sections = links.reduce<Record<string, typeof links>>((acc, link) => {
+  const sections = effectiveLinks.reduce<Record<string, typeof links>>((acc, link) => {
     if (!acc[link.section]) acc[link.section] = [];
     acc[link.section].push(link);
     return acc;
@@ -204,6 +209,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 <p className="truncate text-[13px] font-bold text-white">{user?.name}</p>
                 <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-500">
                   {isConcierge ? 'Porteiro' : isFinancial ? 'Financeiro' : isSubadmin ? 'Gestão' : isAdmin ? 'Síndico' : 'Morador'}
+                  {' · '}
+                  <span className={plan === 'ultra' ? 'font-black text-amber-400' : plan === 'pro' ? 'font-black text-violet-400' : 'font-bold text-slate-400'}>
+                    {plan === 'ultra' ? 'Ultra' : plan === 'pro' ? 'Pro' : 'Grátis'}
+                  </span>
                 </p>
               </div>
             </div>

@@ -4,7 +4,10 @@ import Resident from '../models/Resident';
 import Charge from '../models/Charge';
 import Issue from '../models/Issue';
 import Reservation from '../models/Reservation';
+import Condominium from '../models/Condominium';
 import { AuthRequest } from '../middlewares/auth';
+
+const PLAN_UNIT_LIMITS: Record<string, number> = { free: 20, pro: 100, ultra: Infinity };
 
 export const createUnit = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -16,6 +19,20 @@ export const createUnit = async (req: AuthRequest, res: Response): Promise<void>
     if (!req.body.number?.trim()) {
       res.status(400).json({ error: 'Número da unidade é obrigatório' });
       return;
+    }
+
+    const condo = await Condominium.findById(req.user!.condominiumId).select('plan');
+    const plan = condo?.plan ?? 'free';
+    const limit = PLAN_UNIT_LIMITS[plan] ?? 20;
+    if (isFinite(limit)) {
+      const count = await Unit.countDocuments({ condominiumId: req.user!.condominiumId });
+      if (count >= limit) {
+        const msg = plan === 'free'
+          ? 'O plano Grátis permite até 20 unidades. Faça upgrade para o Pro ou Ultra para continuar.'
+          : 'O plano Pro permite até 100 unidades. Para adicionar mais unidades, faça upgrade para o Ultra.';
+        res.status(403).json({ error: msg });
+        return;
+      }
     }
 
     const unit = await Unit.create({

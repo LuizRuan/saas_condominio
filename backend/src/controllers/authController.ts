@@ -169,6 +169,10 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
+    const condo = user.condominiumId
+      ? await Condominium.findById(user.condominiumId).select('plan')
+      : null;
+
     res.json({
       user: {
         id: user._id,
@@ -180,6 +184,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
         mustChangePassword: user.mustChangePassword ?? false,
         condominiumId: user.condominiumId,
         unitId: user.unitId,
+        plan: user.isDemo ? 'ultra' : (condo?.plan ?? 'free'),
       },
     });
   } catch (error: any) {

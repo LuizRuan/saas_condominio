@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogOut, Loader2, Mail, Settings, ShieldCheck, Trash2, UserCog, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { useDemo } from '../contexts/DemoContext';
 import api from '../services/api';
 import Button from '../components/ui/Button';
 
@@ -28,6 +29,7 @@ const ALLOWED_DOMAINS = new Set([
 
 const SettingsPage: React.FC = () => {
   const { user, logout } = useAuth();
+  const { isDemo, blockAction } = useDemo();
   const navigate = useNavigate();
   const isPureAdmin = user?.role === 'admin';
 
@@ -76,6 +78,7 @@ const SettingsPage: React.FC = () => {
   };
 
   const handleInvite = async () => {
+    if (isDemo) { blockAction(); return; }
     const email = inviteEmail.trim();
     if (!validateEmail(email)) return;
     setInviteLoading(true);
@@ -94,6 +97,7 @@ const SettingsPage: React.FC = () => {
   };
 
   const handleRemove = async (id: string) => {
+    if (isDemo) { blockAction(); return; }
     try {
       await api.delete(`/auth/staff/${id}`);
       setStaff((prev) => prev.filter((s) => s._id !== id));
@@ -104,6 +108,7 @@ const SettingsPage: React.FC = () => {
   };
 
   const handleLogout = () => {
+    if (isDemo) { blockAction(); return; }
     logout();
     navigate('/login');
   };

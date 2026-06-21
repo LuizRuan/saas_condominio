@@ -35,10 +35,12 @@ import api from '../../services/api';
 import { Charge, Condominium, Unit } from '../../types';
 import toast from 'react-hot-toast';
 import { useDemo } from '../../contexts/DemoContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ChargesPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const { isDemo, blockAction } = useDemo();
+  const { plan } = useAuth();
   const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
@@ -139,6 +141,7 @@ const ChargesPage: React.FC = () => {
   };
 
   const exportCsv = async () => {
+    if (isDemo) { blockAction(); return; }
     try {
       const { data } = await api.get('/charges/reports/export.csv', {
         params: { status: filterStatus || undefined, referenceMonth: filterMonth || undefined },
@@ -158,6 +161,8 @@ const ChargesPage: React.FC = () => {
   };
 
   const handleWhatsApp = (charge: Charge, type: 'reminder' | 'due_today' | 'friendly_late' | 'formal_late') => {
+    if (isDemo) { blockAction(); return; }
+    if (plan === 'free') { toast.error('O envio por WhatsApp está disponível nos planos Pro e Ultra.'); return; }
     const resident = typeof charge.residentId === 'object' ? charge.residentId : null;
     if (!resident?.phone) { toast.error('Morador sem telefone cadastrado'); return; }
     const msg = generateWhatsAppMessage(type, {
@@ -169,6 +174,7 @@ const ChargesPage: React.FC = () => {
   };
 
   const copyMessage = (charge: Charge, type: 'reminder' | 'due_today' | 'friendly_late' | 'formal_late') => {
+    if (isDemo) { blockAction(); return; }
     const resident = typeof charge.residentId === 'object' ? charge.residentId : null;
     const msg = generateWhatsAppMessage(type, {
       name: resident?.name || 'Morador', month: charge.referenceMonth,
@@ -331,7 +337,7 @@ const ChargesPage: React.FC = () => {
                                 <XCircle className="h-4 w-4" />
                               </button>
                             )}
-                            <button type="button" onClick={() => { setSelectedCharge(charge); setWhatsOpen(true); }} title="WhatsApp" aria-label="WhatsApp" className="icon-button hover:bg-emerald-50 hover:text-emerald-600">
+                            <button type="button" onClick={() => { if (isDemo) { blockAction(); return; } if (plan === 'free') { toast.error('O envio por WhatsApp está disponível nos planos Pro e Ultra.'); return; } setSelectedCharge(charge); setWhatsOpen(true); }} title="WhatsApp" aria-label="WhatsApp" className="icon-button hover:bg-emerald-50 hover:text-emerald-600">
                               <MessageCircle className="h-4 w-4" />
                             </button>
                             <button type="button" onClick={() => isDemo ? blockAction() : setDeleteTarget(charge)} title="Excluir" aria-label="Excluir cobrança" className="icon-button hover:bg-red-50 hover:text-red-500">

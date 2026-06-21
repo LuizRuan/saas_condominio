@@ -10,6 +10,7 @@ export interface ICondominium extends Document {
   defaultFee: number;
   dueDay: number;
   ownerId: mongoose.Types.ObjectId;
+  plan: 'free' | 'pro' | 'ultra';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +26,7 @@ const CondominiumSchema = new Schema<ICondominium>(
     defaultFee: { type: Number, default: 0, min: 0 },
     dueDay: { type: Number, default: 10, min: 1, max: 31 },
     ownerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    plan: { type: String, enum: ['free', 'pro', 'ultra'], default: 'free' },
   },
   { timestamps: true }
 );

@@ -19,6 +19,7 @@ interface AuthContextType {
   isSubadmin: boolean;
   isFinancial: boolean;
   isDemo: boolean;
+  plan: 'free' | 'pro' | 'ultra';
   overrideDemoRole: (role: string) => void;
 }
 
@@ -117,6 +118,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isSubadmin: effectiveRole === 'subadmin',
         isFinancial: effectiveRole === 'financial',
         isDemo: user?.isDemo === true,
+        plan: (user?.isDemo ? 'ultra' : (user?.plan ?? 'free')) as 'free' | 'pro' | 'ultra',
         overrideDemoRole,
       }}
     >

@@ -63,9 +63,9 @@ export const FinanceRoute: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const StaffRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading, isAdmin, isConcierge } = useAuth();
+  const { user, loading, isAdmin, isConcierge, isDemo, isResident } = useAuth();
   if (loading) return <LoadingSpinner text="Carregando..." />;
   if (!user) return <Navigate to="/login" replace />;
-  if (!isAdmin && !isConcierge) return <Navigate to="/dashboard" replace />;
+  if (!isAdmin && !isConcierge && !(isDemo && isResident)) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 };
