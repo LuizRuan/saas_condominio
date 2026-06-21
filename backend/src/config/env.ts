@@ -49,6 +49,16 @@ export const getAllowedOrigins = (): string[] => {
   return [...new Set(configuredOrigins)];
 };
 
+export const getMercadoPagoAccessToken = (): string => {
+  const token = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
+  if (!token) throw new Error('MERCADO_PAGO_ACCESS_TOKEN não configurado');
+  return token;
+};
+
+export const getMercadoPagoWebhookSecret = (): string => {
+  return process.env.MERCADO_PAGO_WEBHOOK_SECRET?.trim() ?? '';
+};
+
 export const validateEnvironment = (): void => {
   getJwtSecret();
   getMongoUri();

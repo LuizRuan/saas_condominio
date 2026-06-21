@@ -47,6 +47,9 @@ const MyPackages = React.lazy(() => import('./pages/resident/MyPackages'));
 // Public pages — lazy loaded
 const LandingPage = React.lazy(() => import('./pages/public/LandingPage'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
+const BillingSuccess = React.lazy(() => import('./pages/billing/BillingSuccess'));
+const BillingPending = React.lazy(() => import('./pages/billing/BillingPending'));
+const BillingFailure = React.lazy(() => import('./pages/billing/BillingFailure'));
 
 const HomeRedirect: React.FC = () => {
   const { user, loading } = useAuth();
@@ -72,6 +75,11 @@ const App: React.FC = () => {
             <Routes>
               {/* Landing */}
               <Route path="/" element={<LandingPage />} />
+
+              {/* Billing — páginas de retorno do MP (públicas, nunca ativam plano) */}
+              <Route path="/billing/success" element={<BillingSuccess />} />
+              <Route path="/billing/pending" element={<BillingPending />} />
+              <Route path="/billing/failure" element={<BillingFailure />} />
 
               {/* Auth */}
               <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />

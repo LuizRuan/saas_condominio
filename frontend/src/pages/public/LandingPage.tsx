@@ -5,8 +5,10 @@ import {
   Megaphone, AlertTriangle, CalendarDays, Package, ArrowRight,
   Star, ChevronDown, Menu, X, LogOut
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import BrandMark from '../../components/ui/BrandMark';
+import api from '../../services/api';
 
 import { WalletCards } from 'lucide-react';
 
@@ -69,8 +71,22 @@ const LandingPage: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [isAnnual, setIsAnnual] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
-  const { user, logout, loginDemo } = useAuth();
+  const [subscribeLoading, setSubscribeLoading] = useState<string | null>(null);
+  const { user, logout, loginDemo, isDemo } = useAuth();
   const navigate = useNavigate();
+
+  const handleSubscribe = async (planName: 'pro' | 'ultra') => {
+    const billingCycle = isAnnual ? 'yearly' : 'monthly';
+    setSubscribeLoading(planName);
+    try {
+      const res = await api.post('/billing/mercadopago/subscribe', { plan: planName, billingCycle });
+      window.location.href = res.data.checkoutUrl;
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Erro ao criar assinatura. Tente novamente.');
+    } finally {
+      setSubscribeLoading(null);
+    }
+  };
 
   const handleAuthClick = () => {
     if (user) logout();
@@ -399,16 +415,30 @@ const LandingPage: React.FC = () => {
                     </li>
                   ))}
                 </ul>
-                <Link
-                  to={plan.href}
-                  className={`block w-full rounded-xl py-3 text-center text-sm font-bold transition ${
-                    plan.highlight
-                      ? 'bg-white text-blue-700 hover:bg-blue-50'
-                      : 'bg-slate-950 text-white hover:bg-slate-800'
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
+                {(plan.name !== 'Grátis' && user?.role === 'admin' && !isDemo) ? (
+                  <button
+                    onClick={() => handleSubscribe(plan.name.toLowerCase() as 'pro' | 'ultra')}
+                    disabled={subscribeLoading === plan.name.toLowerCase()}
+                    className={`block w-full rounded-xl py-3 text-center text-sm font-bold transition disabled:opacity-60 ${
+                      plan.highlight
+                        ? 'bg-white text-blue-700 hover:bg-blue-50'
+                        : 'bg-slate-950 text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    {subscribeLoading === plan.name.toLowerCase() ? 'Aguarde...' : plan.cta}
+                  </button>
+                ) : (
+                  <Link
+                    to={plan.href}
+                    className={`block w-full rounded-xl py-3 text-center text-sm font-bold transition ${
+                      plan.highlight
+                        ? 'bg-white text-blue-700 hover:bg-blue-50'
+                        : 'bg-slate-950 text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    {plan.cta}
+                  </Link>
+                )}
               </div>
             ))}
           </div>

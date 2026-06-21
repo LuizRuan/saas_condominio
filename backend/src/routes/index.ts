@@ -16,6 +16,7 @@ import expenseRoutes from './expenseRoutes';
 import financeRoutes from './financeRoutes';
 import importRoutes from './importRoutes';
 import accessRoutes from './accessRoutes';
+import billingRoutes from './billingRoutes';
 
 const router = Router();
 
@@ -42,5 +43,6 @@ router.use('/expenses', expenseRoutes);
 router.use('/finance', financeRoutes);
 router.use('/import', importRoutes);
 router.use('/access', accessRoutes);
+router.use('/billing', billingRoutes);
 
 export default router;

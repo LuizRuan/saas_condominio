@@ -11,6 +11,11 @@ export interface ICondominium extends Document {
   dueDay: number;
   ownerId: mongoose.Types.ObjectId;
   plan: 'free' | 'pro' | 'ultra';
+  subscriptionStatus?: 'pending' | 'active' | 'canceled' | 'failed' | 'overdue';
+  billingCycle?: 'monthly' | 'yearly';
+  gateway?: 'mercadopago';
+  gatewaySubscriptionId?: string;
+  currentPeriodEnd?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +32,11 @@ const CondominiumSchema = new Schema<ICondominium>(
     dueDay: { type: Number, default: 10, min: 1, max: 31 },
     ownerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     plan: { type: String, enum: ['free', 'pro', 'ultra'], default: 'free' },
+    subscriptionStatus: { type: String, enum: ['pending', 'active', 'canceled', 'failed', 'overdue'] },
+    billingCycle: { type: String, enum: ['monthly', 'yearly'] },
+    gateway: { type: String, enum: ['mercadopago'] },
+    gatewaySubscriptionId: { type: String, select: false },
+    currentPeriodEnd: { type: Date },
   },
   { timestamps: true }
 );
