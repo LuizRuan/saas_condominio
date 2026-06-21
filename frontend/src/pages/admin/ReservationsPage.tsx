@@ -124,6 +124,20 @@ const ReservationsPage: React.FC = () => {
     [blocksByDay, selectedDay],
   );
 
+  const conflictError = useMemo(() => {
+    if (!form.area || !form.startTime || !form.endTime || form.startTime >= form.endTime) return null;
+    const hasBlock = selectedDayBlocks.some(b =>
+      b.area === form.area && timeOverlap(form.startTime, form.endTime, b.startTime, b.endTime)
+    );
+    if (hasBlock) return 'Este horário já está reservado ou bloqueado para esta área.';
+    const hasConflict = selectedDayReservations.some(r =>
+      r.area === form.area && r.status === 'approved' &&
+      timeOverlap(form.startTime, form.endTime, r.startTime, r.endTime)
+    );
+    if (hasConflict) return 'Este horário já está reservado ou bloqueado para esta área.';
+    return null;
+  }, [form.area, form.startTime, form.endTime, selectedDayBlocks, selectedDayReservations]);
+
   // Actions
   const approve = async (id: string) => {
     try { await api.patch(`/reservations/${id}/approve`); toast.success('Aprovada!'); load(); }
@@ -275,12 +289,12 @@ const ReservationsPage: React.FC = () => {
       </section>
 
       {/* Calendar + Side Panel */}
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_360px]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_400px]">
 
         {/* Calendar */}
         <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
           {/* Month navigation */}
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
             <button
               type="button"
               onClick={prevMonth}
@@ -288,7 +302,7 @@ const ReservationsPage: React.FC = () => {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <h2 className="text-base font-extrabold text-slate-900">
+            <h2 className="text-sm font-extrabold text-slate-900">
               {MONTH_NAMES[calMonth]} {calYear}
             </h2>
             <button
@@ -301,16 +315,16 @@ const ReservationsPage: React.FC = () => {
           </div>
 
           {/* Day headers */}
-          <div className="grid grid-cols-7 border-b border-slate-50 px-3 pt-3">
+          <div className="grid grid-cols-7 border-b border-slate-50 px-2 pt-2">
             {DAY_ABBRS.map(d => (
-              <div key={d} className="pb-2 text-center text-[11px] font-black uppercase tracking-wide text-slate-400">
+              <div key={d} className="pb-1 text-center text-[10px] font-black uppercase tracking-wide text-slate-400">
                 {d}
               </div>
             ))}
           </div>
 
           {/* Calendar grid — key triggers animate-scale-in on month change */}
-          <div key={`${calYear}-${calMonth}`} className="animate-scale-in grid grid-cols-7 gap-1 p-3">
+          <div key={`${calYear}-${calMonth}`} className="animate-scale-in grid grid-cols-7 gap-0.5 p-2">
             {Array.from({ length: firstDayOfMonth }).map((_, i) => (
               <div key={`pad-${i}`} />
             ))}
@@ -332,14 +346,14 @@ const ReservationsPage: React.FC = () => {
                   type="button"
                   onClick={() => handleDayClick(dayStr)}
                   className={[
-                    'relative flex min-h-[52px] flex-col items-center justify-start gap-1 rounded-xl p-1.5 text-xs font-bold transition-all',
+                    'relative flex min-h-[30px] flex-col items-center justify-start gap-0.5 rounded-lg p-1 text-xs font-bold transition-all',
                     isSelected
                       ? 'bg-violet-700 text-white shadow-lg shadow-violet-700/25'
                       : 'text-slate-700 hover:bg-violet-50',
                     isToday && !isSelected ? 'ring-2 ring-violet-300 ring-offset-1' : '',
                   ].join(' ')}
                 >
-                  <span className={`text-sm font-black leading-none ${isSelected ? 'text-white' : isToday ? 'text-violet-700' : 'text-slate-800'}`}>
+                  <span className={`text-xs font-black leading-none ${isSelected ? 'text-white' : isToday ? 'text-violet-700' : 'text-slate-800'}`}>
                     {dayNum}
                   </span>
                   {(hasApproved || hasPending || hasBlock) && (
@@ -366,7 +380,7 @@ const ReservationsPage: React.FC = () => {
           </div>
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center gap-4 border-t border-slate-50 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3 border-t border-slate-50 px-3 py-2">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               <span className="text-[11px] font-semibold text-slate-400">Aprovada</span>
@@ -589,6 +603,12 @@ const ReservationsPage: React.FC = () => {
                     onChange={e => setForm({ ...form, endTime: e.target.value })}
                   />
                 </div>
+                {conflictError && (
+                  <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                    <p className="text-xs font-semibold text-red-600">{conflictError}</p>
+                  </div>
+                )}
                 <Textarea
                   label="Observação"
                   value={form.notes}
@@ -600,7 +620,12 @@ const ReservationsPage: React.FC = () => {
                   <Button variant="secondary" onClick={() => setPanelMode('view')} className="flex-1">
                     Cancelar
                   </Button>
-                  <Button onClick={handlePanelCreate} loading={saving} className="flex-1">
+                  <Button
+                    onClick={handlePanelCreate}
+                    loading={saving}
+                    disabled={!!conflictError}
+                    className="flex-1"
+                  >
                     Criar
                   </Button>
                 </div>

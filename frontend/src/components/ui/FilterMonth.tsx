@@ -16,6 +16,7 @@ const FilterMonth: React.FC<FilterMonthProps> = ({
 }) => {
   const now = new Date();
   const [open, setOpen] = useState(false);
+  const [alignRight, setAlignRight] = useState(false);
   const [year, setYear] = useState(() =>
     value ? parseInt(value.split('-')[0]) : now.getFullYear()
   );
@@ -44,7 +45,13 @@ const FilterMonth: React.FC<FilterMonthProps> = ({
     <div ref={ref} className={`relative ${className}`}>
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={() => {
+          if (ref.current) {
+            const rect = ref.current.getBoundingClientRect();
+            setAlignRight(rect.left + 256 > window.innerWidth - 8);
+          }
+          setOpen(o => !o);
+        }}
         className={[
           'inline-flex h-10 min-w-[190px] items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold shadow-sm transition-all focus:outline-none focus:ring-4',
           value
@@ -69,7 +76,7 @@ const FilterMonth: React.FC<FilterMonthProps> = ({
       </button>
 
       {open && (
-        <div className="animate-scale-in absolute left-0 top-full z-50 mt-1.5 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_32px_rgba(15,23,42,0.12)]">
+        <div className={`animate-scale-in absolute top-full z-50 mt-1.5 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_32px_rgba(15,23,42,0.12)] ${alignRight ? 'right-0' : 'left-0'}`}>
           {/* Year navigation */}
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <button

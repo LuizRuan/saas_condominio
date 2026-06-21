@@ -54,7 +54,7 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
     ]);
 
     if (conflict || blocked) {
-      res.status(409).json({ error: 'Já existe uma reserva aprovada para este horário e área' });
+      res.status(400).json({ error: 'Horário indisponível para esta área.' });
       return;
     }
 

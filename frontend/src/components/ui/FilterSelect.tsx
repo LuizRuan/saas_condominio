@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 
 interface FilterSelectProps {
@@ -15,8 +15,22 @@ const FilterSelect: React.FC<FilterSelectProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const selected = options.find(o => o.value === value);
   const isActive = !!value;
+
+  useLayoutEffect(() => {
+    if (!open || !dropdownRef.current) return;
+    const el = dropdownRef.current;
+    const rect = el.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 8) {
+      el.style.left = 'auto';
+      el.style.right = '0';
+    } else {
+      el.style.left = '';
+      el.style.right = '';
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -48,7 +62,7 @@ const FilterSelect: React.FC<FilterSelectProps> = ({
       </button>
 
       {open && (
-        <div className="animate-scale-in absolute left-0 top-full z-50 mt-1.5 min-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-[0_8px_32px_rgba(15,23,42,0.12)]">
+        <div ref={dropdownRef} className="animate-scale-in absolute left-0 top-full z-50 mt-1.5 w-max min-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-[0_8px_32px_rgba(15,23,42,0.12)]">
           {placeholder && (
             <button
               type="button"

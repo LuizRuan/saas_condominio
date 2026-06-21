@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Lock } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, Lock } from 'lucide-react';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import BrandMark from '../../components/ui/BrandMark';
@@ -16,6 +16,8 @@ const ResetPassword: React.FC = () => {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,20 +74,42 @@ const ResetPassword: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-5">
                 <Input
                   label="Nova senha"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Mínimo 6 caracteres"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   icon={<Lock className="w-4 h-4" />}
+                  rightElement={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(v => !v)}
+                      className="text-slate-400 transition hover:text-slate-700"
+                      tabIndex={-1}
+                      aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  }
                   autoFocus
                 />
                 <Input
                   label="Confirmar nova senha"
-                  type="password"
+                  type={showConfirm ? 'text' : 'password'}
                   placeholder="Repita a senha"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   icon={<Lock className="w-4 h-4" />}
+                  rightElement={
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm(v => !v)}
+                      className="text-slate-400 transition hover:text-slate-700"
+                      tabIndex={-1}
+                      aria-label={showConfirm ? 'Ocultar senha' : 'Mostrar senha'}
+                    >
+                      {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  }
                 />
                 <Button
                   type="submit"
