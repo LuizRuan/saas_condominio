@@ -102,7 +102,8 @@ const BillingPage: React.FC = () => {
       setShowCancelModal(false);
       queryClient.invalidateQueries({ queryKey: ['billing', 'me'] });
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || 'Erro ao cancelar. Tente novamente.');
+      const msg = err?.response?.data?.error || err?.response?.data?.message;
+      toast.error(msg || (isPendingSubscription ? 'Erro ao cancelar solicitação. Tente novamente.' : 'Erro ao cancelar assinatura. Tente novamente.'));
     } finally {
       setCancelLoading(false);
     }

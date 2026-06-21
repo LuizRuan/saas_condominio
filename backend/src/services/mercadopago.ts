@@ -1,5 +1,11 @@
 const MP_BASE = 'https://api.mercadopago.com';
 
+export class MPApiError extends Error {
+  constructor(public readonly statusCode: number, message: string) {
+    super(`MP API ${statusCode}: ${message}`);
+  }
+}
+
 interface MPAutoRecurring {
   frequency: number;
   frequency_type: 'months' | 'days';
@@ -42,7 +48,7 @@ async function mpFetch(path: string, options?: RequestInit): Promise<any> {
   });
   if (!res.ok) {
     const body: any = await res.json().catch(() => ({}));
-    throw new Error(`MP API ${res.status}: ${body?.message ?? 'erro desconhecido'}`);
+    throw new MPApiError(res.status, body?.message ?? 'erro desconhecido');
   }
   return res.json();
 }
