@@ -341,34 +341,50 @@ export const cancelSubscription = async (req: AuthRequest, res: Response): Promi
     }
 
     const isPending = subscription.status === 'pending';
-    const successMessage = isPending ? 'Solicitação cancelada com sucesso.' : 'Assinatura cancelada com sucesso.';
 
-    // Caminho A: sem preapprovalId → cancelamento local (solicitação criada sem MP)
-    if (!subscription.mercadoPagoPreapprovalId) {
-      console.warn('[BILLING] Subscription sem preapprovalId — cancelamento local aplicado');
-      await cancelLocalOnly(subscription._id, condominiumId, 'local_cancel');
-      res.json({ success: true, message: successMessage });
+    // ── Pending: fault-tolerant (solicitação não paga) ──────────────────────
+    if (isPending) {
+      if (subscription.mercadoPagoPreapprovalId) {
+        try {
+          const mpData = await getPreapproval(subscription.mercadoPagoPreapprovalId);
+          const mpStatus = String(mpData?.status ?? '');
+          if (mpStatus !== 'canceled' && mpStatus !== 'cancelled') {
+            await cancelPreapproval(subscription.mercadoPagoPreapprovalId);
+          }
+          await cancelLocalOnly(subscription._id, condominiumId, 'canceled');
+        } catch (mpErr: any) {
+          const statusCode = mpErr instanceof MPApiError ? mpErr.statusCode : 0;
+          const rawStatus = statusCode === 404
+            ? 'local_cancel_pending_mp_not_found'
+            : 'local_cancel_pending_mp_error';
+          console.warn(`[BILLING] Erro MP ao cancelar pending (statusCode: ${statusCode}, id: ${subscription._id}) — cancelamento local aplicado`);
+          await cancelLocalOnly(subscription._id, condominiumId, rawStatus);
+        }
+      } else {
+        console.warn('[BILLING] Pending sem preapprovalId — cancelamento local');
+        await cancelLocalOnly(subscription._id, condominiumId, 'local_cancel_no_id');
+      }
+      console.log(`[BILLING] Solicitação pending cancelada — condominiumId: ${condominiumId}`);
+      res.json({ success: true, message: 'Solicitação cancelada com sucesso.' });
       return;
     }
 
-    // Caminho B/C: verificar estado no MP primeiro
+    // ── Active/overdue: exige confirmação do MP ──────────────────────────────
+    if (!subscription.mercadoPagoPreapprovalId) {
+      res.status(400).json({ error: 'ID de preapproval não encontrado.' });
+      return;
+    }
+
     let mpPreapproval: any = null;
     try {
       mpPreapproval = await getPreapproval(subscription.mercadoPagoPreapprovalId);
     } catch (err: any) {
-      if (err instanceof MPApiError && err.statusCode === 404) {
-        // Preapproval não existe no MP (expirado/teste antigo) → cancelar localmente
-        console.warn('[BILLING] Preapproval não encontrado no MP — cancelamento local');
-        await cancelLocalOnly(subscription._id, condominiumId, 'not_found_mp');
-        res.json({ success: true, message: successMessage });
-        return;
-      }
-      console.error('[BILLING] Erro ao consultar MP:', err?.message);
+      const statusCode = err instanceof MPApiError ? err.statusCode : 0;
+      console.error(`[BILLING] Erro ao consultar MP (statusCode: ${statusCode}):`, err?.message);
       res.status(502).json({ error: 'Não foi possível consultar o Mercado Pago. Verifique os logs do servidor.' });
       return;
     }
 
-    // Caminho C: preapproval existe no MP
     const currentMpStatus = String(mpPreapproval?.status ?? '');
     const alreadyCanceled = currentMpStatus === 'canceled' || currentMpStatus === 'cancelled';
 
@@ -400,8 +416,8 @@ export const cancelSubscription = async (req: AuthRequest, res: Response): Promi
     }
 
     await cancelLocalOnly(subscription._id, condominiumId, alreadyCanceled ? currentMpStatus : 'canceled');
-    console.log(`[BILLING] Cancelamento concluído — condominiumId: ${condominiumId}`);
-    res.json({ success: true, message: successMessage });
+    console.log(`[BILLING] Assinatura cancelada — condominiumId: ${condominiumId}`);
+    res.json({ success: true, message: 'Assinatura cancelada com sucesso.' });
   } catch (error: any) {
     console.error('[BILLING] Erro inesperado ao cancelar:', error?.message);
     res.status(500).json({ error: 'Erro inesperado ao cancelar. Tente novamente.' });
