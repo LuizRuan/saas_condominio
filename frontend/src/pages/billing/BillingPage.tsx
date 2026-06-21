@@ -63,15 +63,21 @@ const BillingPage: React.FC = () => {
     queryFn: () => api.get('/billing/me').then((r) => r.data),
   });
 
-  const canCreateNewSubscription =
-    !data?.subscription &&
-    !['pending', 'active', 'overdue'].includes(data?.subscriptionStatus ?? '');
-
-  const hasActiveSubscription = !!data?.subscription;
+  // Derived state — baseado apenas em data.subscription.status, nunca em subscriptionStatus stale
+  const hasActiveOrPendingSubscription = !!(
+    data?.subscription &&
+    ['active', 'pending', 'overdue'].includes(data.subscription.status)
+  );
+  const canCreateNewSubscription = !hasActiveOrPendingSubscription;
+  const isPendingSubscription = data?.subscription?.status === 'pending';
+  const isActiveOrOverdue = !!(
+    data?.subscription && ['active', 'overdue'].includes(data.subscription.status)
+  );
+  const showCancelButton = hasActiveOrPendingSubscription;
+  const cancelButtonLabel = isPendingSubscription ? 'Cancelar solicitação' : 'Cancelar assinatura';
   const showCanceledBanner =
-    (data?.subscriptionStatus === 'canceled' || data?.subscriptionStatus === 'failed') &&
-    !hasActiveSubscription &&
-    data?.plan !== 'free';
+    !hasActiveOrPendingSubscription &&
+    (data?.subscriptionStatus === 'canceled' || data?.subscriptionStatus === 'failed');
 
   const handleSubscribe = async (plan: 'pro' | 'ultra') => {
     setSubscribeLoading(plan);
@@ -92,11 +98,11 @@ const BillingPage: React.FC = () => {
     setCancelLoading(true);
     try {
       await api.post('/billing/mercadopago/cancel');
-      toast.success('Assinatura cancelada com sucesso.');
+      toast.success(isPendingSubscription ? 'Solicitação cancelada.' : 'Assinatura cancelada com sucesso.');
       setShowCancelModal(false);
       queryClient.invalidateQueries({ queryKey: ['billing', 'me'] });
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || 'Erro ao cancelar assinatura.');
+      toast.error(err?.response?.data?.error || 'Erro ao cancelar. Tente novamente.');
     } finally {
       setCancelLoading(false);
     }
@@ -130,7 +136,7 @@ const BillingPage: React.FC = () => {
         <p className="mt-1 text-sm font-medium text-slate-500">Gerencie seu plano do Domus.</p>
       </div>
 
-      {/* Plano atual */}
+      {/* Card: plano atual */}
       <div className="surface-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -143,14 +149,14 @@ const BillingPage: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {data.subscriptionStatus && (
-              <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_COLOR[data.subscriptionStatus] ?? 'bg-slate-100 text-slate-500'}`}>
-                {STATUS_LABEL[data.subscriptionStatus] ?? data.subscriptionStatus}
+            {data.subscription?.status && (
+              <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_COLOR[data.subscription.status] ?? 'bg-slate-100 text-slate-500'}`}>
+                {STATUS_LABEL[data.subscription.status] ?? data.subscription.status}
               </span>
             )}
-            {data.billingCycle && (
+            {data.subscription?.billingCycle && (
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                {data.billingCycle === 'yearly' ? 'Anual' : 'Mensal'}
+                {data.subscription.billingCycle === 'yearly' ? 'Anual' : 'Mensal'}
               </span>
             )}
           </div>
@@ -162,23 +168,31 @@ const BillingPage: React.FC = () => {
           </p>
         )}
 
-        {hasActiveSubscription && (
+        {showCancelButton && (
           <div className="mt-5 border-t border-slate-100 pt-4">
             <button
               onClick={() => setShowCancelModal(true)}
               className="text-sm font-bold text-red-500 transition hover:text-red-700"
             >
-              Cancelar assinatura
+              {cancelButtonLabel}
             </button>
           </div>
         )}
       </div>
 
-      {/* Banner: assinatura em andamento */}
-      {hasActiveSubscription && (
+      {/* Banner: assinatura pendente */}
+      {isPendingSubscription && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-700">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-          Você já possui uma assinatura em andamento. Para trocar de plano, cancele a assinatura atual.
+          Existe uma assinatura pendente de ativação. Cancele a solicitação ou aguarde a confirmação pelo Mercado Pago.
+        </div>
+      )}
+
+      {/* Banner: assinatura ativa/atrasada */}
+      {isActiveOrOverdue && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-700">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          Você já possui uma assinatura ativa. Para trocar de plano, cancele a assinatura atual.
         </div>
       )}
 
@@ -190,45 +204,55 @@ const BillingPage: React.FC = () => {
         </div>
       )}
 
-      {/* Toggle mensal / anual */}
-      <div className="flex items-center justify-center gap-4">
-        <span className={`text-sm font-bold ${!isAnnual ? 'text-slate-900' : 'text-slate-400'}`}>Mensal</span>
-        <button
-          onClick={() => setIsAnnual(!isAnnual)}
-          className={`relative h-6 w-11 rounded-full transition-colors ${isAnnual ? 'bg-blue-600' : 'bg-slate-300'}`}
-          aria-label="Alternar ciclo de cobrança"
-        >
-          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${isAnnual ? 'translate-x-5' : 'translate-x-0.5'}`} />
-        </button>
-        <span className={`text-sm font-bold ${isAnnual ? 'text-slate-900' : 'text-slate-400'}`}>
-          Anual <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-black text-emerald-700">-20%</span>
-        </span>
+      {/* Toggle: segmented control estável */}
+      <div className="flex justify-center">
+        <div className="inline-flex rounded-xl bg-slate-100 p-1">
+          <button
+            type="button"
+            onClick={() => setIsAnnual(false)}
+            className={`rounded-lg px-5 py-2 text-sm font-bold transition-all ${
+              !isAnnual ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Mensal
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsAnnual(true)}
+            className={`flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-bold transition-all ${
+              isAnnual ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Anual
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-black text-emerald-700">-20%</span>
+          </button>
+        </div>
       </div>
 
       {/* Cards de planos */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {/* Pro */}
         <PlanCard
           name="Pro"
           price={isAnnual ? PRICES.pro.yearly : PRICES.pro.monthly}
           isAnnual={isAnnual}
-          isCurrent={data.plan === 'pro'}
+          isCurrent={data.plan === 'pro' && isActiveOrOverdue}
           canSubscribe={canCreateNewSubscription}
-          hasActive={hasActiveSubscription}
+          hasActiveOrPending={hasActiveOrPendingSubscription}
+          isPending={isPendingSubscription}
           loading={subscribeLoading === 'pro'}
           onSubscribe={() => handleSubscribe('pro')}
           features={['Até 200 unidades', 'Cobranças e financeiro', 'Comunicados ilimitados', 'Reservas e encomendas', 'Suporte por e-mail']}
           color="blue"
         />
 
-        {/* Ultra */}
         <PlanCard
           name="Ultra"
           price={isAnnual ? PRICES.ultra.yearly : PRICES.ultra.monthly}
           isAnnual={isAnnual}
-          isCurrent={data.plan === 'ultra'}
+          isCurrent={data.plan === 'ultra' && isActiveOrOverdue}
           canSubscribe={canCreateNewSubscription}
-          hasActive={hasActiveSubscription}
+          hasActiveOrPending={hasActiveOrPendingSubscription}
+          isPending={isPendingSubscription}
           loading={subscribeLoading === 'ultra'}
           onSubscribe={() => handleSubscribe('ultra')}
           features={['Unidades ilimitadas', 'Relatórios avançados', 'Portaria integrada', 'API de acesso', 'Suporte prioritário']}
@@ -238,13 +262,15 @@ const BillingPage: React.FC = () => {
 
       {/* Modal de cancelamento */}
       {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-lg font-extrabold tracking-tight text-slate-950">Cancelar assinatura</h2>
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-950">{cancelButtonLabel}</h2>
                 <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
-                  Tem certeza que deseja cancelar? Seu plano não será renovado pelo Mercado Pago. O acesso continua até o fim do período pago.
+                  {isPendingSubscription
+                    ? 'A solicitação de assinatura será cancelada. Você poderá contratar outro plano depois.'
+                    : 'Tem certeza? Seu plano não será renovado. O acesso continua até o fim do período pago.'}
                 </p>
               </div>
               <button
@@ -266,7 +292,7 @@ const BillingPage: React.FC = () => {
                 disabled={cancelLoading}
                 className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
               >
-                {cancelLoading ? 'Cancelando...' : 'Confirmar cancelamento'}
+                {cancelLoading ? 'Cancelando...' : 'Confirmar'}
               </button>
             </div>
           </div>
@@ -282,7 +308,8 @@ interface PlanCardProps {
   isAnnual: boolean;
   isCurrent: boolean;
   canSubscribe: boolean;
-  hasActive: boolean;
+  hasActiveOrPending: boolean;
+  isPending: boolean;
   loading: boolean;
   onSubscribe: () => void;
   features: string[];
@@ -290,37 +317,39 @@ interface PlanCardProps {
 }
 
 const PlanCard: React.FC<PlanCardProps> = ({
-  name, price, isAnnual, isCurrent, canSubscribe, hasActive, loading, onSubscribe, features, color,
+  name, price, isAnnual, isCurrent, canSubscribe, hasActiveOrPending, isPending, loading, onSubscribe, features, color,
 }) => {
   const colorMap = {
     blue: {
-      border: 'border-blue-100',
       badge: 'bg-blue-600 text-white',
       btn: 'bg-blue-600 text-white hover:bg-blue-700',
+      ring: 'ring-blue-400',
       icon: 'text-blue-400',
     },
     violet: {
-      border: 'border-violet-100',
       badge: 'bg-violet-600 text-white',
       btn: 'bg-violet-600 text-white hover:bg-violet-700',
+      ring: 'ring-violet-400',
       icon: 'text-violet-400',
     },
   };
 
   const c = colorMap[color];
-  const canClick = canSubscribe && !isCurrent && !loading;
 
   return (
-    <div className={`surface-card relative flex flex-col p-6 ${isCurrent ? `ring-2 ring-${color === 'blue' ? 'blue' : 'violet'}-400` : ''}`}>
+    <div className={`surface-card relative flex flex-col p-6 ${isCurrent ? `ring-2 ${c.ring}` : ''}`}>
       {isCurrent && (
         <span className={`absolute -top-3 left-5 rounded-full px-3 py-1 text-xs font-black ${c.badge}`}>
           Seu plano atual
         </span>
       )}
+
       <div className="mb-4">
         <h3 className="text-lg font-extrabold tracking-tight text-slate-950">{name}</h3>
         <p className="mt-1">
-          <span className="text-3xl font-extrabold tracking-tight text-slate-950">{price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+          <span className="text-3xl font-extrabold tracking-tight text-slate-950">
+            {price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          </span>
           <span className="ml-1 text-sm font-medium text-slate-400">/{isAnnual ? 'ano' : 'mês'}</span>
         </p>
         {isAnnual && (
@@ -343,14 +372,15 @@ const PlanCard: React.FC<PlanCardProps> = ({
         <div className="rounded-xl border border-slate-100 bg-slate-50 py-2.5 text-center text-sm font-bold text-slate-400">
           Plano atual
         </div>
-      ) : hasActive ? (
+      ) : hasActiveOrPending ? (
         <div className="rounded-xl border border-slate-100 bg-slate-50 py-2.5 text-center text-xs font-bold text-slate-400">
-          Cancele o plano atual para contratar
+          {isPending ? 'Aguarde a confirmação ou cancele a solicitação' : 'Cancele o plano atual para contratar'}
         </div>
       ) : (
         <button
+          type="button"
           onClick={onSubscribe}
-          disabled={!canClick}
+          disabled={!canSubscribe || loading}
           className={`w-full rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${c.btn}`}
         >
           {loading ? 'Aguarde...' : `Assinar ${name}`}

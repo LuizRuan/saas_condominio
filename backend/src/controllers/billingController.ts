@@ -314,7 +314,7 @@ export const cancelSubscription = async (req: AuthRequest, res: Response): Promi
       status: { $in: ['active', 'pending', 'overdue'] },
     });
     if (!subscription) {
-      res.status(404).json({ error: 'Nenhuma assinatura ativa encontrada.' });
+      res.status(404).json({ error: 'Nenhuma assinatura em andamento encontrada.' });
       return;
     }
 
