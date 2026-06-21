@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { subscribe, webhookHandler, getBillingInfo, cancelSubscription } from '../controllers/billingController';
+import { subscribe, webhookHandler, getBillingInfo, cancelSubscription, getBillingDiagnostics } from '../controllers/billingController';
 import { authMiddleware } from '../middlewares/auth';
 
 const router = Router();
@@ -15,5 +15,8 @@ router.get('/me', authMiddleware, getBillingInfo);
 
 // Cancelar assinatura — requer admin autenticado
 router.post('/mercadopago/cancel', authMiddleware, cancelSubscription);
+
+// Diagnóstico do ambiente de billing — requer admin autenticado
+router.get('/diagnostics', authMiddleware, getBillingDiagnostics);
 
 export default router;

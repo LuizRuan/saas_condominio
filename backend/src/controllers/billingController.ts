@@ -12,6 +12,12 @@ const PRICES = {
   ultra: { monthly: 197.00,  yearly: 1891.20 },
 } as const;
 
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '***';
+  return `${local.slice(0, 4)}***@${domain}`;
+}
+
 // ─── Subscribe ───────────────────────────────────────────────────────────────
 
 export const subscribe = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -80,6 +86,14 @@ export const subscribe = async (req: AuthRequest, res: Response): Promise<void> 
         res.status(500).json({ error: 'Ambiente de teste Mercado Pago sem MERCADO_PAGO_TEST_PAYER_EMAIL configurado.' });
         return;
       }
+      if (!testPayerEmail.includes('@')) {
+        res.status(500).json({ error: 'MERCADO_PAGO_TEST_PAYER_EMAIL inválido: deve ser um e-mail completo com @.' });
+        return;
+      }
+      if (testPayerEmail.toUpperCase().startsWith('TESTUSER')) {
+        res.status(500).json({ error: 'MERCADO_PAGO_TEST_PAYER_EMAIL deve ser o e-mail da conta teste, não o usuário TESTUSER (ex: test_123456@testuser.com).' });
+        return;
+      }
       payerEmail = testPayerEmail;
       console.log('[BILLING] Ambiente: sandbox | payerEmailSource: test_env');
     } else {
@@ -87,19 +101,29 @@ export const subscribe = async (req: AuthRequest, res: Response): Promise<void> 
       console.log('[BILLING] Ambiente: production | payerEmailSource: user_email');
     }
 
-    const preapproval = await createPreapproval({
+    const preapprovalPayload = {
       reason: `Domus — Plano ${planLabel} (${cycleLabel})`,
-      auto_recurring: {
-        frequency,
-        frequency_type: 'months',
-        transaction_amount: amount,
-        currency_id: 'BRL',
-      },
+      auto_recurring: { frequency, frequency_type: 'months' as const, transaction_amount: amount, currency_id: 'BRL' },
       back_url: backUrl,
       payer_email: payerEmail,
       external_reference: externalReference,
+      status: 'pending' as const,
+    };
+
+    console.log('[BILLING] preapproval payload safe summary:', JSON.stringify({
+      reason: preapprovalPayload.reason,
+      frequency,
+      frequency_type: 'months',
+      transaction_amount: amount,
+      currency_id: 'BRL',
+      back_url: backUrl,
+      payer_email_masked: maskEmail(payerEmail),
+      payer_email_domain: payerEmail.split('@')[1] ?? 'unknown',
+      external_reference_prefix: `condo_${condominiumId}`,
       status: 'pending',
-    });
+    }));
+
+    const preapproval = await createPreapproval(preapprovalPayload);
 
     const checkoutUrl = preapproval.sandbox_init_point || preapproval.init_point;
 
@@ -120,8 +144,13 @@ export const subscribe = async (req: AuthRequest, res: Response): Promise<void> 
 
     res.json({ checkoutUrl });
   } catch (error: any) {
-    console.error('[BILLING] Erro ao criar assinatura:', error?.message ?? 'desconhecido');
-    res.status(500).json({ error: 'Erro ao criar assinatura. Tente novamente.' });
+    const isMP = error instanceof MPApiError;
+    console.error('[BILLING] Erro ao criar assinatura:', isMP ? `statusCode: ${error.statusCode}` : error?.message);
+    res.status(500).json({
+      error: isMP ? 'Mercado Pago recusou a criação da assinatura.' : 'Erro ao criar assinatura. Tente novamente.',
+      details: isMP ? (String(error.details?.error ?? error.message)) : undefined,
+      statusCode: isMP ? error.statusCode : undefined,
+    });
   }
 };
 
@@ -437,6 +466,33 @@ export const cancelSubscription = async (req: AuthRequest, res: Response): Promi
   } catch (error: any) {
     console.error('[BILLING] Erro inesperado ao cancelar:', error?.message);
     res.status(500).json({ error: 'Erro inesperado ao cancelar. Tente novamente.' });
+  }
+};
+
+// ─── Billing Diagnostics ─────────────────────────────────────────────────────
+
+export const getBillingDiagnostics = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) { res.status(401).json({ error: 'Não autenticado' }); return; }
+    if (req.user.role !== 'admin') { res.status(403).json({ error: 'Acesso restrito ao síndico' }); return; }
+
+    const token = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() ?? '';
+    const tokenPrefix = token.startsWith('TEST') ? 'TEST' : token.startsWith('APP_USR') ? 'APP_USR' : token ? 'unknown' : 'not_set';
+    const testEmail = process.env.MERCADO_PAGO_TEST_PAYER_EMAIL?.trim() ?? '';
+    const clientUrl = process.env.CLIENT_URL?.trim() ?? '';
+    const webhookSecret = process.env.MERCADO_PAGO_WEBHOOK_SECRET?.trim() ?? '';
+
+    res.json({
+      environment: tokenPrefix === 'TEST' ? 'sandbox' : token ? 'production' : 'not_configured',
+      hasAccessToken: !!token,
+      tokenPrefix,
+      hasTestPayerEmail: !!testEmail,
+      testPayerEmailMasked: testEmail ? maskEmail(testEmail) : null,
+      clientUrlsConfigured: !!clientUrl,
+      webhookSecretConfigured: !!webhookSecret,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Erro ao buscar diagnóstico.' });
   }
 };
 
