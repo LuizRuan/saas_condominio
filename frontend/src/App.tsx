@@ -50,6 +50,7 @@ const NotFound = React.lazy(() => import('./pages/NotFound'));
 const BillingSuccess = React.lazy(() => import('./pages/billing/BillingSuccess'));
 const BillingPending = React.lazy(() => import('./pages/billing/BillingPending'));
 const BillingFailure = React.lazy(() => import('./pages/billing/BillingFailure'));
+const BillingPage = React.lazy(() => import('./pages/billing/BillingPage'));
 
 const HomeRedirect: React.FC = () => {
   const { user, loading } = useAuth();
@@ -94,6 +95,7 @@ const App: React.FC = () => {
               <Route element={<AdminRoute><AppLayout /></AdminRoute>}>
                 <Route path="/dashboard" element={<AdminDashboard />} />
                 <Route path="/condominio" element={<CondominiumPage />} />
+                <Route path="/billing" element={<BillingPage />} />
               </Route>
 
               {/* Staff routes (Admin + Concierge) */}

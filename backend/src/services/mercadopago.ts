@@ -57,3 +57,10 @@ export async function createPreapproval(data: MPPreapprovalCreateData): Promise<
 export async function getPreapproval(id: string): Promise<MPPreapprovalResponse> {
   return mpFetch(`/preapproval/${encodeURIComponent(id)}`);
 }
+
+export async function cancelPreapproval(id: string): Promise<MPPreapprovalResponse> {
+  return mpFetch(`/preapproval/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: 'canceled' }),
+  });
+}

@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import Condominium from '../models/Condominium';
 import Subscription from '../models/Subscription';
 import { AuthRequest } from '../middlewares/auth';
-import { createPreapproval, getPreapproval } from '../services/mercadopago';
+import { createPreapproval, getPreapproval, cancelPreapproval } from '../services/mercadopago';
 import { getMercadoPagoWebhookSecret } from '../config/env';
 
 const PRICES = {
@@ -46,6 +46,17 @@ export const subscribe = async (req: AuthRequest, res: Response): Promise<void> 
     const condominiumId = req.user.condominiumId;
     if (!condominiumId) {
       res.status(400).json({ error: 'Usuário sem condomínio vinculado' });
+      return;
+    }
+
+    const existing = await Subscription.findOne({
+      condominiumId,
+      status: { $in: ['active', 'pending', 'overdue'] },
+    });
+    if (existing) {
+      res.status(409).json({
+        error: 'Você já possui uma assinatura em andamento. Cancele ou aguarde a confirmação antes de contratar outra.',
+      });
       return;
     }
 
@@ -243,6 +254,105 @@ async function processWebhookAsync(
     console.log(`[BILLING] subscriptionStatus → ${localStatus} (plano mantido)`);
   }
 }
+
+// ─── Get Billing Info ────────────────────────────────────────────────────────
+
+export const getBillingInfo = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) { res.status(401).json({ error: 'Não autenticado' }); return; }
+    if (req.user.role !== 'admin') { res.status(403).json({ error: 'Acesso restrito ao síndico' }); return; }
+
+    const condominiumId = req.user.condominiumId;
+    if (!condominiumId) { res.status(400).json({ error: 'Usuário sem condomínio vinculado' }); return; }
+
+    const condo = await Condominium.findById(condominiumId)
+      .select('plan subscriptionStatus billingCycle currentPeriodEnd gateway');
+    if (!condo) { res.status(404).json({ error: 'Condomínio não encontrado' }); return; }
+
+    const subscription = await Subscription.findOne({
+      condominiumId,
+      status: { $in: ['active', 'pending', 'overdue'] },
+    }).sort({ createdAt: -1 });
+
+    res.json({
+      plan: condo.plan ?? 'free',
+      subscriptionStatus: condo.subscriptionStatus ?? null,
+      billingCycle: condo.billingCycle ?? null,
+      currentPeriodEnd: condo.currentPeriodEnd ?? null,
+      gateway: condo.gateway ?? null,
+      subscription: subscription
+        ? {
+            status: subscription.status,
+            plan: subscription.plan,
+            billingCycle: subscription.billingCycle,
+            amount: subscription.amount,
+            currentPeriodEnd: subscription.currentPeriodEnd ?? null,
+            rawStatus: subscription.rawStatus ?? null,
+            createdAt: subscription.createdAt,
+          }
+        : null,
+    });
+  } catch (error: any) {
+    console.error('[BILLING] Erro ao buscar info de assinatura:', error?.message);
+    res.status(500).json({ error: 'Erro ao buscar informações de assinatura.' });
+  }
+};
+
+// ─── Cancel Subscription ─────────────────────────────────────────────────────
+
+export const cancelSubscription = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) { res.status(401).json({ error: 'Não autenticado' }); return; }
+    if (req.user.role !== 'admin') { res.status(403).json({ error: 'Apenas o síndico pode cancelar assinaturas' }); return; }
+    if (req.user.isDemo) { res.status(403).json({ error: 'Modo demonstração: não é possível cancelar assinaturas.', isDemo: true }); return; }
+
+    const condominiumId = req.user.condominiumId;
+    if (!condominiumId) { res.status(400).json({ error: 'Usuário sem condomínio vinculado' }); return; }
+
+    const subscription = await Subscription.findOne({
+      condominiumId,
+      status: { $in: ['active', 'pending', 'overdue'] },
+    });
+    if (!subscription) {
+      res.status(404).json({ error: 'Nenhuma assinatura ativa encontrada.' });
+      return;
+    }
+
+    if (!subscription.mercadoPagoPreapprovalId) {
+      res.status(400).json({ error: 'ID de preapproval do Mercado Pago não encontrado.' });
+      return;
+    }
+
+    await cancelPreapproval(subscription.mercadoPagoPreapprovalId);
+
+    const confirmed = await getPreapproval(subscription.mercadoPagoPreapprovalId);
+    const mpStatus = String(confirmed.status ?? '');
+    const isConfirmedCanceled = mpStatus === 'canceled' || mpStatus === 'cancelled';
+
+    if (!isConfirmedCanceled) {
+      res.status(502).json({
+        error: `Falha ao cancelar no Mercado Pago. Status atual: ${mpStatus}. Tente novamente.`,
+      });
+      return;
+    }
+
+    await Subscription.updateOne(
+      { _id: subscription._id },
+      { $set: { status: 'canceled', rawStatus: mpStatus } }
+    );
+
+    await Condominium.updateOne(
+      { _id: condominiumId },
+      { $set: { subscriptionStatus: 'canceled' } }
+    );
+
+    console.log(`[BILLING] Assinatura cancelada — condominiumId: ${condominiumId}`);
+    res.json({ success: true, message: 'Assinatura cancelada com sucesso.' });
+  } catch (error: any) {
+    console.error('[BILLING] Erro ao cancelar assinatura:', error?.message);
+    res.status(500).json({ error: 'Erro ao cancelar assinatura. Tente novamente.' });
+  }
+};
 
 // ─── Webhook Handler ─────────────────────────────────────────────────────────
 

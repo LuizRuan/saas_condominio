@@ -5,6 +5,7 @@ import {
   LayoutDashboard, Building2, Home, Users, Receipt, Megaphone,
   AlertTriangle, CalendarDays, LogOut, X, Package,
   ChevronRight, TrendingDown, Wallet, FileText, Settings,
+  CreditCard, Zap,
 } from 'lucide-react';
 import BrandMark from '../ui/BrandMark';
 
@@ -26,6 +27,7 @@ const adminLinks = [
   { to: '/encomendas', icon: Package, label: 'Encomendas', section: 'comunicação' },
   { to: '/ocorrencias', icon: AlertTriangle, label: 'Ocorrências', section: 'comunicação' },
   { to: '/reservas', icon: CalendarDays, label: 'Reservas', section: 'comunicação' },
+  { to: '/billing', icon: CreditCard, label: 'Plano e assinatura', section: 'conta' },
 ];
 
 const residentLinks = [
@@ -59,6 +61,7 @@ const sectionLabel: Record<string, string> = {
   financeiro: 'Financeiro',
   comunicação: 'Comunicação',
   serviços: 'Serviços',
+  conta: 'Conta',
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
@@ -216,6 +219,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 </p>
               </div>
             </div>
+            {user?.role === 'admin' && plan === 'free' && !isDemo && (
+              <div className="border-t border-white/[0.06] px-3 py-2">
+                <NavLink
+                  to="/billing"
+                  onClick={onClose}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600/20 px-3 py-2 text-xs font-bold text-blue-300 transition hover:bg-blue-600/30 hover:text-blue-200"
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                  Fazer upgrade
+                </NavLink>
+              </div>
+            )}
             <div className="border-t border-white/[0.06] px-3 py-2">
               <button
                 onClick={handleLogout}
