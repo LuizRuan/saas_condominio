@@ -29,8 +29,8 @@ const ResidentSchema = new Schema<IResident>(
     },
     isFinancialResponsible: { type: Boolean, default: false },
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
-    inviteToken: { type: String, default: '' },
-    inviteExpiresAt: { type: Date },
+    inviteToken: { type: String, default: '', select: false },
+    inviteExpiresAt: { type: Date, select: false },
   },
   { timestamps: true }
 );

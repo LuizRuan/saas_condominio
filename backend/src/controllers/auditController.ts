@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import AuditLog from '../models/AuditLog';
 import { AuthRequest } from '../middlewares/auth';
+import { errorDetails } from '../utils/errorDetails';
 
 export const getAuditLogs = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -10,6 +11,6 @@ export const getAuditLogs = async (req: AuthRequest, res: Response): Promise<voi
 
     res.json(logs);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar histórico', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar histórico', details: errorDetails(error) });
   }
 };

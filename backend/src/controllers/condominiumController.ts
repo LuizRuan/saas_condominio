@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import Condominium from '../models/Condominium';
 import { AuthRequest } from '../middlewares/auth';
+import { errorDetails } from '../utils/errorDetails';
 
 export const createCondominium = async (req: AuthRequest, res: Response): Promise<void> => {
   let condominiumId: string | undefined;
@@ -37,7 +38,7 @@ export const createCondominium = async (req: AuthRequest, res: Response): Promis
     if (condominiumId) {
       await Condominium.findByIdAndDelete(condominiumId).catch(() => undefined);
     }
-    res.status(500).json({ error: 'Erro ao criar condomínio', details: error.message });
+    res.status(500).json({ error: 'Erro ao criar condomínio', details: errorDetails(error) });
   }
 };
 
@@ -48,14 +49,14 @@ export const getMyCondominium = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    const condominium = await Condominium.findById(req.user!.condominiumId);
+    const condominium = await Condominium.findById(req.user!.condominiumId).select('+pixKey');
     if (!condominium) {
       res.status(404).json({ error: 'Condomínio não encontrado' });
       return;
     }
     res.json(condominium);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar condomínio', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar condomínio', details: errorDetails(error) });
   }
 };
 
@@ -87,7 +88,7 @@ export const updateCondominium = async (req: AuthRequest, res: Response): Promis
         defaultFee: req.body.defaultFee ?? 0,
         dueDay: req.body.dueDay ?? 10,
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true, select: '+pixKey' }
     );
     if (!updated) {
       res.status(404).json({ error: 'Condomínio não encontrado' });
@@ -95,6 +96,6 @@ export const updateCondominium = async (req: AuthRequest, res: Response): Promis
     }
     res.json(updated);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao atualizar condomínio', details: error.message });
+    res.status(500).json({ error: 'Erro ao atualizar condomínio', details: errorDetails(error) });
   }
 };

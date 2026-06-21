@@ -5,10 +5,15 @@ import mongoose from 'mongoose';
 import Unit from '../models/Unit';
 import Resident from '../models/Resident';
 import User from '../models/User';
+import Condominium from '../models/Condominium';
+import { requirePlan } from '../utils/planCheck';
+import { errorDetails } from '../utils/errorDetails';
 
 export const parseFile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const condominiumId = req.user!.condominiumId;
+    if (!(await requirePlan(req, res, ['pro', 'ultra'], 'A importação de dados está disponível nos planos Pro e Ultra.'))) return;
+
     if (!req.file) {
       res.status(400).json({ error: 'Nenhum arquivo enviado.' });
       return;
@@ -72,7 +77,7 @@ export const parseFile = async (req: AuthRequest, res: Response): Promise<void> 
     });
   } catch (error: any) {
     console.error('Erro ao fazer parse do arquivo:', error);
-    res.status(500).json({ error: 'Erro interno ao ler arquivo.', details: error.message });
+    res.status(500).json({ error: 'Erro interno ao ler arquivo.', details: errorDetails(error) });
   }
 };
 
@@ -84,6 +89,35 @@ export const confirmImport = async (req: AuthRequest, res: Response): Promise<vo
     if (!Array.isArray(rows) || rows.length === 0) {
       res.status(400).json({ error: 'Nenhum dado para importar.' });
       return;
+    }
+
+    if (!req.user?.isDemo) {
+      const condo = await Condominium.findById(condominiumId).select('plan');
+      const plan = condo?.plan ?? 'free';
+
+      if (plan === 'free') {
+        res.status(403).json({
+          error: 'A importação de dados está disponível nos planos Pro e Ultra.',
+          requiredPlan: 'pro',
+          currentPlan: 'free',
+        });
+        return;
+      }
+
+      if (plan === 'pro') {
+        const readyRows = rows.filter((r: any) => r.status === 'Pronto');
+        const existingUnits = await Unit.find({ condominiumId }).select('block number');
+        const existingKeys = new Set(existingUnits.map((u: any) => `${u.block}::${u.number}`));
+        const trulyNew = readyRows.filter((r: any) => !existingKeys.has(`${r.block}::${r.number}`)).length;
+        if (existingUnits.length + trulyNew > 100) {
+          res.status(403).json({
+            error: `O plano Pro permite até 100 unidades. A importação adicionaria ${trulyNew} nova(s) unidade(s), excedendo o limite (${existingUnits.length}/100 já existentes).`,
+            requiredPlan: 'ultra',
+            currentPlan: 'pro',
+          });
+          return;
+        }
+      }
     }
 
     const session = await mongoose.startSession();
@@ -151,6 +185,6 @@ export const confirmImport = async (req: AuthRequest, res: Response): Promise<vo
     }
   } catch (error: any) {
     console.error('Erro ao confirmar importação:', error);
-    res.status(500).json({ error: 'Erro ao salvar os dados.', details: error.message });
+    res.status(500).json({ error: 'Erro ao salvar os dados.', details: errorDetails(error) });
   }
 };

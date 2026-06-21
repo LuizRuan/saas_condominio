@@ -13,7 +13,7 @@ export interface IIssue extends Document {
   photos: string[];
   messages: {
     authorId?: mongoose.Types.ObjectId;
-    authorRole: 'admin' | 'resident';
+    authorRole: 'admin' | 'subadmin' | 'concierge' | 'financial' | 'resident';
     authorName: string;
     message: string;
     photos: string[];
@@ -56,7 +56,7 @@ const IssueSchema = new Schema<IIssue>(
     },
     messages: [{
       authorId: { type: Schema.Types.ObjectId, ref: 'User' },
-      authorRole: { type: String, enum: ['admin', 'resident'], required: true },
+      authorRole: { type: String, enum: ['admin', 'subadmin', 'concierge', 'financial', 'resident'], required: true },
       authorName: { type: String, default: 'Usuário' },
       message: { type: String, required: true },
       photos: { type: [String], default: [] },

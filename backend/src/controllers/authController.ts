@@ -10,11 +10,16 @@ import Resident from '../models/Resident';
 import { AuthRequest } from '../middlewares/auth';
 import { getJwtSecret } from '../config/env';
 import { seedDemo } from '../utils/seed-demo';
+import { errorDetails } from '../utils/errorDetails';
+
+// Pre-computed hash used only for timing-safe login (dummy bcrypt when email not found)
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('_dummy_not_used_', 10);
 
 const generateToken = (id: string): string => {
   return jwt.sign({}, getJwtSecret(), {
     subject: id,
-    expiresIn: '30d',
+    expiresIn: '7d',
+    algorithm: 'HS256',
   });
 };
 
@@ -47,7 +52,7 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      res.status(409).json({ error: 'Este e-mail já está cadastrado' });
+      res.status(409).json({ error: 'Não foi possível concluir o cadastro com os dados informados.' });
       return;
     }
 
@@ -98,7 +103,7 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
     if (createdUserId) {
       await User.findByIdAndDelete(createdUserId).catch(() => undefined);
     }
-    res.status(500).json({ error: 'Erro ao criar conta', details: error.message });
+    res.status(500).json({ error: 'Erro ao criar conta', details: errorDetails(error) });
   }
 };
 
@@ -115,14 +120,33 @@ export const login = async (req: AuthRequest, res: Response): Promise<void> => {
 
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      res.status(401).json({ error: 'E-mail ou senha incorretos' });
+      await bcrypt.compare(password, DUMMY_PASSWORD_HASH); // SEC-013: equalize response time
+      res.status(401).json({ error: 'E-mail ou senha inválidos' });
+      return;
+    }
+
+    // SEC-028: check account lockout before comparing password
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      res.status(401).json({ error: 'Muitas tentativas. Tente novamente mais tarde.' });
       return;
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      res.status(401).json({ error: 'E-mail ou senha incorretos' });
+      // SEC-028: increment failed attempts, lock after 5 failures (15 min)
+      const attempts = (user.failedLoginAttempts ?? 0) + 1;
+      if (attempts >= 5) {
+        await User.updateOne({ _id: user._id }, { $set: { failedLoginAttempts: attempts, lockUntil: new Date(Date.now() + 15 * 60 * 1000) } });
+      } else {
+        await User.updateOne({ _id: user._id }, { $set: { failedLoginAttempts: attempts } });
+      }
+      res.status(401).json({ error: 'E-mail ou senha inválidos' });
       return;
+    }
+
+    // SEC-028: clear lockout on successful login
+    if ((user.failedLoginAttempts ?? 0) > 0 || user.lockUntil) {
+      await User.updateOne({ _id: user._id }, { $set: { failedLoginAttempts: 0 }, $unset: { lockUntil: '' } });
     }
 
     if (!user.condominiumId) {
@@ -152,7 +176,7 @@ export const login = async (req: AuthRequest, res: Response): Promise<void> => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao fazer login', details: error.message });
+    res.status(500).json({ error: 'Erro ao fazer login', details: errorDetails(error) });
   }
 };
 
@@ -188,7 +212,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar dados do usuário', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar dados do usuário', details: errorDetails(error) });
   }
 };
 
@@ -206,7 +230,7 @@ export const acceptInvite = async (req: AuthRequest, res: Response): Promise<voi
     const resident = await Resident.findOne({
       inviteToken: token,
       inviteExpiresAt: { $gt: new Date() },
-    });
+    }).select('+inviteToken +inviteExpiresAt');
 
     if (!resident) {
       res.status(404).json({ error: 'Convite inválido ou expirado' });
@@ -262,7 +286,7 @@ export const acceptInvite = async (req: AuthRequest, res: Response): Promise<voi
       },
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao aceitar convite', details: error.message });
+    res.status(500).json({ error: 'Erro ao aceitar convite', details: errorDetails(error) });
   }
 };
 
@@ -335,7 +359,7 @@ export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void
 
     res.json({ email, role });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao adicionar colaborador', details: error.message });
+    res.status(500).json({ error: 'Erro ao adicionar colaborador', details: errorDetails(error) });
   }
 };
 
@@ -349,7 +373,8 @@ export const acceptStaffInvite = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    const staffUser = await User.findOne({ staffInviteToken: token }).select('+staffInviteToken +staffInviteTokenExpiry');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const staffUser = await User.findOne({ staffInviteToken: tokenHash }).select('+staffInviteToken +staffInviteTokenExpiry');
 
     if (!staffUser || !staffUser.staffInviteTokenExpiry || staffUser.staffInviteTokenExpiry < new Date()) {
       res.status(404).json({ error: 'Convite inválido ou expirado' });
@@ -378,7 +403,7 @@ export const acceptStaffInvite = async (req: AuthRequest, res: Response): Promis
       },
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao aceitar convite', details: error.message });
+    res.status(500).json({ error: 'Erro ao aceitar convite', details: errorDetails(error) });
   }
 };
 
@@ -396,7 +421,7 @@ export const getStaff = async (req: AuthRequest, res: Response): Promise<void> =
 
     res.json(staff);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar colaboradores', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar colaboradores', details: errorDetails(error) });
   }
 };
 
@@ -421,7 +446,7 @@ export const removeStaff = async (req: AuthRequest, res: Response): Promise<void
     await staffUser.deleteOne();
     res.json({ message: 'Colaborador removido com sucesso' });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao remover colaborador', details: error.message });
+    res.status(500).json({ error: 'Erro ao remover colaborador', details: errorDetails(error) });
   }
 };
 
@@ -444,16 +469,34 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    if (!req.user.mustChangePassword) {
+      const currentPassword = String(req.body.currentPassword || '');
+      if (!currentPassword) {
+        res.status(400).json({ error: 'A senha atual é obrigatória' });
+        return;
+      }
+      const userWithPwd = await User.findById(req.user._id).select('+password');
+      if (!userWithPwd) {
+        res.status(401).json({ error: 'Usuário não encontrado' });
+        return;
+      }
+      const isMatch = await bcrypt.compare(currentPassword, userWithPwd.password);
+      if (!isMatch) {
+        res.status(401).json({ error: 'Senha atual incorreta' });
+        return;
+      }
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
     await User.updateOne({ _id: req.user._id }, {
-      $set: { password: hashedPassword, mustChangePassword: false },
+      $set: { password: hashedPassword, mustChangePassword: false, passwordChangedAt: new Date() },
     });
 
     res.json({ message: 'Senha alterada com sucesso', mustChangePassword: false });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao alterar senha', details: error.message });
+    res.status(500).json({ error: 'Erro ao alterar senha', details: errorDetails(error) });
   }
 };
 
@@ -512,6 +555,6 @@ export const demoLogin = async (_req: AuthRequest, res: Response): Promise<void>
       },
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao iniciar demonstração', details: error.message });
+    res.status(500).json({ error: 'Erro ao iniciar demonstração', details: errorDetails(error) });
   }
 };

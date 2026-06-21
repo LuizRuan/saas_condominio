@@ -23,7 +23,7 @@ const AccessSchema = new Schema<IAccess>(
     unitId: { type: Schema.Types.ObjectId, ref: 'Unit' },
     visitorName: { type: String, required: true, trim: true },
     documentType: { type: String, enum: ['rg', 'cpf', 'other'] },
-    documentNumber: { type: String, trim: true },
+    documentNumber: { type: String, trim: true, select: false },
     type: { type: String, enum: ['visitor', 'service_provider', 'delivery'], required: true },
     status: { type: String, enum: ['active', 'finished'], default: 'active' },
     vehiclePlate: { type: String, trim: true, uppercase: true },

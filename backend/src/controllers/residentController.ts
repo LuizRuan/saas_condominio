@@ -6,6 +6,7 @@ import User from '../models/User';
 import Unit from '../models/Unit';
 import { AuthRequest } from '../middlewares/auth';
 import { audit } from '../utils/audit';
+import { errorDetails } from '../utils/errorDetails';
 
 export const createResident = async (req: AuthRequest, res: Response): Promise<void> => {
   let createdUserId: string | undefined;
@@ -91,7 +92,7 @@ export const createResident = async (req: AuthRequest, res: Response): Promise<v
     if (createdUserId) {
       await User.findByIdAndDelete(createdUserId).catch(() => undefined);
     }
-    res.status(500).json({ error: 'Erro ao cadastrar morador', details: error.message });
+    res.status(500).json({ error: 'Erro ao cadastrar morador', details: errorDetails(error) });
   }
 };
 
@@ -102,7 +103,7 @@ export const getResidents = async (req: AuthRequest, res: Response): Promise<voi
       .sort({ name: 1 });
     res.json(residents);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar moradores', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar moradores', details: errorDetails(error) });
   }
 };
 
@@ -119,7 +120,7 @@ export const getResident = async (req: AuthRequest, res: Response): Promise<void
     }
     res.json(resident);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar morador', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar morador', details: errorDetails(error) });
   }
 };
 
@@ -136,7 +137,7 @@ export const getMyResident = async (req: AuthRequest, res: Response): Promise<vo
     }
     res.json(resident);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar perfil', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar perfil', details: errorDetails(error) });
   }
 };
 
@@ -225,7 +226,7 @@ export const updateResident = async (req: AuthRequest, res: Response): Promise<v
 
     res.json(resident);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao atualizar morador', details: error.message });
+    res.status(500).json({ error: 'Erro ao atualizar morador', details: errorDetails(error) });
   }
 };
 
@@ -265,7 +266,7 @@ export const deleteResident = async (req: AuthRequest, res: Response): Promise<v
 
     res.json({ message: 'Morador excluído com sucesso' });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao excluir morador', details: error.message });
+    res.status(500).json({ error: 'Erro ao excluir morador', details: errorDetails(error) });
   }
 };
 
@@ -316,6 +317,6 @@ export const createResidentInvite = async (req: AuthRequest, res: Response): Pro
 
     res.json({ inviteUrl, whatsappText, expiresAt: resident.inviteExpiresAt });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao gerar convite', details: error.message });
+    res.status(500).json({ error: 'Erro ao gerar convite', details: errorDetails(error) });
   }
 };

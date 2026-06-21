@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { Resend } from 'resend';
 import User from '../models/User';
+import { errorDetails } from '../utils/errorDetails';
 
 const sendResetEmail = async (toEmail: string, resetUrl: string): Promise<void> => {
   const apiKey = process.env.RESEND_API_KEY;
@@ -71,7 +72,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 
     res.json({ message: 'Se este e-mail estiver cadastrado, você receberá um link em breve.' });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao solicitar redefinição de senha.', details: error.message });
+    res.status(500).json({ error: 'Erro ao solicitar redefinição de senha.', details: errorDetails(error) });
   }
 };
 
@@ -108,12 +109,13 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 
     // Update password and clear token fields
     user.password = await bcrypt.hash(password, 12);
+    user.passwordChangedAt = new Date();
     user.resetToken = undefined;
     user.resetTokenExpiry = undefined;
     await user.save();
 
     res.json({ message: 'Senha redefinida com sucesso. Faça login com sua nova senha.' });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao redefinir a senha.', details: error.message });
+    res.status(500).json({ error: 'Erro ao redefinir a senha.', details: errorDetails(error) });
   }
 };

@@ -14,6 +14,9 @@ export interface IUser {
   staffInviteToken?: string;
   staffInviteTokenExpiry?: Date;
   mustChangePassword?: boolean;
+  passwordChangedAt?: Date;
+  failedLoginAttempts?: number;
+  lockUntil?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +39,9 @@ const UserSchema = new Schema<IUser>(
     staffInviteToken: { type: String, select: false },
     staffInviteTokenExpiry: { type: Date, select: false },
     mustChangePassword: { type: Boolean, default: false },
+    passwordChangedAt: { type: Date },
+    failedLoginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Date },
   },
   { timestamps: true }
 );

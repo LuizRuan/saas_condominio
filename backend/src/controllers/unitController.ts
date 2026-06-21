@@ -6,6 +6,7 @@ import Issue from '../models/Issue';
 import Reservation from '../models/Reservation';
 import Condominium from '../models/Condominium';
 import { AuthRequest } from '../middlewares/auth';
+import { errorDetails } from '../utils/errorDetails';
 
 const PLAN_UNIT_LIMITS: Record<string, number> = { free: 20, pro: 100, ultra: Infinity };
 
@@ -44,7 +45,7 @@ export const createUnit = async (req: AuthRequest, res: Response): Promise<void>
     });
     res.status(201).json(unit);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao criar unidade', details: error.message });
+    res.status(500).json({ error: 'Erro ao criar unidade', details: errorDetails(error) });
   }
 };
 
@@ -53,7 +54,7 @@ export const getUnits = async (req: AuthRequest, res: Response): Promise<void> =
     const units = await Unit.find({ condominiumId: req.user!.condominiumId }).sort({ block: 1, number: 1 });
     res.json(units);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar unidades', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar unidades', details: errorDetails(error) });
   }
 };
 
@@ -72,7 +73,7 @@ export const getUnit = async (req: AuthRequest, res: Response): Promise<void> =>
     }
     res.json(unit);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar unidade', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar unidade', details: errorDetails(error) });
   }
 };
 
@@ -99,7 +100,7 @@ export const updateUnit = async (req: AuthRequest, res: Response): Promise<void>
     }
     res.json(unit);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao atualizar unidade', details: error.message });
+    res.status(500).json({ error: 'Erro ao atualizar unidade', details: errorDetails(error) });
   }
 };
 
@@ -130,6 +131,6 @@ export const deleteUnit = async (req: AuthRequest, res: Response): Promise<void>
     await Unit.deleteOne(filter);
     res.json({ message: 'Unidade excluída com sucesso' });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao excluir unidade', details: error.message });
+    res.status(500).json({ error: 'Erro ao excluir unidade', details: errorDetails(error) });
   }
 };

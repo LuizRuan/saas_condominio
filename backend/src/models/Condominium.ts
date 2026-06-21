@@ -22,7 +22,7 @@ const CondominiumSchema = new Schema<ICondominium>(
     address: { type: String, default: '', trim: true },
     city: { type: String, default: '', trim: true },
     state: { type: String, default: '', trim: true },
-    pixKey: { type: String, default: '', trim: true },
+    pixKey: { type: String, default: '', trim: true, select: false },
     defaultFee: { type: Number, default: 0, min: 0 },
     dueDay: { type: Number, default: 10, min: 1, max: 31 },
     ownerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },

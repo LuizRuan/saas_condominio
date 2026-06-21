@@ -11,6 +11,7 @@ export const getAccesses = async (req: AuthRequest, res: Response) => {
     if (unitId) filter.unitId = unitId;
 
     const accesses = await Access.find(filter)
+      .select('+documentNumber')
       .populate('unitId', 'block number')
       .populate('createdBy', 'name')
       .sort({ createdAt: -1 });
@@ -40,9 +41,10 @@ export const createAccess = async (req: AuthRequest, res: Response) => {
     });
 
     await access.save();
-    
+
     const populatedAccess = await access.populate('unitId', 'block number');
-    res.status(201).json(populatedAccess);
+    const { documentNumber: _dn, ...safeAccess } = populatedAccess.toObject();
+    res.status(201).json(safeAccess);
   } catch (error) {
     res.status(500).json({ error: 'Erro ao registrar acesso' });
   }

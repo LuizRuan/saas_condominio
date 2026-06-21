@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const baseURL = configuredApiUrl
@@ -31,6 +32,27 @@ api.interceptors.response.use(
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
+    }
+    if (error.response?.status === 403) {
+      const data = error.response?.data ?? {};
+      if (data.isDemo === true) {
+        toast('Modo demonstração: ações de edição estão desativadas.', {
+          icon: '🔒',
+          duration: 3500,
+          style: {
+            background: '#1e293b',
+            color: '#f8fafc',
+            fontSize: '13px',
+            borderRadius: '10px',
+            border: '1px solid rgba(251,191,36,0.3)',
+          },
+        });
+      } else if (data.mustChangePassword !== true && !data.requiredPlan) {
+        // Permission 403 (roleMiddleware, etc.) — components may not show a specific message
+        toast.error(data.error || 'Você não tem permissão para realizar esta ação.');
+      }
+      // mustChangePassword: ForcePasswordModal handles it — no toast needed
+      // requiredPlan: component-level catch shows the specific plan message — avoid duplicate
     }
     return Promise.reject(error);
   }

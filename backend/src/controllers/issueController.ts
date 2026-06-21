@@ -7,6 +7,7 @@ import { AuthRequest } from '../middlewares/auth';
 import { findResidentForUser } from '../utils/residentContext';
 import { notify } from '../utils/notifications';
 import { audit } from '../utils/audit';
+import { errorDetails } from '../utils/errorDetails';
 
 const normalizePhotos = (photos: unknown): string[] => {
   if (!Array.isArray(photos)) return [];
@@ -49,7 +50,7 @@ export const createIssue = async (req: AuthRequest, res: Response): Promise<void
       photos: normalizePhotos(req.body.photos),
       messages: [{
         authorId: req.user!._id,
-        authorRole: (req.user!.role === 'resident' ? 'resident' : 'admin') as 'admin' | 'resident',
+        authorRole: req.user!.role,
         authorName: req.user!.name,
         message: description.trim(),
         photos: normalizePhotos(req.body.photos),
@@ -76,7 +77,7 @@ export const createIssue = async (req: AuthRequest, res: Response): Promise<void
 
     res.status(201).json(issue);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao criar ocorrência', details: error.message });
+    res.status(500).json({ error: 'Erro ao criar ocorrência', details: errorDetails(error) });
   }
 };
 
@@ -103,7 +104,7 @@ export const getIssues = async (req: AuthRequest, res: Response): Promise<void> 
 
     res.json({ data, total, page, totalPages: Math.ceil(total / limit) });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar ocorrências', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar ocorrências', details: errorDetails(error) });
   }
 };
 
@@ -118,7 +119,7 @@ export const getIssue = async (req: AuthRequest, res: Response): Promise<void> =
     if (!issue) { res.status(404).json({ error: 'Ocorrência não encontrada' }); return; }
     res.json(issue);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar ocorrência', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar ocorrência', details: errorDetails(error) });
   }
 };
 
@@ -143,7 +144,7 @@ export const updateIssue = async (req: AuthRequest, res: Response): Promise<void
     });
     res.json(issue);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao atualizar ocorrência', details: error.message });
+    res.status(500).json({ error: 'Erro ao atualizar ocorrência', details: errorDetails(error) });
   }
 };
 
@@ -187,7 +188,7 @@ export const updateIssueStatus = async (req: AuthRequest, res: Response): Promis
 
     res.json(issue);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao atualizar status', details: error.message });
+    res.status(500).json({ error: 'Erro ao atualizar status', details: errorDetails(error) });
   }
 };
 
@@ -207,7 +208,7 @@ export const deleteIssue = async (req: AuthRequest, res: Response): Promise<void
 
     res.json({ message: 'Ocorrência excluída com sucesso' });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao excluir ocorrência', details: error.message });
+    res.status(500).json({ error: 'Erro ao excluir ocorrência', details: errorDetails(error) });
   }
 };
 
@@ -234,14 +235,14 @@ export const addIssueMessage = async (req: AuthRequest, res: Response): Promise<
 
     issue.messages.push({
       authorId: req.user!._id as any,
-      authorRole: (req.user!.role === 'resident' ? 'resident' : 'admin') as 'admin' | 'resident',
+      authorRole: req.user!.role,
       authorName: req.user!.name,
       message: message || 'Foto anexada',
       photos,
       createdAt: new Date(),
     });
 
-    if (req.user!.role === 'admin' && message) {
+    if (['admin', 'subadmin', 'concierge'].includes(req.user!.role) && message) {
       issue.response = message;
       if (issue.status === 'open') issue.status = 'in_progress';
     }
@@ -280,6 +281,6 @@ export const addIssueMessage = async (req: AuthRequest, res: Response): Promise<
 
     res.json(issue);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao adicionar mensagem', details: error.message });
+    res.status(500).json({ error: 'Erro ao adicionar mensagem', details: errorDetails(error) });
   }
 };

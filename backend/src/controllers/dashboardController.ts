@@ -7,6 +7,7 @@ import Announcement from '../models/Announcement';
 import Expense from '../models/Expense';
 import { AuthRequest } from '../middlewares/auth';
 import { syncOverdueCharges } from '../utils/charges';
+import { errorDetails } from '../utils/errorDetails';
 
 export const getAdminDashboard = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -99,7 +100,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response): Promis
       upcomingReservations,
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao carregar dashboard', details: error.message });
+    res.status(500).json({ error: 'Erro ao carregar dashboard', details: errorDetails(error) });
   }
 };
 
@@ -145,7 +146,7 @@ export const getResidentDashboard = async (req: AuthRequest, res: Response): Pro
       upcomingReservations,
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao carregar dashboard', details: error.message });
+    res.status(500).json({ error: 'Erro ao carregar dashboard', details: errorDetails(error) });
   }
 };
 
@@ -258,6 +259,6 @@ export const getAdminCharts = async (req: AuthRequest, res: Response): Promise<v
 
     res.json({ revenue, issuesTrend, occupancy });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao carregar gráficos', details: error.message });
+    res.status(500).json({ error: 'Erro ao carregar gráficos', details: errorDetails(error) });
   }
 };

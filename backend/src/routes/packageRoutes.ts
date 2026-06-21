@@ -15,7 +15,7 @@ const router = Router();
 router.use(authMiddleware);
 
 // Resident routes
-router.get('/resident', getResidentPackages);
+router.get('/resident', roleMiddleware('resident'), getResidentPackages);
 
 // Staff routes (admin, subadmin, concierge)
 const staffRoles = ['admin', 'subadmin', 'concierge'];

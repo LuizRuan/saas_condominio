@@ -6,6 +6,8 @@ import { AuthRequest } from '../middlewares/auth';
 import { audit } from '../utils/audit';
 import { syncOverdueCharges } from '../utils/charges';
 import { notify } from '../utils/notifications';
+import { requirePlan } from '../utils/planCheck';
+import { errorDetails } from '../utils/errorDetails';
 
 const isImageDataUrl = (value: unknown): value is string =>
   typeof value === 'string' && value.startsWith('data:image/');
@@ -73,12 +75,14 @@ export const createCharge = async (req: AuthRequest, res: Response): Promise<voi
 
     res.status(201).json(charge);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao criar cobrança', details: error.message });
+    res.status(500).json({ error: 'Erro ao criar cobrança', details: errorDetails(error) });
   }
 };
 
 export const createBulkCharges = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (!(await requirePlan(req, res, ['pro', 'ultra'], 'Cobranças em lote estão disponíveis nos planos Pro e Ultra.'))) return;
+
     const { referenceMonth, amount, dueDate, description } = req.body;
     const condominiumId = req.user!.condominiumId;
 
@@ -130,7 +134,7 @@ export const createBulkCharges = async (req: AuthRequest, res: Response): Promis
     });
     res.status(201).json({ message: `${created.length} cobranças criadas`, charges: created });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao criar cobranças em massa', details: error.message });
+    res.status(500).json({ error: 'Erro ao criar cobranças em massa', details: errorDetails(error) });
   }
 };
 
@@ -167,7 +171,7 @@ export const getCharges = async (req: AuthRequest, res: Response): Promise<void>
 
     res.json({ data, total, page, totalPages: Math.ceil(total / limit) });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar cobranças', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar cobranças', details: errorDetails(error) });
   }
 };
 
@@ -187,7 +191,7 @@ export const getCharge = async (req: AuthRequest, res: Response): Promise<void> 
     }
     res.json(charge);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar cobrança', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar cobrança', details: errorDetails(error) });
   }
 };
 
@@ -230,7 +234,7 @@ export const updateCharge = async (req: AuthRequest, res: Response): Promise<voi
     }
     res.json(charge);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao atualizar cobrança', details: error.message });
+    res.status(500).json({ error: 'Erro ao atualizar cobrança', details: errorDetails(error) });
   }
 };
 
@@ -283,7 +287,7 @@ export const markAsPaid = async (req: AuthRequest, res: Response): Promise<void>
 
     res.json(charge);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao marcar como pago', details: error.message });
+    res.status(500).json({ error: 'Erro ao marcar como pago', details: errorDetails(error) });
   }
 };
 
@@ -321,7 +325,7 @@ export const markAsPending = async (req: AuthRequest, res: Response): Promise<vo
     });
     res.json(charge);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao marcar como pendente', details: error.message });
+    res.status(500).json({ error: 'Erro ao marcar como pendente', details: errorDetails(error) });
   }
 };
 
@@ -381,7 +385,7 @@ export const submitPaymentProof = async (req: AuthRequest, res: Response): Promi
 
     res.json(charge);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao enviar comprovante', details: error.message });
+    res.status(500).json({ error: 'Erro ao enviar comprovante', details: errorDetails(error) });
   }
 };
 
@@ -432,12 +436,14 @@ export const rejectPaymentProof = async (req: AuthRequest, res: Response): Promi
 
     res.json(charge);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao rejeitar comprovante', details: error.message });
+    res.status(500).json({ error: 'Erro ao rejeitar comprovante', details: errorDetails(error) });
   }
 };
 
 export const exportChargesCsv = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (!(await requirePlan(req, res, ['pro', 'ultra'], 'A exportação de cobranças está disponível nos planos Pro e Ultra.'))) return;
+
     await syncOverdueCharges(req.user!.condominiumId!);
     const charges = await Charge.find({ condominiumId: req.user!.condominiumId })
       .populate('unitId', 'block number')
@@ -466,7 +472,7 @@ export const exportChargesCsv = async (req: AuthRequest, res: Response): Promise
     res.setHeader('Content-Disposition', 'attachment; filename="cobrancas.csv"');
     res.send(`\uFEFF${rows.join('\n')}`);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao exportar cobranças', details: error.message });
+    res.status(500).json({ error: 'Erro ao exportar cobranças', details: errorDetails(error) });
   }
 };
 
@@ -489,6 +495,6 @@ export const deleteCharge = async (req: AuthRequest, res: Response): Promise<voi
     });
     res.json({ message: 'Cobrança excluída com sucesso' });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao excluir cobrança', details: error.message });
+    res.status(500).json({ error: 'Erro ao excluir cobrança', details: errorDetails(error) });
   }
 };

@@ -3,6 +3,8 @@ import Charge from '../models/Charge';
 import Expense from '../models/Expense';
 import { AuthRequest } from '../middlewares/auth';
 import mongoose from 'mongoose';
+import { requirePlan } from '../utils/planCheck';
+import { errorDetails } from '../utils/errorDetails';
 
 export const getCashflow = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -66,12 +68,14 @@ export const getCashflow = async (req: AuthRequest, res: Response): Promise<void
 
     res.json({ cashflow });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao carregar fluxo de caixa', details: error.message });
+    res.status(500).json({ error: 'Erro ao carregar fluxo de caixa', details: errorDetails(error) });
   }
 };
 
 export const getReport = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (!(await requirePlan(req, res, ['pro', 'ultra'], 'Relatórios financeiros detalhados estão disponíveis nos planos Pro e Ultra.'))) return;
+
     const condominiumId = req.user!.condominiumId;
     const { month } = req.query; // format: YYYY-MM
     
@@ -162,6 +166,6 @@ export const getReport = async (req: AuthRequest, res: Response): Promise<void> 
       })),
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao gerar relatório', details: error.message });
+    res.status(500).json({ error: 'Erro ao gerar relatório', details: errorDetails(error) });
   }
 };

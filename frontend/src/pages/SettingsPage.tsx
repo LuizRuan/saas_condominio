@@ -88,7 +88,7 @@ const SettingsPage: React.FC = () => {
       setInviteLink(`${window.location.origin}/login`);
       setInviteEmail('');
       loadStaff();
-      toast.success('Colaborador adicionado! Senha inicial: 123456');
+      toast.success('Colaborador adicionado. Oriente-o a trocar a senha temporária no primeiro acesso.');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Erro ao adicionar colaborador');
     } finally {
@@ -195,7 +195,7 @@ const SettingsPage: React.FC = () => {
 
           {inviteLink && (
             <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">Acesso criado · senha inicial: 123456</p>
+              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">Acesso criado · oriente o colaborador a trocar a senha no primeiro login</p>
               <div className="flex items-center gap-2">
               <p className="flex-1 truncate text-xs font-semibold text-emerald-800">{inviteLink}</p>
               <button

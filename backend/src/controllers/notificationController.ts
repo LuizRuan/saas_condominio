@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import Notification from '../models/Notification';
 import { AuthRequest } from '../middlewares/auth';
+import { errorDetails } from '../utils/errorDetails';
 
 export const getNotifications = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -20,7 +21,7 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
 
     res.json(notifications);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar notificações', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar notificações', details: errorDetails(error) });
   }
 };
 
@@ -46,7 +47,7 @@ export const markNotificationRead = async (req: AuthRequest, res: Response): Pro
 
     res.json(notification);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao marcar notificação', details: error.message });
+    res.status(500).json({ error: 'Erro ao marcar notificação', details: errorDetails(error) });
   }
 };
 
@@ -66,6 +67,6 @@ export const markAllNotificationsRead = async (req: AuthRequest, res: Response):
 
     res.json({ updated: result.modifiedCount });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao marcar notificações', details: error.message });
+    res.status(500).json({ error: 'Erro ao marcar notificações', details: errorDetails(error) });
   }
 };

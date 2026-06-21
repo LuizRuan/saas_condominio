@@ -40,7 +40,33 @@ export const authMiddleware = async (
       return;
     }
 
+    // SEC-021: reject tokens issued before the last password change
+    if (user.passwordChangedAt && decoded.iat) {
+      const changedAtSecs = Math.floor(user.passwordChangedAt.getTime() / 1000);
+      if (decoded.iat < changedAtSecs) {
+        res.status(401).json({ error: 'Sessão expirada. Faça login novamente.' });
+        return;
+      }
+    }
+
     req.user = user;
+
+    if (user.mustChangePassword === true) {
+      const allowed = ['/api/auth/me', '/api/auth/change-password'];
+      if (!allowed.some(p => req.originalUrl.startsWith(p))) {
+        res.status(403).json({ error: 'Troca de senha obrigatória', mustChangePassword: true });
+        return;
+      }
+    }
+
+    if (user.isDemo === true && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+      res.status(403).json({
+        error: 'Modo demonstração: ações de edição estão desativadas.',
+        isDemo: true,
+      });
+      return;
+    }
+
     next();
   } catch (error) {
     res.status(401).json({ error: 'Token inválido' });

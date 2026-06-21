@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import Announcement from '../models/Announcement';
 import { AuthRequest } from '../middlewares/auth';
+import { errorDetails } from '../utils/errorDetails';
 
 const MAX_PHOTOS = 8;
 const MAX_PHOTO_PAYLOAD_BYTES = 9 * 1024 * 1024;
@@ -56,7 +57,7 @@ export const createAnnouncement = async (req: AuthRequest, res: Response): Promi
     });
     res.status(201).json(announcement);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao criar comunicado', details: error.message });
+    res.status(500).json({ error: 'Erro ao criar comunicado', details: errorDetails(error) });
   }
 };
 
@@ -79,7 +80,7 @@ export const getAnnouncements = async (req: AuthRequest, res: Response): Promise
 
     res.json({ data, total, page, totalPages: Math.ceil(total / limit) });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar comunicados', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar comunicados', details: errorDetails(error) });
   }
 };
 
@@ -92,7 +93,7 @@ export const getAnnouncement = async (req: AuthRequest, res: Response): Promise<
     if (!announcement) { res.status(404).json({ error: 'Comunicado não encontrado' }); return; }
     res.json(announcement);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar comunicado', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar comunicado', details: errorDetails(error) });
   }
 };
 
@@ -125,7 +126,7 @@ export const updateAnnouncement = async (req: AuthRequest, res: Response): Promi
     if (!announcement) { res.status(404).json({ error: 'Comunicado não encontrado' }); return; }
     res.json(announcement);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao atualizar comunicado', details: error.message });
+    res.status(500).json({ error: 'Erro ao atualizar comunicado', details: errorDetails(error) });
   }
 };
 
@@ -135,6 +136,6 @@ export const deleteAnnouncement = async (req: AuthRequest, res: Response): Promi
     if (!a) { res.status(404).json({ error: 'Comunicado não encontrado' }); return; }
     res.json({ message: 'Comunicado excluído com sucesso' });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao excluir comunicado', details: error.message });
+    res.status(500).json({ error: 'Erro ao excluir comunicado', details: errorDetails(error) });
   }
 };

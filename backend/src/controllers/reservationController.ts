@@ -7,6 +7,7 @@ import { AuthRequest } from '../middlewares/auth';
 import { findResidentForUser } from '../utils/residentContext';
 import { notify } from '../utils/notifications';
 import { audit } from '../utils/audit';
+import { errorDetails } from '../utils/errorDetails';
 
 const hasTimeConflict = (startTime: string, endTime: string) => ({
   $or: [{ startTime: { $lt: endTime }, endTime: { $gt: startTime } }],
@@ -90,7 +91,7 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
 
     res.status(201).json(reservation);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao criar reserva', details: error.message });
+    res.status(500).json({ error: 'Erro ao criar reserva', details: errorDetails(error) });
   }
 };
 
@@ -106,7 +107,7 @@ export const getReservations = async (req: AuthRequest, res: Response): Promise<
       .sort({ date: -1 });
     res.json(reservations);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar reservas', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar reservas', details: errorDetails(error) });
   }
 };
 
@@ -119,18 +120,17 @@ export const getReservation = async (req: AuthRequest, res: Response): Promise<v
     if (!reservation) { res.status(404).json({ error: 'Reserva não encontrada' }); return; }
     res.json(reservation);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar reserva', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar reserva', details: errorDetails(error) });
   }
 };
 
 export const approveReservation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const reservation = await Reservation.findById(req.params.id);
-    if (
-      !reservation ||
-      !req.user!.condominiumId ||
-      reservation.condominiumId.toString() !== req.user!.condominiumId.toString()
-    ) {
+    const reservation = await Reservation.findOne({
+      _id: req.params.id,
+      condominiumId: req.user!.condominiumId,
+    });
+    if (!reservation) {
       res.status(404).json({ error: 'Reserva não encontrada' }); return;
     }
 
@@ -178,7 +178,7 @@ export const approveReservation = async (req: AuthRequest, res: Response): Promi
 
     res.json(reservation);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao aprovar reserva', details: error.message });
+    res.status(500).json({ error: 'Erro ao aprovar reserva', details: errorDetails(error) });
   }
 };
 
@@ -210,7 +210,7 @@ export const rejectReservation = async (req: AuthRequest, res: Response): Promis
     });
     res.json(r);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao recusar reserva', details: error.message });
+    res.status(500).json({ error: 'Erro ao recusar reserva', details: errorDetails(error) });
   }
 };
 
@@ -244,7 +244,7 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
     });
     res.json(r);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao cancelar reserva', details: error.message });
+    res.status(500).json({ error: 'Erro ao cancelar reserva', details: errorDetails(error) });
   }
 };
 
@@ -269,7 +269,7 @@ export const deleteReservation = async (req: AuthRequest, res: Response): Promis
 
     res.json({ message: 'Reserva excluída com sucesso' });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao excluir reserva', details: error.message });
+    res.status(500).json({ error: 'Erro ao excluir reserva', details: errorDetails(error) });
   }
 };
 
@@ -282,7 +282,7 @@ export const getReservationBlocks = async (req: AuthRequest, res: Response): Pro
     const blocks = await ReservationBlock.find(filter).populate('createdBy', 'name role').sort({ date: 1, startTime: 1 });
     res.json(blocks);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao buscar bloqueios', details: error.message });
+    res.status(500).json({ error: 'Erro ao buscar bloqueios', details: errorDetails(error) });
   }
 };
 
@@ -329,7 +329,7 @@ export const createReservationBlock = async (req: AuthRequest, res: Response): P
 
     res.status(201).json(block);
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao criar bloqueio', details: error.message });
+    res.status(500).json({ error: 'Erro ao criar bloqueio', details: errorDetails(error) });
   }
 };
 
@@ -354,6 +354,6 @@ export const deleteReservationBlock = async (req: AuthRequest, res: Response): P
 
     res.json({ message: 'Bloqueio removido com sucesso' });
   } catch (error: any) {
-    res.status(500).json({ error: 'Erro ao remover bloqueio', details: error.message });
+    res.status(500).json({ error: 'Erro ao remover bloqueio', details: errorDetails(error) });
   }
 };
