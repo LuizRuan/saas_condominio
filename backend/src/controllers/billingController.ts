@@ -71,6 +71,22 @@ export const subscribe = async (req: AuthRequest, res: Response): Promise<void> 
     const frontendBase = allowedOrigins[0]?.trim().replace(/\/+$/, '') || 'http://localhost:5173';
     const backUrl = process.env.MERCADO_PAGO_PENDING_URL || `${frontendBase}/billing/pending`;
 
+    const isTestToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.startsWith('TEST') ?? false;
+    let payerEmail: string;
+    if (isTestToken) {
+      const testPayerEmail = process.env.MERCADO_PAGO_TEST_PAYER_EMAIL?.trim();
+      if (!testPayerEmail) {
+        console.error('[BILLING] Token TEST sem MERCADO_PAGO_TEST_PAYER_EMAIL configurado');
+        res.status(500).json({ error: 'Ambiente de teste Mercado Pago sem MERCADO_PAGO_TEST_PAYER_EMAIL configurado.' });
+        return;
+      }
+      payerEmail = testPayerEmail;
+      console.log('[BILLING] Ambiente: sandbox | payerEmailSource: test_env');
+    } else {
+      payerEmail = req.user.email;
+      console.log('[BILLING] Ambiente: production | payerEmailSource: user_email');
+    }
+
     const preapproval = await createPreapproval({
       reason: `Domus — Plano ${planLabel} (${cycleLabel})`,
       auto_recurring: {
@@ -80,7 +96,7 @@ export const subscribe = async (req: AuthRequest, res: Response): Promise<void> 
         currency_id: 'BRL',
       },
       back_url: backUrl,
-      payer_email: req.user.email,
+      payer_email: payerEmail,
       external_reference: externalReference,
       status: 'pending',
     });
