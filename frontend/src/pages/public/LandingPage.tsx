@@ -26,6 +26,7 @@ const plans = [
   {
     name: 'Grátis',
     price: 'Grátis',
+    monthlyAmount: 0,
     period: '',
     desc: 'Para condomínios pequenos começarem.',
     items: ['Até 20 unidades', 'Dashboard completo', 'Cobranças e comunicados', 'Suporte por e-mail'],
@@ -35,7 +36,8 @@ const plans = [
   },
   {
     name: 'Pro',
-    price: 'R$97',
+    price: 'R$1',
+    monthlyAmount: 1,
     period: '/mês',
     desc: 'Para condomínios em operação.',
     items: ['Até 100 unidades', 'Tudo do Grátis', 'Relatórios PDF', 'WhatsApp integrado', 'Suporte prioritário'],
@@ -46,6 +48,7 @@ const plans = [
   {
     name: 'Ultra',
     price: 'R$197',
+    monthlyAmount: 197,
     period: '/mês',
     desc: 'Para quem gerencia mais de um condomínio.',
     items: ['Unidades ilimitadas', 'Tudo do Pro', 'Multi-condomínio', 'Pix automático', 'SLA garantido'],
@@ -387,23 +390,33 @@ const LandingPage: React.FC = () => {
                 <p className={`text-xs font-extrabold uppercase tracking-[0.18em] ${plan.highlight ? 'text-blue-200' : 'text-blue-600'}`}>
                   {plan.name}
                 </p>
-                <div className="mt-3 flex flex-col items-start gap-0.5">
-                  <div className="flex items-end gap-1">
-                    <span className={`text-4xl font-extrabold tracking-[-0.05em] ${plan.highlight ? 'text-white' : 'text-slate-950'}`}>
-                      {plan.price === 'Grátis' ? plan.price : (isAnnual ? `R$${Math.floor(parseInt(plan.price.replace('R$', '')) * 0.8)}` : plan.price)}
-                    </span>
-                    {plan.period && (
-                      <span className={`mb-1.5 text-sm font-semibold ${plan.highlight ? 'text-blue-200' : 'text-slate-400'}`}>
-                        {plan.period}
-                      </span>
-                    )}
-                  </div>
-                  {isAnnual && plan.price !== 'Grátis' && (
-                    <span className={`text-xs font-medium ${plan.highlight ? 'text-blue-200' : 'text-slate-400'}`}>
-                      faturado anualmente (R${Math.floor(parseInt(plan.price.replace('R$', '')) * 0.8 * 12)})
-                    </span>
-                  )}
-                </div>
+                {(() => {
+                  const annualMonthlyStr = plan.monthlyAmount > 0
+                    ? (plan.monthlyAmount * 0.8).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : '0,00';
+                  const annualTotalStr = plan.monthlyAmount > 0
+                    ? (plan.monthlyAmount * 0.8 * 12).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : '0,00';
+                  return (
+                    <div className="mt-3 flex flex-col items-start gap-0.5">
+                      <div className="flex items-end gap-1">
+                        <span className={`text-4xl font-extrabold tracking-[-0.05em] ${plan.highlight ? 'text-white' : 'text-slate-950'}`}>
+                          {plan.price === 'Grátis' ? plan.price : (isAnnual ? `R$${annualMonthlyStr}` : plan.price)}
+                        </span>
+                        {plan.period && (
+                          <span className={`mb-1.5 text-sm font-semibold ${plan.highlight ? 'text-blue-200' : 'text-slate-400'}`}>
+                            {plan.period}
+                          </span>
+                        )}
+                      </div>
+                      {isAnnual && plan.price !== 'Grátis' && (
+                        <span className={`text-xs font-medium ${plan.highlight ? 'text-blue-200' : 'text-slate-400'}`}>
+                          {`faturado anualmente (R$${annualTotalStr})`}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
                 <p className={`mt-3 text-sm font-medium ${plan.highlight ? 'text-blue-100' : 'text-slate-500'}`}>
                   {plan.desc}
                 </p>

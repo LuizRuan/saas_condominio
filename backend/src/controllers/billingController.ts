@@ -7,9 +7,10 @@ import { AuthRequest } from '../middlewares/auth';
 import { createPreapproval, getPreapproval, cancelPreapproval, MPApiError } from '../services/mercadopago';
 import { getMercadoPagoWebhookSecret } from '../config/env';
 
+// Preço Pro temporário para validação em produção. Ajustar antes do lançamento comercial.
 const PRICES = {
-  pro:   { monthly: 97.00,   yearly: 931.20  },
-  ultra: { monthly: 197.00,  yearly: 1891.20 },
+  pro:   { monthly: 1.00,   yearly: 9.60   },
+  ultra: { monthly: 197.00, yearly: 1891.20 },
 } as const;
 
 function maskEmail(email: string): string {
@@ -61,8 +62,25 @@ export const subscribe = async (req: AuthRequest, res: Response): Promise<void> 
       status: { $in: ['active', 'pending', 'overdue'] },
     });
     if (existing) {
+      if (existing.status === 'pending' || existing.status === 'overdue') {
+        res.status(409).json({
+          error: 'Existe uma assinatura em andamento. Aguarde a confirmação ou cancele a solicitação atual.',
+        });
+        return;
+      }
+      // Active
+      if (existing.plan === 'ultra') {
+        res.status(409).json({ error: 'Você já está no plano mais completo.' });
+        return;
+      }
+      if (existing.plan === 'pro' && plan === 'ultra') {
+        res.status(409).json({
+          error: 'Para fazer upgrade para Ultra, cancele a assinatura Pro atual antes de contratar o novo plano.',
+        });
+        return;
+      }
       res.status(409).json({
-        error: 'Você já possui uma assinatura em andamento. Cancele ou aguarde a confirmação antes de contratar outra.',
+        error: plan === 'pro' ? 'Você já está no plano Pro.' : 'Você já está no plano mais completo.',
       });
       return;
     }
@@ -77,9 +95,20 @@ export const subscribe = async (req: AuthRequest, res: Response): Promise<void> 
     const frontendBase = allowedOrigins[0]?.trim().replace(/\/+$/, '') || 'http://localhost:5173';
     const backUrl = process.env.MERCADO_PAGO_PENDING_URL || `${frontendBase}/billing/pending`;
 
-    const isTestToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.startsWith('TEST') ?? false;
+    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() ?? '';
+    const isTestToken = accessToken.startsWith('TEST');
+    const isProductionToken = accessToken.startsWith('APP_USR');
+
     let payerEmail: string;
-    if (isTestToken) {
+    let payerEmailSource: string;
+    if (isProductionToken) {
+      if (!req.user.email) {
+        res.status(400).json({ error: 'Usuário sem e-mail válido para criar assinatura.' });
+        return;
+      }
+      payerEmail = req.user.email;
+      payerEmailSource = 'user.email';
+    } else if (isTestToken) {
       const testPayerEmail = process.env.MERCADO_PAGO_TEST_PAYER_EMAIL?.trim();
       if (!testPayerEmail) {
         console.error('[BILLING] Token TEST sem MERCADO_PAGO_TEST_PAYER_EMAIL configurado');
@@ -91,14 +120,19 @@ export const subscribe = async (req: AuthRequest, res: Response): Promise<void> 
         return;
       }
       if (testPayerEmail.toUpperCase().startsWith('TESTUSER')) {
-        res.status(500).json({ error: 'MERCADO_PAGO_TEST_PAYER_EMAIL deve ser o e-mail da conta teste, não o usuário TESTUSER (ex: test_123456@testuser.com).' });
+        res.status(500).json({ error: 'MERCADO_PAGO_TEST_PAYER_EMAIL deve ser o e-mail da conta teste, não o usuário TESTUSER.' });
         return;
       }
       payerEmail = testPayerEmail;
-      console.log('[BILLING] Ambiente: sandbox | payerEmailSource: test_env');
+      payerEmailSource = 'test_env';
     } else {
+      // Prefixo desconhecido — tratar como produção
+      if (!req.user.email) {
+        res.status(400).json({ error: 'Usuário sem e-mail válido para criar assinatura.' });
+        return;
+      }
       payerEmail = req.user.email;
-      console.log('[BILLING] Ambiente: production | payerEmailSource: user_email');
+      payerEmailSource = 'user.email (unknown_token_prefix)';
     }
 
     const preapprovalPayload = {
@@ -111,21 +145,22 @@ export const subscribe = async (req: AuthRequest, res: Response): Promise<void> 
     };
 
     console.log('[BILLING] preapproval payload safe summary:', JSON.stringify({
-      reason: preapprovalPayload.reason,
-      frequency,
-      frequency_type: 'months',
-      transaction_amount: amount,
-      currency_id: 'BRL',
-      back_url: backUrl,
+      environment: isTestToken ? 'sandbox' : 'production',
+      plan,
+      billingCycle,
+      amount,
+      payerEmailSource,
       payer_email_masked: maskEmail(payerEmail),
-      payer_email_domain: payerEmail.split('@')[1] ?? 'unknown',
-      external_reference_prefix: `condo_${condominiumId}`,
-      status: 'pending',
+      back_url: backUrl,
     }));
 
     const preapproval = await createPreapproval(preapprovalPayload);
 
-    const checkoutUrl = preapproval.sandbox_init_point || preapproval.init_point;
+    // Produção prioriza init_point; sandbox prioriza sandbox_init_point.
+    const checkoutUrl = isTestToken
+      ? (preapproval.sandbox_init_point || preapproval.init_point)
+      : (preapproval.init_point || preapproval.sandbox_init_point);
+    console.log('[BILLING] checkoutUrl selecionada:', checkoutUrl === preapproval.init_point ? 'init_point' : 'sandbox_init_point');
 
     await Subscription.create({
       condominiumId,
@@ -488,6 +523,7 @@ export const getBillingDiagnostics = async (req: AuthRequest, res: Response): Pr
       tokenPrefix,
       hasTestPayerEmail: !!testEmail,
       testPayerEmailMasked: testEmail ? maskEmail(testEmail) : null,
+      testPayerEmailIgnoredInProduction: tokenPrefix === 'APP_USR',
       clientUrlsConfigured: !!clientUrl,
       webhookSecretConfigured: !!webhookSecret,
     });

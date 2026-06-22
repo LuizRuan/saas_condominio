@@ -21,10 +21,29 @@ interface BillingData {
   } | null;
 }
 
+// Preço Pro temporário para validação em produção. Ajustar antes do lançamento comercial.
 const PRICES = {
-  pro:   { monthly: 97.00,   yearly: 931.20  },
-  ultra: { monthly: 197.00,  yearly: 1891.20 },
+  pro:   { monthly: 1.00,   yearly: 9.60   },
+  ultra: { monthly: 197.00, yearly: 1891.20 },
 };
+
+type CtaMode = 'subscribe' | 'current' | 'inferior' | 'upgrade' | 'blocked-pending' | 'blocked-active';
+
+function getProCta(plan: string, sub: BillingData['subscription'] | null): CtaMode {
+  if (!sub) return 'subscribe';
+  if (plan === 'pro' && sub.status === 'active') return 'current';
+  if (plan === 'ultra') return 'inferior';
+  if (sub.status === 'pending') return 'blocked-pending';
+  return 'blocked-active';
+}
+
+function getUltraCta(plan: string, sub: BillingData['subscription'] | null): CtaMode {
+  if (!sub) return 'subscribe';
+  if (plan === 'ultra') return 'current';
+  if (plan === 'pro' && sub.status === 'active') return 'upgrade';
+  if (sub.status === 'pending') return 'blocked-pending';
+  return 'blocked-active';
+}
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '';
@@ -56,6 +75,7 @@ const BillingPage: React.FC = () => {
   const [subscribeLoading, setSubscribeLoading] = useState<'pro' | 'ultra' | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery<BillingData>({
@@ -68,16 +88,15 @@ const BillingPage: React.FC = () => {
     data?.subscription &&
     ['active', 'pending', 'overdue'].includes(data.subscription.status)
   );
-  const canCreateNewSubscription = !hasActiveOrPendingSubscription;
   const isPendingSubscription = data?.subscription?.status === 'pending';
-  const isActiveOrOverdue = !!(
-    data?.subscription && ['active', 'overdue'].includes(data.subscription.status)
-  );
   const showCancelButton = hasActiveOrPendingSubscription;
   const cancelButtonLabel = isPendingSubscription ? 'Cancelar solicitação' : 'Cancelar assinatura';
   const showCanceledBanner =
     !hasActiveOrPendingSubscription &&
     (data?.subscriptionStatus === 'canceled' || data?.subscriptionStatus === 'failed');
+
+  const proCta  = getProCta(data?.plan ?? 'free',  data?.subscription ?? null);
+  const ultraCta = getUltraCta(data?.plan ?? 'free', data?.subscription ?? null);
 
   const handleSubscribe = async (plan: 'pro' | 'ultra') => {
     setSubscribeLoading(plan);
@@ -104,6 +123,21 @@ const BillingPage: React.FC = () => {
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.response?.data?.message;
       toast.error(msg || (isPendingSubscription ? 'Erro ao cancelar solicitação. Tente novamente.' : 'Erro ao cancelar assinatura. Tente novamente.'));
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const handleCancelFromUpgradeModal = async () => {
+    setCancelLoading(true);
+    try {
+      await api.post('/billing/mercadopago/cancel');
+      toast.success('Assinatura Pro cancelada. Agora você pode contratar o Ultra.');
+      setShowUpgradeModal(false);
+      queryClient.invalidateQueries({ queryKey: ['billing', 'me'] });
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.response?.data?.message;
+      toast.error(msg || 'Erro ao cancelar assinatura. Tente novamente.');
     } finally {
       setCancelLoading(false);
     }
@@ -189,11 +223,12 @@ const BillingPage: React.FC = () => {
         </div>
       )}
 
-      {/* Banner: assinatura ativa/atrasada */}
-      {isActiveOrOverdue && (
+      {/* Banner: Ultra ativo — plano máximo */}
+      {data.plan === 'ultra' && data.subscription &&
+        ['active', 'overdue'].includes(data.subscription.status) && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-700">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-          Você já possui uma assinatura ativa. Para trocar de plano, cancele a assinatura atual.
+          Você já está no plano mais completo.
         </div>
       )}
 
@@ -205,7 +240,7 @@ const BillingPage: React.FC = () => {
         </div>
       )}
 
-      {/* Toggle: segmented control estável */}
+      {/* Toggle: segmented control */}
       <div className="flex justify-center">
         <div className="inline-flex rounded-xl bg-slate-100 p-1">
           <button
@@ -236,10 +271,7 @@ const BillingPage: React.FC = () => {
           name="Pro"
           price={isAnnual ? PRICES.pro.yearly : PRICES.pro.monthly}
           isAnnual={isAnnual}
-          isCurrent={data.plan === 'pro' && isActiveOrOverdue}
-          canSubscribe={canCreateNewSubscription}
-          hasActiveOrPending={hasActiveOrPendingSubscription}
-          isPending={isPendingSubscription}
+          ctaMode={proCta}
           loading={subscribeLoading === 'pro'}
           onSubscribe={() => handleSubscribe('pro')}
           features={['Até 200 unidades', 'Cobranças e financeiro', 'Comunicados ilimitados', 'Reservas e encomendas', 'Suporte por e-mail']}
@@ -250,12 +282,10 @@ const BillingPage: React.FC = () => {
           name="Ultra"
           price={isAnnual ? PRICES.ultra.yearly : PRICES.ultra.monthly}
           isAnnual={isAnnual}
-          isCurrent={data.plan === 'ultra' && isActiveOrOverdue}
-          canSubscribe={canCreateNewSubscription}
-          hasActiveOrPending={hasActiveOrPendingSubscription}
-          isPending={isPendingSubscription}
+          ctaMode={ultraCta}
           loading={subscribeLoading === 'ultra'}
           onSubscribe={() => handleSubscribe('ultra')}
+          onUpgrade={() => setShowUpgradeModal(true)}
           features={['Unidades ilimitadas', 'Relatórios avançados', 'Portaria integrada', 'API de acesso', 'Suporte prioritário']}
           color="violet"
         />
@@ -299,6 +329,44 @@ const BillingPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de upgrade */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-950">Upgrade para Ultra</h2>
+                <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
+                  Para evitar cobranças duplicadas, cancele primeiro sua assinatura Pro. Assim que ela for
+                  cancelada, você poderá contratar o Ultra.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="ml-4 shrink-0 rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-7 flex gap-3">
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={handleCancelFromUpgradeModal}
+                disabled={cancelLoading}
+                className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
+              >
+                {cancelLoading ? 'Cancelando...' : 'Cancelar assinatura Pro'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -307,18 +375,16 @@ interface PlanCardProps {
   name: string;
   price: number;
   isAnnual: boolean;
-  isCurrent: boolean;
-  canSubscribe: boolean;
-  hasActiveOrPending: boolean;
-  isPending: boolean;
+  ctaMode: CtaMode;
   loading: boolean;
   onSubscribe: () => void;
+  onUpgrade?: () => void;
   features: string[];
   color: 'blue' | 'violet';
 }
 
 const PlanCard: React.FC<PlanCardProps> = ({
-  name, price, isAnnual, isCurrent, canSubscribe, hasActiveOrPending, isPending, loading, onSubscribe, features, color,
+  name, price, isAnnual, ctaMode, loading, onSubscribe, onUpgrade, features, color,
 }) => {
   const colorMap = {
     blue: {
@@ -336,6 +402,7 @@ const PlanCard: React.FC<PlanCardProps> = ({
   };
 
   const c = colorMap[color];
+  const isCurrent = ctaMode === 'current';
 
   return (
     <div className={`surface-card relative flex flex-col p-6 ${isCurrent ? `ring-2 ${c.ring}` : ''}`}>
@@ -369,19 +436,37 @@ const PlanCard: React.FC<PlanCardProps> = ({
         ))}
       </ul>
 
-      {isCurrent ? (
+      {ctaMode === 'current' && (
         <div className="rounded-xl border border-slate-100 bg-slate-50 py-2.5 text-center text-sm font-bold text-slate-400">
           Plano atual
         </div>
-      ) : hasActiveOrPending ? (
-        <div className="rounded-xl border border-slate-100 bg-slate-50 py-2.5 text-center text-xs font-bold text-slate-400">
-          {isPending ? 'Aguarde a confirmação ou cancele a solicitação' : 'Cancele o plano atual para contratar'}
+      )}
+      {ctaMode === 'inferior' && (
+        <div className="rounded-xl border border-slate-100 bg-slate-50 py-2.5 text-center text-sm font-bold text-slate-400">
+          Inferior ao seu plano
         </div>
-      ) : (
+      )}
+      {ctaMode === 'upgrade' && (
+        <button
+          type="button"
+          onClick={() => onUpgrade?.()}
+          className={`w-full rounded-xl px-4 py-2.5 text-sm font-bold transition ${c.btn}`}
+        >
+          Fazer upgrade para Ultra
+        </button>
+      )}
+      {(ctaMode === 'blocked-pending' || ctaMode === 'blocked-active') && (
+        <div className="rounded-xl border border-slate-100 bg-slate-50 py-2.5 text-center text-xs font-bold text-slate-400">
+          {ctaMode === 'blocked-pending'
+            ? 'Aguarde a confirmação ou cancele a solicitação'
+            : 'Cancele o plano atual para contratar'}
+        </div>
+      )}
+      {ctaMode === 'subscribe' && (
         <button
           type="button"
           onClick={onSubscribe}
-          disabled={!canSubscribe || loading}
+          disabled={loading}
           className={`w-full rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${c.btn}`}
         >
           {loading ? 'Aguarde...' : `Assinar ${name}`}
