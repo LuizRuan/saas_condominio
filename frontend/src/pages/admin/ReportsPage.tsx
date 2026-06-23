@@ -68,7 +68,10 @@ const ReportsPage: React.FC = () => {
       {isLoading ? (
         <LoadingSpinner text="Gerando relatório..." />
       ) : !report ? (
-        <div className="mt-8 text-center text-slate-500">Erro ao carregar relatório.</div>
+        <div className="mt-12 flex flex-col items-center gap-3 text-center text-slate-400">
+          <FileText className="h-10 w-10 opacity-30" />
+          <p className="text-sm font-medium">Nenhum relatório disponível para o período selecionado.</p>
+        </div>
       ) : (
         <div className="mt-6 space-y-6">
           

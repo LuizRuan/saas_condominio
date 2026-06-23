@@ -78,7 +78,9 @@ const Login: React.FC = () => {
         <div className="absolute -left-24 bottom-0 h-96 w-96 rounded-full bg-blue-600/20 blur-[100px]" />
         <div className="absolute -right-20 top-16 h-80 w-80 rounded-full bg-indigo-500/15 blur-[100px]" />
         <div className="relative z-10">
-          <BrandMark inverted />
+          <Link to="/" aria-label="Voltar para a página inicial" className="inline-block transition-opacity hover:opacity-80">
+            <BrandMark inverted />
+          </Link>
         </div>
 
         <div className="relative z-10 my-auto max-w-xl py-16">
@@ -113,7 +115,9 @@ const Login: React.FC = () => {
         <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-blue-100/70 blur-3xl" />
         <div className="relative w-full max-w-[460px] animate-fade-in">
           <div className="mb-8 flex justify-center lg:hidden">
-            <BrandMark />
+            <Link to="/" aria-label="Voltar para a página inicial" className="inline-block transition-opacity hover:opacity-80">
+              <BrandMark />
+            </Link>
           </div>
 
           <div className="rounded-[28px] border border-white bg-white/95 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.11)] ring-1 ring-slate-200/70 sm:p-9">

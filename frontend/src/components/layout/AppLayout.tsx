@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import DemoBanner from '../demo/DemoBanner';
 import ForcePasswordModal from '../ui/ForcePasswordModal';
+import OnboardingTour from '../onboarding/OnboardingTour';
 
 const AppLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -11,6 +12,7 @@ const AppLayout: React.FC = () => {
     <div className="app-shell flex h-screen flex-col overflow-hidden">
       <DemoBanner />
       <ForcePasswordModal />
+      <OnboardingTour />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div className="flex flex-1 flex-col overflow-hidden">

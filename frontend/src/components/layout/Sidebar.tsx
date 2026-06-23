@@ -142,6 +142,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     key={link.to}
                     to={link.to}
                     end
+                    data-tour={link.to}
                     onClick={onClose}
                     className={({ isActive }) =>
                       `group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-all duration-150 ${
@@ -179,6 +180,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="relative border-t border-white/[0.07] px-3 py-2">
           <NavLink
             to="/settings"
+            data-tour="/settings"
             onClick={onClose}
             className={({ isActive }) =>
               `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-all duration-150 ${
