@@ -36,8 +36,8 @@ const plans = [
   },
   {
     name: 'Pro',
-    price: 'R$1',
-    monthlyAmount: 1,
+    price: 'R$97',
+    monthlyAmount: 97,
     period: '/mês',
     desc: 'Para condomínios em operação.',
     items: ['Até 100 unidades', 'Tudo do Grátis', 'Relatórios PDF', 'WhatsApp integrado', 'Suporte prioritário'],

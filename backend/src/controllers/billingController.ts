@@ -7,9 +7,8 @@ import { AuthRequest } from '../middlewares/auth';
 import { createPreapproval, getPreapproval, cancelPreapproval, MPApiError } from '../services/mercadopago';
 import { getMercadoPagoWebhookSecret } from '../config/env';
 
-// Preço Pro temporário para validação em produção. Ajustar antes do lançamento comercial.
 const PRICES = {
-  pro:   { monthly: 1.00,   yearly: 9.60   },
+  pro:   { monthly: 97.00,  yearly: 931.20 },
   ultra: { monthly: 197.00, yearly: 1891.20 },
 } as const;
 

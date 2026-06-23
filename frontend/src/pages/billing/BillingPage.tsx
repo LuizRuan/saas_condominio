@@ -23,7 +23,7 @@ interface BillingData {
 
 // Preço Pro temporário para validação em produção. Ajustar antes do lançamento comercial.
 const PRICES = {
-  pro:   { monthly: 1.00,   yearly: 9.60   },
+  pro:   { monthly: 97.00,  yearly: 931.20 },
   ultra: { monthly: 197.00, yearly: 1891.20 },
 };
 
@@ -274,7 +274,7 @@ const BillingPage: React.FC = () => {
           ctaMode={proCta}
           loading={subscribeLoading === 'pro'}
           onSubscribe={() => handleSubscribe('pro')}
-          features={['Até 200 unidades', 'Cobranças e financeiro', 'Comunicados ilimitados', 'Reservas e encomendas', 'Suporte por e-mail']}
+          features={['Até 100 unidades', 'Cobranças e financeiro', 'Comunicados ilimitados', 'Reservas e encomendas', 'Suporte por e-mail']}
           color="blue"
         />
 
