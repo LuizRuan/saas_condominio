@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
@@ -10,6 +10,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import PremiumPage from '../../components/ui/PremiumPage';
 import MetricCard from '../../components/ui/MetricCard';
+import Pagination from '../../components/ui/Pagination';
 import ImportWizard from '../../components/units/ImportWizard';
 import { AlertTriangle, Building2, CheckCircle2, Home, Pencil, Plus, Trash2, UploadCloud, Users } from 'lucide-react';
 import api from '../../services/api';
@@ -29,24 +30,64 @@ import toast from 'react-hot-toast';
 import { useDemo } from '../../contexts/DemoContext';
 import { useAuth } from '../../contexts/AuthContext';
 
+const LIMIT = 20;
+
+interface UnitsSummary {
+  total: number;
+  occupied: number;
+  empty: number;
+  late: number;
+}
+
+interface UnitsQueryResult {
+  items: Unit[];
+  paginationTotal: number;
+  totalPages: number;
+  summary: UnitsSummary | null;
+}
+
 const UnitsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const { isDemo, blockAction } = useDemo();
   const { isFinancial, plan } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: unitsResponse, isLoading: loading } = useQuery<Unit[]>({
-    queryKey: ['units'],
-    queryFn: async () => {
-      const { data } = await api.get('/units');
-      return data;
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data: unitsData, isLoading: loading } = useQuery<UnitsQueryResult>({
+    queryKey: ['units', page, LIMIT, debouncedSearch],
+    placeholderData: (prev) => prev,
+    queryFn: async (): Promise<UnitsQueryResult> => {
+      const params: Record<string, any> = { page, limit: LIMIT };
+      if (debouncedSearch) params.search = debouncedSearch;
+      const { data } = await api.get('/units', { params });
+      if (Array.isArray(data)) {
+        return { items: data, paginationTotal: data.length, totalPages: 1, summary: null };
+      }
+      return {
+        items: data.data ?? [],
+        paginationTotal: data.pagination?.total ?? 0,
+        totalPages: data.pagination?.totalPages ?? 1,
+        summary: data.summary ?? null,
+      };
     },
   });
-  const units: Unit[] = unitsResponse ?? [];
+
+  const items = unitsData?.items ?? [];
+  const paginationTotal = unitsData?.paginationTotal ?? 0;
+  const totalPages = unitsData?.totalPages ?? 1;
+  const summary = unitsData?.summary ?? null;
 
   const UNIT_LIMITS: Record<string, number> = { free: 20, pro: 100, ultra: Infinity };
   const unitLimit = UNIT_LIMITS[plan] ?? 20;
-  const atLimit = isFinite(unitLimit) && units.length >= unitLimit;
+  const atLimit = isFinite(unitLimit) && (summary?.total ?? 0) >= unitLimit;
   const limitMsg = plan === 'free'
     ? 'O plano Grátis permite até 20 unidades. Faça upgrade para o Pro ou Ultra para continuar.'
     : 'O plano Pro permite até 100 unidades. Para adicionar mais unidades, faça upgrade para o Ultra.';
@@ -56,7 +97,6 @@ const UnitsPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<Unit | null>(null);
   const [form, setForm] = useState({ block: '', number: '', status: 'empty', notes: '' });
   const [saving, setSaving] = useState(false);
-  const [search, setSearch] = useState('');
   const [wizardOpen, setWizardOpen] = useState(false);
   const [residentsModalUnit, setResidentsModalUnit] = useState<Unit | null>(null);
 
@@ -113,23 +153,15 @@ const UnitsPage: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const filteredUnits = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return units;
-    return units.filter((unit) =>
-      [unit.block, unit.number, unit.status, unit.notes].some((v) => v?.toLowerCase().includes(query))
-    );
-  }, [search, units]);
-
-  if (loading) return <LoadingSpinner text="Carregando..." />;
+  if (loading && !unitsData) return <LoadingSpinner text="Carregando..." />;
 
   return (
     <PremiumPage
       title="Unidades"
-      subtitle="Controle ocupação, inadimplência e informações de cada unidade."
+      subtitle="Gerencie apartamentos, casas, blocos e status de ocupação."
       onMenuClick={onMenuClick}
       searchValue={search}
-      onSearchChange={setSearch}
+      onSearchChange={(val) => { setSearch(val); setPage(1); }}
       searchPlaceholder="Buscar unidades, blocos..."
       actions={!isFinancial ? (
         <div className="flex gap-3 w-full sm:w-auto">
@@ -148,10 +180,10 @@ const UnitsPage: React.FC = () => {
       ) : undefined}
     >
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Total de unidades" value={units.length} helper={`de ${isFinite(unitLimit) ? unitLimit : '∞'} permitidas`} icon={<Building2 className="h-4 w-4" />} />
-        <MetricCard label="Ocupadas" value={units.filter((u) => u.status === 'occupied').length} helper="em uso" icon={<CheckCircle2 className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" />
-        <MetricCard label="Vazias" value={units.filter((u) => u.status === 'empty').length} helper="disponíveis" icon={<Home className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-600" />
-        <MetricCard label="Inadimplentes" value={units.filter((u) => u.status === 'late').length} helper="atenção" icon={<AlertTriangle className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />
+        <MetricCard label="Total de unidades" value={summary?.total ?? 0} helper={`de ${isFinite(unitLimit) ? unitLimit : '∞'} permitidas`} icon={<Building2 className="h-4 w-4" />} />
+        <MetricCard label="Ocupadas" value={summary?.occupied ?? 0} helper="em uso" icon={<CheckCircle2 className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" />
+        <MetricCard label="Vazias" value={summary?.empty ?? 0} helper="disponíveis" icon={<Home className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-600" />
+        <MetricCard label="Inadimplentes" value={summary?.late ?? 0} helper="atenção" icon={<AlertTriangle className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />
       </section>
 
       <section className="data-table-wrapper mt-6">
@@ -159,21 +191,21 @@ const UnitsPage: React.FC = () => {
           <div>
             <h2 className="section-title">Lista de Unidades</h2>
             <p className="mt-0.5 text-xs font-medium text-slate-400">
-              {search ? `${filteredUnits.length} resultado(s) encontrados` : 'Cadastro estrutural do condomínio'}
+              {debouncedSearch ? `${paginationTotal} resultado(s) encontrados` : 'Cadastro estrutural do condomínio'}
             </p>
           </div>
         </div>
 
-        {filteredUnits.length === 0 ? (
+        {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
               <Home className="h-6 w-6" />
             </div>
             <h3 className="mt-4 text-base font-extrabold text-slate-800">
-              {units.length === 0 ? 'Nenhuma unidade cadastrada' : 'Nenhuma unidade encontrada'}
+              {(summary?.total ?? paginationTotal) === 0 ? 'Nenhuma unidade cadastrada' : 'Nenhuma unidade encontrada'}
             </h3>
             <p className="mt-1.5 max-w-sm text-sm font-medium text-slate-400">
-              {units.length === 0 ? (
+              {(summary?.total ?? paginationTotal) === 0 ? (
                 <>
                   Cadastre apartamentos, casas ou salas para vincular moradores, cobranças, reservas e encomendas.<br/>
                   <span className="mt-1 block text-xs text-slate-400">Dica: Você pode cadastrar manualmente ou exportar/importar dados via API.</span>
@@ -182,7 +214,7 @@ const UnitsPage: React.FC = () => {
                 'Tente buscar por outro bloco, número ou observação.'
               )}
             </p>
-            {units.length === 0 && !isFinancial && (
+            {(summary?.total ?? paginationTotal) === 0 && !isFinancial && (
               <div className="mt-6 flex gap-3">
                 <Button onClick={() => setWizardOpen(true)} variant="secondary" icon={<UploadCloud className="h-4 w-4" />}>
                   Importar Excel/PDF
@@ -208,7 +240,7 @@ const UnitsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUnits.map((unit) => (
+                  {items.map((unit) => (
                     <tr key={unit._id}>
                       <td>
                         <div className="flex items-center gap-3">
@@ -274,8 +306,9 @@ const UnitsPage: React.FC = () => {
               </table>
             </div>
             <div className="border-t border-slate-100 px-5 py-3.5 text-xs font-semibold text-slate-400">
-              Mostrando <span className="font-bold text-slate-600">{filteredUnits.length}</span> de <span className="font-bold text-slate-600">{units.length}</span> unidades
+              Mostrando <span className="font-bold text-slate-600">{items.length}</span> de <span className="font-bold text-slate-600">{paginationTotal}</span> unidades
             </div>
+            <Pagination page={page} totalPages={totalPages} total={paginationTotal} limit={LIMIT} onPageChange={setPage} />
           </>
         )}
       </section>

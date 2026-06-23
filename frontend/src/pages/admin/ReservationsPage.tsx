@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -57,11 +58,40 @@ const ReservationsPage: React.FC = () => {
   const canBlock = !isResident;
   const canApprove = isAdmin;
 
-  // Data state
-  const [list, setList] = useState<Reservation[]>([]);
-  const [blocks, setBlocks] = useState<ReservationBlock[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // Data via React Query
+  const { data: list = [], isLoading: loadingReservations } = useQuery<Reservation[]>({
+    queryKey: ['reservations'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/reservations');
+        return toArr<Reservation>(data);
+      } catch { toast.error('Não foi possível carregar as reservas.'); return []; }
+    },
+  });
+
+  const { data: units = [], isLoading: loadingUnits } = useQuery<Unit[]>({
+    queryKey: ['units'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/units');
+        return toArr<Unit>(data);
+      } catch { return []; }
+    },
+  });
+
+  const { data: blocks = [], isLoading: loadingBlocks } = useQuery<ReservationBlock[]>({
+    queryKey: ['reservation-blocks'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/reservations/blocks/list');
+        return toArr<ReservationBlock>(data);
+      } catch { return []; }
+    },
+  });
+
+  const loading = loadingReservations || loadingUnits || loadingBlocks;
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Reservation | null>(null);
   const [deleteBlockTarget, setDeleteBlockTarget] = useState<ReservationBlock | null>(null);
@@ -77,21 +107,6 @@ const ReservationsPage: React.FC = () => {
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [selectedDay, setSelectedDay] = useState<string>(todayStr);
   const [panelMode, setPanelMode] = useState<'view' | 'create' | 'block'>('view');
-
-  const load = async () => {
-    try {
-      const [res, unitsRes, blocksRes] = await Promise.all([
-        api.get('/reservations'),
-        api.get('/units'),
-        api.get('/reservations/blocks/list'),
-      ]);
-      setList(toArr<Reservation>(res.data));
-      setUnits(toArr<Unit>(unitsRes.data));
-      setBlocks(toArr<ReservationBlock>(blocksRes.data));
-    } catch {} finally { setLoading(false); }
-  };
-
-  useEffect(() => { load(); }, []);
 
   // Calendar computed
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
@@ -124,6 +139,17 @@ const ReservationsPage: React.FC = () => {
     [blocksByDay, selectedDay],
   );
 
+  const listCounts = useMemo(() => ({
+    pending: list.filter(i => i.status === 'pending').length,
+    approved: list.filter(i => i.status === 'approved').length,
+    rejected: list.filter(i => i.status === 'rejected').length,
+  }), [list]);
+
+  const unitOptions = useMemo(
+    () => units.map(u => ({ value: u._id, label: getUnitLabel(u) })),
+    [units],
+  );
+
   const conflictError = useMemo(() => {
     if (!form.area || !form.startTime || !form.endTime || form.startTime >= form.endTime) return null;
     const hasBlock = selectedDayBlocks.some(b =>
@@ -140,11 +166,19 @@ const ReservationsPage: React.FC = () => {
 
   // Actions
   const approve = async (id: string) => {
-    try { await api.patch(`/reservations/${id}/approve`); toast.success('Aprovada!'); load(); }
+    try {
+      await api.patch(`/reservations/${id}/approve`);
+      toast.success('Aprovada!');
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
+    }
     catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
   };
   const reject = async (id: string) => {
-    try { await api.patch(`/reservations/${id}/reject`); toast.success('Recusada!'); load(); }
+    try {
+      await api.patch(`/reservations/${id}/reject`);
+      toast.success('Recusada!');
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
+    }
     catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
   };
 
@@ -155,7 +189,7 @@ const ReservationsPage: React.FC = () => {
       await api.delete(`/reservations/${deleteTarget._id}`);
       toast.success('Reserva excluída!');
       setDeleteTarget(null);
-      load();
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -167,7 +201,7 @@ const ReservationsPage: React.FC = () => {
       await api.delete(`/reservations/blocks/${deleteBlockTarget._id}`);
       toast.success('Bloqueio removido!');
       setDeleteBlockTarget(null);
-      load();
+      queryClient.invalidateQueries({ queryKey: ['reservation-blocks'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -202,7 +236,7 @@ const ReservationsPage: React.FC = () => {
       toast.success('Reserva criada!');
       setPanelMode('view');
       setForm({ unitId: '', area: '', startTime: '', endTime: '', notes: '' });
-      load();
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -222,7 +256,7 @@ const ReservationsPage: React.FC = () => {
       toast.success('Horário bloqueado!');
       setPanelMode('view');
       setBlockForm({ area: '', startTime: '', endTime: '', reason: '' });
-      load();
+      queryClient.invalidateQueries({ queryKey: ['reservation-blocks'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setSaving(false); }
   };
@@ -255,7 +289,7 @@ const ReservationsPage: React.FC = () => {
   return (
     <PremiumPage
       title="Reservas"
-      subtitle="Agenda interativa de áreas comuns e solicitações dos moradores."
+      subtitle="Gerencie áreas comuns, horários e solicitações dos moradores."
       onMenuClick={onMenuClick}
       actions={(
         <>
@@ -282,9 +316,9 @@ const ReservationsPage: React.FC = () => {
       {!isResident && (
         <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <MetricCard label="Reservas" value={list.length} helper="solicitações" icon={<CalendarDays className="h-4 w-4" />} />
-          <MetricCard label="Pendentes" value={list.filter(i => i.status === 'pending').length} helper="para análise" icon={<Clock3 className="h-4 w-4" />} iconClass="bg-violet-100 text-violet-700" />
-          <MetricCard label="Aprovadas" value={list.filter(i => i.status === 'approved').length} helper="confirmadas" icon={<CheckCircle className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" valueClassName="text-emerald-700" />
-          <MetricCard label="Recusadas" value={list.filter(i => i.status === 'rejected').length} helper="negadas" icon={<XCircle className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />
+          <MetricCard label="Pendentes" value={listCounts.pending} helper="para análise" icon={<Clock3 className="h-4 w-4" />} iconClass="bg-violet-100 text-violet-700" />
+          <MetricCard label="Aprovadas" value={listCounts.approved} helper="confirmadas" icon={<CheckCircle className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" valueClassName="text-emerald-700" />
+          <MetricCard label="Recusadas" value={listCounts.rejected} helper="negadas" icon={<XCircle className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />
           <MetricCard label="Bloqueios" value={blocks.length} helper="agenda travada" icon={<Ban className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-700" />
         </section>
       )}
@@ -580,7 +614,7 @@ const ReservationsPage: React.FC = () => {
                   label="Unidade *"
                   value={form.unitId}
                   onChange={e => setForm({ ...form, unitId: e.target.value })}
-                  options={units.map(u => ({ value: u._id, label: getUnitLabel(u) }))}
+                  options={unitOptions}
                   placeholder="Selecione a unidade"
                 />
                 <Select

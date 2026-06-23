@@ -7,6 +7,7 @@ import { useDemo } from '../contexts/DemoContext';
 import { useOnboardingTour } from '../hooks/useOnboardingTour';
 import api from '../services/api';
 import Button from '../components/ui/Button';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 interface StaffMember {
   _id: string;
@@ -42,6 +43,8 @@ const SettingsPage: React.FC = () => {
   const [inviteRole, setInviteRole] = useState('concierge');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
+  const [removeTarget, setRemoveTarget] = useState<StaffMember | null>(null);
+  const [removeLoading, setRemoveLoading] = useState(false);
 
   const roleLabel = user?.role === 'admin' ? 'Síndico'
     : user?.role === 'subadmin' ? 'Gestão'
@@ -86,11 +89,11 @@ const SettingsPage: React.FC = () => {
     setInviteLoading(true);
     setInviteLink('');
     try {
-      await api.post('/auth/invite-staff', { email, role: inviteRole });
-      setInviteLink(`${window.location.origin}/login`);
+      const { data } = await api.post('/auth/invite-staff', { email, role: inviteRole });
+      setInviteLink(data?.inviteLink || '');
       setInviteEmail('');
       loadStaff();
-      toast.success('Colaborador adicionado. Oriente-o a trocar a senha temporária no primeiro acesso.');
+      toast.success('Convite criado. Envie o link ao colaborador para ele definir a senha.');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Erro ao adicionar colaborador');
     } finally {
@@ -98,14 +101,23 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleRemove = async (id: string) => {
+  const handleRemove = (member: StaffMember) => {
     if (isDemo) { blockAction(); return; }
+    setRemoveTarget(member);
+  };
+
+  const confirmRemove = async () => {
+    if (!removeTarget) return;
+    setRemoveLoading(true);
     try {
-      await api.delete(`/auth/staff/${id}`);
-      setStaff((prev) => prev.filter((s) => s._id !== id));
+      await api.delete(`/auth/staff/${removeTarget._id}`);
+      setStaff((prev) => prev.filter((s) => s._id !== removeTarget._id));
       toast.success('Colaborador removido');
+      setRemoveTarget(null);
     } catch {
       toast.error('Erro ao remover');
+    } finally {
+      setRemoveLoading(false);
     }
   };
 
@@ -197,7 +209,7 @@ const SettingsPage: React.FC = () => {
 
           {inviteLink && (
             <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">Acesso criado · oriente o colaborador a trocar a senha no primeiro login</p>
+              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">Link de convite · o colaborador define a própria senha ao abrir o link</p>
               <div className="flex items-center gap-2">
               <p className="flex-1 truncate text-xs font-semibold text-emerald-800">{inviteLink}</p>
               <button
@@ -228,7 +240,7 @@ const SettingsPage: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleRemove(member._id)}
+                    onClick={() => handleRemove(member)}
                     className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -265,6 +277,16 @@ const SettingsPage: React.FC = () => {
           </div>
         </section>
       )}
+
+      <ConfirmDialog
+        isOpen={!!removeTarget}
+        title="Remover colaborador"
+        description={removeTarget ? `Tem certeza que deseja remover ${removeTarget.name} (${CARGO_LABELS[removeTarget.role] || removeTarget.role})? O acesso será revogado imediatamente.` : ''}
+        confirmLabel="Remover"
+        loading={removeLoading}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={confirmRemove}
+      />
 
       {/* Encerrar sessão */}
       <div className="pt-2">

@@ -7,6 +7,7 @@ import Announcement from '../models/Announcement';
 import Expense from '../models/Expense';
 import { AuthRequest } from '../middlewares/auth';
 import { syncOverdueCharges } from '../utils/charges';
+import { notDeleted } from '../utils/softDelete';
 import { errorDetails } from '../utils/errorDetails';
 
 export const getAdminDashboard = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -24,7 +25,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response): Promis
     ] = await Promise.all([
       Unit.countDocuments({ condominiumId }),
       Charge.aggregate([
-        { $match: { condominiumId } },
+        { $match: { condominiumId, ...notDeleted } },
         {
           $group: {
             _id: null,
@@ -36,7 +37,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response): Promis
       ]),
       Issue.countDocuments({ condominiumId, status: 'open' }),
       Reservation.countDocuments({ condominiumId, status: 'pending' }),
-      Charge.find({ condominiumId, status: 'late' })
+      Charge.find({ condominiumId, status: 'late', ...notDeleted })
         .populate('unitId', 'block number').populate('residentId', 'name phone')
         .sort({ dueDate: 1 }).limit(10),
       Announcement.find({ condominiumId }).sort({ createdAt: -1 }).limit(5),
@@ -45,7 +46,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response): Promis
       Reservation.find({ condominiumId, status: 'pending', date: { $gte: now } })
         .populate('unitId', 'block number').sort({ date: 1 }).limit(5),
       Expense.aggregate([
-        { $match: { condominiumId } },
+        { $match: { condominiumId, ...notDeleted } },
         {
           $group: {
             _id: null,
@@ -111,7 +112,7 @@ export const getResidentDashboard = async (req: AuthRequest, res: Response): Pro
     await syncOverdueCharges(condominiumId!);
 
     const [pendingCharges, recentAnnouncements, openIssues, upcomingReservations] = await Promise.all([
-      Charge.find({ condominiumId, unitId, status: { $in: ['pending', 'late'] } }).sort({ dueDate: 1 }).limit(5),
+      Charge.find({ condominiumId, unitId, status: { $in: ['pending', 'late'] }, ...notDeleted }).sort({ dueDate: 1 }).limit(5),
       Announcement.find({ condominiumId }).sort({ isPinned: -1, createdAt: -1 }).limit(5),
       Issue.find({ condominiumId, unitId, status: { $in: ['open', 'in_progress'] } }).sort({ createdAt: -1 }).limit(5),
       Reservation.find({ condominiumId, unitId, date: { $gte: new Date() } }).sort({ date: 1 }).limit(5),
@@ -167,7 +168,7 @@ export const getAdminCharts = async (req: AuthRequest, res: Response): Promise<v
     const [chargesByMonth, unitStats, issuesOpen, issuesResolved] =
       await Promise.all([
         Charge.aggregate([
-          { $match: { condominiumId, referenceMonth: { $in: months } } },
+          { $match: { condominiumId, referenceMonth: { $in: months }, ...notDeleted } },
           {
             $group: {
               _id: '$referenceMonth',

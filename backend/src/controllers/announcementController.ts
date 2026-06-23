@@ -1,7 +1,9 @@
 import { Response } from 'express';
 import Announcement from '../models/Announcement';
 import { AuthRequest } from '../middlewares/auth';
+import { audit } from '../utils/audit';
 import { errorDetails } from '../utils/errorDetails';
+import { getPaginationParams, buildPaginationResponse } from '../utils/pagination';
 
 const MAX_PHOTOS = 8;
 const MAX_PHOTO_PAYLOAD_BYTES = 9 * 1024 * 1024;
@@ -63,22 +65,33 @@ export const createAnnouncement = async (req: AuthRequest, res: Response): Promi
 
 export const getAnnouncements = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
-    const skip = (page - 1) * limit;
-
     const filter = { condominiumId: req.user!.condominiumId };
 
-    const [data, total] = await Promise.all([
-      Announcement.find(filter)
-        .populate('createdBy', 'name')
-        .sort({ isPinned: -1, createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      Announcement.countDocuments(filter),
-    ]);
-
-    res.json({ data, total, page, totalPages: Math.ceil(total / limit) });
+    if (req.query.page) {
+      const { page, limit, skip } = getPaginationParams(req.query as Record<string, unknown>);
+      const [data, total] = await Promise.all([
+        Announcement.find(filter)
+          .populate('createdBy', 'name')
+          .sort({ isPinned: -1, createdAt: -1 })
+          .skip(skip)
+          .limit(limit),
+        Announcement.countDocuments(filter),
+      ]);
+      res.json(buildPaginationResponse(data, page, limit, total));
+    } else {
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
+      const skip = (page - 1) * limit;
+      const [data, total] = await Promise.all([
+        Announcement.find(filter)
+          .populate('createdBy', 'name')
+          .sort({ isPinned: -1, createdAt: -1 })
+          .skip(skip)
+          .limit(limit),
+        Announcement.countDocuments(filter),
+      ]);
+      res.json({ data, total, page, totalPages: Math.ceil(total / limit) });
+    }
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar comunicados', details: errorDetails(error) });
   }
@@ -134,6 +147,12 @@ export const deleteAnnouncement = async (req: AuthRequest, res: Response): Promi
   try {
     const a = await Announcement.findOneAndDelete({ _id: req.params.id, condominiumId: req.user!.condominiumId });
     if (!a) { res.status(404).json({ error: 'Comunicado não encontrado' }); return; }
+    await audit(req, {
+      action: 'delete',
+      entity: 'announcement',
+      entityId: a._id as any,
+      message: `Comunicado "${a.title}" excluído`,
+    });
     res.json({ message: 'Comunicado excluído com sucesso' });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao excluir comunicado', details: errorDetails(error) });

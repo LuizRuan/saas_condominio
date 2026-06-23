@@ -211,16 +211,19 @@ const ChargesPage: React.FC = () => {
     return filteredCharges.slice(start, start + limit);
   }, [filteredCharges, page]);
 
-  const sumByStatus = (status: Charge['status']) => charges
-    .filter((charge) => charge.status === status)
-    .reduce((total, charge) => total + charge.amount, 0);
+  const chargeSums = useMemo(() => ({
+    paid: charges.filter(c => c.status === 'paid').reduce((t, c) => t + c.amount, 0),
+    pending: charges.filter(c => c.status === 'pending').reduce((t, c) => t + c.amount, 0),
+    late: charges.filter(c => c.status === 'late').reduce((t, c) => t + c.amount, 0),
+    proofCount: charges.filter(c => c.proofStatus === 'submitted').length,
+  }), [charges]);
 
   if (loading) return <LoadingSpinner text="Carregando..." />;
 
   return (
     <PremiumPage
       title="Cobranças"
-      subtitle="Gerencie vencimentos, status e mensagens de cobrança em um só lugar."
+      subtitle="Acompanhe pagamentos, atrasos e cobranças do condomínio."
       onMenuClick={onMenuClick}
       searchValue={search}
       onSearchChange={(val) => { setSearch(val); setPage(1); }}
@@ -235,10 +238,10 @@ const ChargesPage: React.FC = () => {
     >
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="Cobranças" value={charges.length} helper="no filtro atual" icon={<Receipt className="h-4 w-4" />} />
-        <MetricCard label="Recebido" value={formatCurrency(sumByStatus('paid'))} helper="pagas" icon={<CheckCircle2 className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" valueClassName="text-emerald-700" />
-        <MetricCard label="A receber" value={formatCurrency(sumByStatus('pending'))} helper="pendentes" icon={<WalletCards className="h-4 w-4" />} iconClass="bg-blue-100 text-blue-700" valueClassName="text-blue-700" />
-        <MetricCard label="Em atraso" value={formatCurrency(sumByStatus('late'))} helper="atenção" icon={<AlertTriangle className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />
-        <MetricCard label="Comprovantes" value={charges.filter((charge) => charge.proofStatus === 'submitted').length} helper="para revisar" icon={<FileCheck2 className="h-4 w-4" />} iconClass="bg-fuchsia-100 text-fuchsia-700" valueClassName="text-fuchsia-700" />
+        <MetricCard label="Recebido" value={formatCurrency(chargeSums.paid)} helper="pagas" icon={<CheckCircle2 className="h-4 w-4" />} iconClass="bg-emerald-100 text-emerald-700" valueClassName="text-emerald-700" />
+        <MetricCard label="A receber" value={formatCurrency(chargeSums.pending)} helper="pendentes" icon={<WalletCards className="h-4 w-4" />} iconClass="bg-blue-100 text-blue-700" valueClassName="text-blue-700" />
+        <MetricCard label="Em atraso" value={formatCurrency(chargeSums.late)} helper="atenção" icon={<AlertTriangle className="h-4 w-4" />} iconClass="bg-red-100 text-red-700" valueClassName="text-red-600" />
+        <MetricCard label="Comprovantes" value={chargeSums.proofCount} helper="para revisar" icon={<FileCheck2 className="h-4 w-4" />} iconClass="bg-fuchsia-100 text-fuchsia-700" valueClassName="text-fuchsia-700" />
       </section>
 
       <section className="data-table-wrapper mt-6">
@@ -262,7 +265,7 @@ const ChargesPage: React.FC = () => {
               <Receipt className="h-6 w-6" />
             </div>
             <h3 className="mt-4 text-base font-extrabold text-slate-800">
-              {charges.length === 0 ? 'Nenhuma cobrança registrada' : 'Nenhum resultado'}
+              {charges.length === 0 ? 'Nenhuma cobrança registrada' : 'Nenhuma cobrança encontrada'}
             </h3>
             <p className="mt-1.5 max-w-sm text-sm font-medium text-slate-400">
               {charges.length === 0 ? (
@@ -274,6 +277,11 @@ const ChargesPage: React.FC = () => {
                 'Tente ajustar os filtros de busca ou limpar a pesquisa.'
               )}
             </p>
+            {charges.length === 0 && (
+              <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="mt-6">
+                Nova cobrança
+              </Button>
+            )}
           </div>
         ) : (
           <>

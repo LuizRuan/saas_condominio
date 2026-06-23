@@ -21,7 +21,7 @@ export const authMiddleware = async (
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, getJwtSecret()) as jwt.JwtPayload;
+    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as jwt.JwtPayload;
     const userId = typeof decoded.sub === 'string'
       ? decoded.sub
       : typeof decoded.id === 'string'

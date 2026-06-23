@@ -4,6 +4,7 @@ import Expense from '../models/Expense';
 import { AuthRequest } from '../middlewares/auth';
 import mongoose from 'mongoose';
 import { requirePlan } from '../utils/planCheck';
+import { notDeleted } from '../utils/softDelete';
 import { errorDetails } from '../utils/errorDetails';
 
 export const getCashflow = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -21,7 +22,7 @@ export const getCashflow = async (req: AuthRequest, res: Response): Promise<void
     const [receivedByMonth, expensesByMonth] = await Promise.all([
       // Aggregating paid charges
       Charge.aggregate([
-        { $match: { condominiumId, status: 'paid', referenceMonth: { $in: months } } },
+        { $match: { condominiumId, status: 'paid', referenceMonth: { $in: months }, ...notDeleted } },
         { $group: { _id: '$referenceMonth', total: { $sum: '$amount' } } },
       ]),
       // Aggregating paid expenses
@@ -35,6 +36,7 @@ export const getCashflow = async (req: AuthRequest, res: Response): Promise<void
               $gte: new Date(now.getFullYear(), now.getMonth() - 6, 1),
               $lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
             },
+            ...notDeleted,
           },
         },
         {
@@ -103,38 +105,38 @@ export const getReport = async (req: AuthRequest, res: Response): Promise<void> 
     ] = await Promise.all([
       // Total recebido no mês de referência
       Charge.aggregate([
-        { $match: { condominiumId, status: 'paid', referenceMonth: targetMonthStr } },
+        { $match: { condominiumId, status: 'paid', referenceMonth: targetMonthStr, ...notDeleted } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
       // Total a receber no mês de referência
       Charge.aggregate([
-        { $match: { condominiumId, status: 'pending', referenceMonth: targetMonthStr } },
+        { $match: { condominiumId, status: 'pending', referenceMonth: targetMonthStr, ...notDeleted } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
       // Total inadimplente (todo histórico ou mês específico? Vamos usar todo histórico ativo)
       Charge.aggregate([
-        { $match: { condominiumId, status: 'late' } },
+        { $match: { condominiumId, status: 'late', ...notDeleted } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
       // Despesas pagas neste mês
       Expense.aggregate([
-        { $match: { condominiumId, status: 'paid', date: { $gte: startDate, $lte: endDate } } },
+        { $match: { condominiumId, status: 'paid', date: { $gte: startDate, $lte: endDate }, ...notDeleted } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
       // Despesas previstas para este mês (pendentes com data no mês)
       Expense.aggregate([
-        { $match: { condominiumId, status: 'pending', date: { $gte: startDate, $lte: endDate } } },
+        { $match: { condominiumId, status: 'pending', date: { $gte: startDate, $lte: endDate }, ...notDeleted } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
       // Top despesas do mês por categoria
       Expense.aggregate([
-        { $match: { condominiumId, status: 'paid', date: { $gte: startDate, $lte: endDate } } },
+        { $match: { condominiumId, status: 'paid', date: { $gte: startDate, $lte: endDate }, ...notDeleted } },
         { $group: { _id: '$category', total: { $sum: '$amount' } } },
         { $sort: { total: -1 } },
       ]),
       // Unidades inadimplentes detalhadas
       Charge.aggregate([
-        { $match: { condominiumId, status: 'late' } },
+        { $match: { condominiumId, status: 'late', ...notDeleted } },
         { $group: { _id: '$unitId', totalDebt: { $sum: '$amount' }, count: { $sum: 1 } } },
         { $lookup: { from: 'units', localField: '_id', foreignField: '_id', as: 'unit' } },
         { $unwind: '$unit' },

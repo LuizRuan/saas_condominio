@@ -21,6 +21,8 @@ export interface ICharge extends Document {
     actorId?: mongoose.Types.ObjectId;
     createdAt: Date;
   }[];
+  deletedAt?: Date | null;
+  deletedBy?: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,6 +57,8 @@ const ChargeSchema = new Schema<ICharge>(
       actorId: { type: Schema.Types.ObjectId, ref: 'User' },
       createdAt: { type: Date, default: Date.now },
     }],
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   },
   { timestamps: true }
 );
@@ -66,5 +70,11 @@ ChargeSchema.index({ unitId: 1 });
 ChargeSchema.index({ condominiumId: 1, status: 1, dueDate: -1 });
 ChargeSchema.index({ condominiumId: 1, referenceMonth: 1, status: 1 });
 ChargeSchema.index({ condominiumId: 1, dueDate: 1, status: 1 }); // syncOverdueCharges
+// Apoio à checagem de duplicidade {condominiumId, unitId, referenceMonth}.
+// NÃO é único de propósito: aplicar unique só após migration confirmar zero duplicados.
+ChargeSchema.index({ condominiumId: 1, unitId: 1, referenceMonth: 1 });
+ChargeSchema.index({ condominiumId: 1, deletedAt: 1 });
+// Queries de morador: getCharges filtra por unitId + status opcional + notDeleted
+ChargeSchema.index({ condominiumId: 1, unitId: 1, status: 1 });
 
 export default mongoose.model<ICharge>('Charge', ChargeSchema);

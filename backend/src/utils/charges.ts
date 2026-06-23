@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Charge from '../models/Charge';
+import { notDeleted } from './softDelete';
 
 // Prevent redundant write operations — sync runs at most once per hour per condominium
 const lastSyncMap = new Map<string, number>();
@@ -21,6 +22,7 @@ export const syncOverdueCharges = async (condominiumId: mongoose.Types.ObjectId)
       condominiumId,
       status: 'pending',
       dueDate: { $lt: today },
+      ...notDeleted,
     },
     {
       $set: { status: 'late' },

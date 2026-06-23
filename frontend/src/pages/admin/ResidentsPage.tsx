@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '../../components/ui/Button';
@@ -37,17 +37,61 @@ const shortTypeLabels: Record<Resident['type'], string> = {
   financial_responsible: 'Resp. Financeiro',
 };
 
+const LIMIT = 20;
+
+interface ResidentsSummary {
+  total: number;
+  financial: number;
+  owners: number;
+  tenants: number;
+  monthlyNew: number;
+}
+
+interface ResidentsQueryResult {
+  items: Resident[];
+  paginationTotal: number;
+  totalPages: number;
+  summary: ResidentsSummary | null;
+}
+
 const ResidentsPage: React.FC = () => {
   const { onMenuClick } = useOutletContext<{ onMenuClick: () => void }>();
   const { isDemo, blockAction } = useDemo();
   const { isConcierge } = useAuth();
   const queryClient = useQueryClient();
-  
-  const { data: residents = [], isLoading: loadingResidents } = useQuery<Resident[]>({
-    queryKey: ['residents'],
-    queryFn: async () => {
-      const { data } = await api.get('/residents');
-      return data;
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Resident | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Resident | null>(null);
+  const [inviteTarget, setInviteTarget] = useState<Resident | null>(null);
+  const [inviteResult, setInviteResult] = useState<{ inviteUrl: string; whatsappText: string; expiresAt: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [form, setForm] = useState({ name: '', phone: '', email: '', unitId: '', type: 'owner', isFinancialResponsible: false, createAccount: false, password: '123456' });
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data: residentsData, isLoading: loadingResidents } = useQuery<ResidentsQueryResult>({
+    queryKey: ['residents', page, LIMIT, debouncedSearch],
+    placeholderData: (prev) => prev,
+    queryFn: async (): Promise<ResidentsQueryResult> => {
+      const params: Record<string, any> = { page, limit: LIMIT };
+      if (debouncedSearch) params.search = debouncedSearch;
+      const { data } = await api.get('/residents', { params });
+      if (Array.isArray(data)) {
+        return { items: data, paginationTotal: data.length, totalPages: 1, summary: null };
+      }
+      return {
+        items: data.data ?? [],
+        paginationTotal: data.pagination?.total ?? 0,
+        totalPages: data.pagination?.totalPages ?? 1,
+        summary: data.summary ?? null,
+      };
     },
   });
 
@@ -61,18 +105,13 @@ const ResidentsPage: React.FC = () => {
 
   const loading = loadingResidents || loadingUnits;
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Resident | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Resident | null>(null);
-  const [inviteTarget, setInviteTarget] = useState<Resident | null>(null);
-  const [inviteResult, setInviteResult] = useState<{ inviteUrl: string; whatsappText: string; expiresAt: string } | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const limit = 10;
-  const [form, setForm] = useState({ name: '', phone: '', email: '', unitId: '', type: 'owner', isFinancialResponsible: false, createAccount: false, password: '123456' });
+  const items = residentsData?.items ?? [];
+  const paginationTotal = residentsData?.paginationTotal ?? 0;
+  const totalPages = residentsData?.totalPages ?? 1;
+  const summary = residentsData?.summary ?? null;
 
-
+  // Fallback para determinar se não há moradores (global)
+  const isResidentless = (summary?.total ?? paginationTotal) === 0;
 
   const openCreate = () => {
     setEditing(null);
@@ -135,22 +174,8 @@ const ResidentsPage: React.FC = () => {
     window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(inviteResult.whatsappText)}`, '_blank', 'noopener,noreferrer');
   };
 
-  const filteredResidents = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return residents;
-    return residents.filter((resident) =>
-      [resident.name, resident.email, resident.phone, getUnitLabel(resident.unitId), residentTypeLabels[resident.type]]
-        .some((v) => v?.toLowerCase().includes(query))
-    );
-  }, [residents, search]);
-
-  const paginatedResidents = useMemo(() => {
-    const start = (page - 1) * limit;
-    return filteredResidents.slice(start, start + limit);
-  }, [filteredResidents, page]);
-
   const handleExport = () => {
-    exportToCSV(filteredResidents, 'moradores', [
+    exportToCSV(items, 'moradores', [
       { key: 'name', label: 'Nome' },
       { key: 'email', label: 'E-mail' },
       { key: 'phone', label: 'Telefone', format: (val) => val ? formatPhone(val) : '' },
@@ -161,20 +186,19 @@ const ResidentsPage: React.FC = () => {
     ]);
   };
 
-  const monthlyNew = useMemo(() => {
-    const now = new Date();
-    return residents.filter((r) => {
-      const d = new Date(r.createdAt);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).length;
-  }, [residents]);
+  // Não há mais filtro client-side — o backend entrega apenas os itens da página atual
+  // Métricas viram do summary (global, ignora busca e paginação)
+  const unitOptions = useMemo(
+    () => units.map((u) => ({ value: u._id, label: `${u.block ? 'Bloco ' + u.block + ' - ' : ''}Apt ${u.number}` })),
+    [units],
+  );
 
   if (loading) return <LoadingSpinner text="Carregando..." />;
 
   return (
     <PremiumPage
       title="Moradores"
-      subtitle="Organize responsáveis, proprietários e inquilinos do condomínio."
+      subtitle="Organize proprietários, inquilinos e responsáveis financeiros."
       onMenuClick={onMenuClick}
       searchValue={search}
       onSearchChange={(val) => { setSearch(val); setPage(1); }}
@@ -185,17 +209,17 @@ const ResidentsPage: React.FC = () => {
             Exportar
           </Button>
           <Button onClick={isDemo ? blockAction : openCreate} icon={<Plus className="h-4 w-4" />} className="flex-1 sm:flex-none">
-            Novo
+            Novo morador
           </Button>
         </div>
       ) : undefined}
     >
-      {/* Métricas */}
+      {/* Métricas — sempre globais via summary */}
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Total de moradores" value={residents.length} helper={`+${monthlyNew} este mês`} icon={<Users className="h-4 w-4" />} iconClass="bg-blue-100 text-blue-700" />
-        <MetricCard label="Responsáveis financeiros" value={residents.filter((r) => r.isFinancialResponsible || r.type === 'financial_responsible').length} helper="Contas vinculadas" icon={<WalletCards className="h-4 w-4" />} iconClass="bg-indigo-100 text-indigo-700" />
-        <MetricCard label="Proprietários" value={residents.filter((r) => r.type === 'owner').length} helper="Unidades principais" icon={<UserRoundCog className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-600" />
-        <MetricCard label="Inquilinos" value={residents.filter((r) => r.type === 'tenant').length} helper="Moradia ativa" icon={<Users className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-500" />
+        <MetricCard label="Total de moradores" value={summary?.total ?? 0} helper={`+${summary?.monthlyNew ?? 0} este mês`} icon={<Users className="h-4 w-4" />} iconClass="bg-blue-100 text-blue-700" />
+        <MetricCard label="Responsáveis financeiros" value={summary?.financial ?? 0} helper="Contas vinculadas" icon={<WalletCards className="h-4 w-4" />} iconClass="bg-indigo-100 text-indigo-700" />
+        <MetricCard label="Proprietários" value={summary?.owners ?? 0} helper="Unidades principais" icon={<UserRoundCog className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-600" />
+        <MetricCard label="Inquilinos" value={summary?.tenants ?? 0} helper="Moradia ativa" icon={<Users className="h-4 w-4" />} iconClass="bg-slate-100 text-slate-500" />
       </section>
 
       {/* Tabela */}
@@ -204,21 +228,21 @@ const ResidentsPage: React.FC = () => {
           <div>
             <h2 className="section-title">Lista de Moradores</h2>
             <p className="mt-0.5 text-xs font-medium text-slate-400">
-              {search ? `${filteredResidents.length} resultado(s) encontrados` : 'Cadastro completo dos moradores'}
+              {debouncedSearch ? `${paginationTotal} resultado(s) encontrados` : 'Cadastro completo dos moradores'}
             </p>
           </div>
         </div>
 
-        {filteredResidents.length === 0 ? (
+        {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
               <Users className="h-6 w-6" />
             </div>
             <h3 className="mt-4 text-base font-extrabold text-slate-800">
-              {residents.length === 0 ? 'Nenhum morador cadastrado' : 'Nenhum resultado encontrado'}
+              {isResidentless ? 'Nenhum morador cadastrado' : 'Nenhum resultado encontrado'}
             </h3>
             <p className="mt-1.5 max-w-sm text-sm font-medium text-slate-400">
-              {residents.length === 0 ? (
+              {isResidentless ? (
                 <>
                   Cadastre moradores para liberar acesso ao aplicativo e permitir que eles vejam suas cobranças e enviem ocorrências.<br/>
                   <span className="mt-1 block text-xs text-slate-400">Dica: Convide os moradores enviando um link de acesso por WhatsApp.</span>
@@ -227,7 +251,7 @@ const ResidentsPage: React.FC = () => {
                 'Tente buscar por outro nome, e-mail, telefone ou unidade.'
               )}
             </p>
-            {residents.length === 0 && !isConcierge && (
+            {isResidentless && !isConcierge && (
               <Button onClick={openCreate} icon={<Plus className="h-4 w-4" />} className="mt-6">
                 Cadastrar morador
               </Button>
@@ -248,7 +272,7 @@ const ResidentsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedResidents.map((resident) => (
+                  {items.map((resident) => (
                     <tr key={resident._id}>
                       <td>
                         <div className="flex items-center gap-3">
@@ -326,9 +350,9 @@ const ResidentsPage: React.FC = () => {
             </div>
             <Pagination
               page={page}
-              total={filteredResidents.length}
-              totalPages={Math.ceil(filteredResidents.length / limit)}
-              limit={limit}
+              total={paginationTotal}
+              totalPages={totalPages}
+              limit={LIMIT}
               onPageChange={setPage}
             />
           </>
@@ -341,7 +365,7 @@ const ResidentsPage: React.FC = () => {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input label="Nome *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <Select label="Unidade *" value={form.unitId} onChange={(e) => setForm({ ...form, unitId: e.target.value })}
-              options={units.map((u) => ({ value: u._id, label: `${u.block ? 'Bloco ' + u.block + ' - ' : ''}Apt ${u.number}` }))} placeholder="Selecione" />
+              options={unitOptions} placeholder="Selecione" />
             <Input
               label="Telefone"
               value={form.phone}

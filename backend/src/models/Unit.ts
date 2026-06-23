@@ -23,5 +23,7 @@ const UnitSchema = new Schema<IUnit>(
 
 UnitSchema.index({ condominiumId: 1 });
 UnitSchema.index({ condominiumId: 1, block: 1, number: 1 }, { unique: true });
+// Bulk charge: find({condominiumId, status:{$ne:'empty'}})
+UnitSchema.index({ condominiumId: 1, status: 1 });
 
 export default mongoose.model<IUnit>('Unit', UnitSchema);

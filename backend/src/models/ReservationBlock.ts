@@ -26,5 +26,7 @@ const ReservationBlockSchema = new Schema<IReservationBlock>(
 );
 
 ReservationBlockSchema.index({ condominiumId: 1, area: 1, date: 1 });
+// Listagem de bloqueios: find({condominiumId}).sort({date:1, startTime:1})
+ReservationBlockSchema.index({ condominiumId: 1, date: 1 });
 
 export default mongoose.model<IReservationBlock>('ReservationBlock', ReservationBlockSchema);

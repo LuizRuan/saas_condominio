@@ -7,6 +7,7 @@ import Unit from '../models/Unit';
 import { AuthRequest } from '../middlewares/auth';
 import { audit } from '../utils/audit';
 import { errorDetails } from '../utils/errorDetails';
+import { getPaginationParams } from '../utils/pagination';
 
 export const createResident = async (req: AuthRequest, res: Response): Promise<void> => {
   let createdUserId: string | undefined;
@@ -98,10 +99,41 @@ export const createResident = async (req: AuthRequest, res: Response): Promise<v
 
 export const getResidents = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const residents = await Resident.find({ condominiumId: req.user!.condominiumId })
-      .populate('unitId', 'block number')
-      .sort({ name: 1 });
-    res.json(residents);
+    const baseFilter: Record<string, any> = { condominiumId: req.user!.condominiumId };
+
+    if (req.query.page) {
+      const { page, limit, skip } = getPaginationParams(req.query as Record<string, unknown>);
+
+      const filter: Record<string, any> = { ...baseFilter };
+      const rawSearch = String(req.query.search ?? '').trim().slice(0, 80);
+      if (rawSearch) {
+        const esc = rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(esc, 'i');
+        filter.$or = [{ name: re }, { email: re }, { phone: re }];
+      }
+
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const [data, paginationTotal, summaryTotal, financial, owners, tenants, monthlyNew] = await Promise.all([
+        Resident.find(filter).populate('unitId', 'block number').sort({ name: 1 }).skip(skip).limit(limit),
+        Resident.countDocuments(filter),
+        Resident.countDocuments(baseFilter),
+        Resident.countDocuments({ ...baseFilter, $or: [{ isFinancialResponsible: true }, { type: 'financial_responsible' }] }),
+        Resident.countDocuments({ ...baseFilter, type: 'owner' }),
+        Resident.countDocuments({ ...baseFilter, type: 'tenant' }),
+        Resident.countDocuments({ ...baseFilter, createdAt: { $gte: startOfMonth } }),
+      ]);
+
+      res.json({
+        data,
+        pagination: { page, limit, total: paginationTotal, totalPages: Math.ceil(paginationTotal / limit) },
+        summary: { total: summaryTotal, financial, owners, tenants, monthlyNew },
+      });
+    } else {
+      const residents = await Resident.find(baseFilter).populate('unitId', 'block number').sort({ name: 1 });
+      res.json(residents);
+    }
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar moradores', details: errorDetails(error) });
   }
@@ -264,6 +296,17 @@ export const deleteResident = async (req: AuthRequest, res: Response): Promise<v
       );
     }
 
+    await audit(req, {
+      action: 'delete',
+      entity: 'resident',
+      entityId: resident._id as any,
+      message: `Morador ${resident.name} excluído`,
+      metadata: {
+        name: resident.name,
+        unitId: String(resident.unitId),
+        ...(resident.userId ? { cascadeUser: true } : {}),
+      },
+    });
     res.json({ message: 'Morador excluído com sucesso' });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao excluir morador', details: errorDetails(error) });

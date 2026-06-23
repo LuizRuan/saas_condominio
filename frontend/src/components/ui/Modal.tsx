@@ -60,6 +60,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, subtitle, childre
               {subtitle && <p className="mt-0.5 text-sm font-medium text-slate-400">{subtitle}</p>}
             </div>
             <button
+              type="button"
               onClick={onClose}
               className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
               aria-label="Fechar modal"

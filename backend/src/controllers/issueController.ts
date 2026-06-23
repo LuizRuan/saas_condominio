@@ -2,12 +2,12 @@ import { Response } from 'express';
 import Issue from '../models/Issue';
 import Unit from '../models/Unit';
 import Resident from '../models/Resident';
-import AuditLog from '../models/AuditLog';
 import { AuthRequest } from '../middlewares/auth';
 import { findResidentForUser } from '../utils/residentContext';
 import { notify } from '../utils/notifications';
 import { audit } from '../utils/audit';
 import { errorDetails } from '../utils/errorDetails';
+import { getPaginationParams } from '../utils/pagination';
 
 const normalizePhotos = (photos: unknown): string[] => {
   if (!Array.isArray(photos)) return [];
@@ -83,26 +83,59 @@ export const createIssue = async (req: AuthRequest, res: Response): Promise<void
 
 export const getIssues = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const filter: any = { condominiumId: req.user!.condominiumId };
-    if (req.user!.role === 'resident') filter.unitId = req.user!.unitId;
-    if (req.query.status) filter.status = req.query.status;
-    if (req.query.priority) filter.priority = req.query.priority;
+    const baseFilter: Record<string, any> = { condominiumId: req.user!.condominiumId };
+    if (req.user!.role === 'resident') baseFilter.unitId = req.user!.unitId;
 
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
-    const skip = (page - 1) * limit;
+    if (req.query.page) {
+      const { page, limit, skip } = getPaginationParams(req.query as Record<string, unknown>);
 
-    const [data, total] = await Promise.all([
-      Issue.find(filter)
-        .populate('unitId', 'block number')
-        .populate('residentId', 'name')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      Issue.countDocuments(filter),
-    ]);
+      const filter: Record<string, any> = { ...baseFilter };
+      if (req.query.status) filter.status = req.query.status;
+      if (req.query.priority) filter.priority = req.query.priority;
+      const rawSearch = String(req.query.search ?? '').trim().slice(0, 80);
+      if (rawSearch) {
+        const esc = rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(esc, 'i');
+        filter.$or = [{ title: re }, { description: re }];
+      }
 
-    res.json({ data, total, page, totalPages: Math.ceil(total / limit) });
+      const [data, paginationTotal, summaryTotal, open, inProgress, highPriority] = await Promise.all([
+        Issue.find(filter)
+          .populate('unitId', 'block number')
+          .populate('residentId', 'name')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit),
+        Issue.countDocuments(filter),
+        Issue.countDocuments(baseFilter),
+        Issue.countDocuments({ ...baseFilter, status: 'open' }),
+        Issue.countDocuments({ ...baseFilter, status: 'in_progress' }),
+        Issue.countDocuments({ ...baseFilter, priority: 'high' }),
+      ]);
+
+      res.json({
+        data,
+        pagination: { page, limit, total: paginationTotal, totalPages: Math.ceil(paginationTotal / limit) },
+        summary: { total: summaryTotal, open, inProgress, highPriority },
+      });
+    } else {
+      const legacyFilter: Record<string, any> = { ...baseFilter };
+      if (req.query.status) legacyFilter.status = req.query.status;
+      if (req.query.priority) legacyFilter.priority = req.query.priority;
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+      const skip = (page - 1) * limit;
+      const [data, total] = await Promise.all([
+        Issue.find(legacyFilter)
+          .populate('unitId', 'block number')
+          .populate('residentId', 'name')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit),
+        Issue.countDocuments(legacyFilter),
+      ]);
+      res.json({ data, total, page, totalPages: Math.ceil(total / limit) });
+    }
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar ocorrências', details: errorDetails(error) });
   }
@@ -204,8 +237,13 @@ export const deleteIssue = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    await AuditLog.deleteMany({ entityId: issue._id, condominiumId: req.user!.condominiumId }).catch(() => undefined);
-
+    await audit(req, {
+      action: 'delete',
+      entity: 'issue',
+      entityId: issue._id as any,
+      message: `Ocorrência "${issue.title}" excluída`,
+      metadata: { status: issue.status },
+    });
     res.json({ message: 'Ocorrência excluída com sucesso' });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao excluir ocorrência', details: errorDetails(error) });

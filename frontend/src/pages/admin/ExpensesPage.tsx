@@ -194,7 +194,7 @@ const ExpensesPage: React.FC = () => {
   return (
     <PremiumPage
       title="Despesas"
-      subtitle="Controle financeiro das despesas do condomínio por categoria."
+      subtitle="Registre contas, vencimentos e despesas do condomínio."
       onMenuClick={onMenuClick}
       searchValue={search}
       onSearchChange={setSearch}
@@ -271,8 +271,13 @@ const ExpensesPage: React.FC = () => {
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
               <BadgeDollarSign className="h-7 w-7" />
             </span>
-            <p className="text-sm font-semibold text-slate-500">
-              {search || filterCategory || filterStatus || filterMonth ? 'Nenhuma despesa encontrada para os filtros aplicados.' : 'Nenhuma despesa cadastrada ainda.'}
+            <h3 className="text-base font-extrabold text-slate-800">
+              {search || filterCategory || filterStatus || filterMonth ? 'Nenhuma despesa encontrada' : 'Nenhuma despesa cadastrada'}
+            </h3>
+            <p className="max-w-sm text-sm font-medium text-slate-500">
+              {search || filterCategory || filterStatus || filterMonth
+                ? 'Tente ajustar os filtros ou limpar a busca.'
+                : 'Registre contas de luz, água, segurança, limpeza e outras despesas do condomínio.'}
             </p>
             {!search && !filterCategory && !filterStatus && !filterMonth && (
               <Button size="sm" variant="secondary" onClick={openCreate} icon={<Plus className="h-3.5 w-3.5" />}>
@@ -329,6 +334,7 @@ const ExpensesPage: React.FC = () => {
                           onClick={() => isDemo ? blockAction() : openEdit(expense)}
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-600"
                           title="Editar"
+                          aria-label="Editar despesa"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
@@ -337,6 +343,7 @@ const ExpensesPage: React.FC = () => {
                           onClick={() => isDemo ? blockAction() : setDeleteTarget(expense)}
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600"
                           title="Excluir"
+                          aria-label="Excluir despesa"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

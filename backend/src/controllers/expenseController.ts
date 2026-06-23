@@ -2,6 +2,7 @@ import { Response } from 'express';
 import Expense from '../models/Expense';
 import { AuthRequest } from '../middlewares/auth';
 import { audit } from '../utils/audit';
+import { notDeleted } from '../utils/softDelete';
 
 const ALLOWED_FIELDS = ['description', 'amount', 'category', 'date', 'status', 'notes'] as const;
 
@@ -16,7 +17,7 @@ export const getExpenses = async (req: AuthRequest, res: Response): Promise<void
     const condominiumId = req.user!.condominiumId;
     const { category, status, month, limit = '200' } = req.query as Record<string, string>;
 
-    const filter: Record<string, unknown> = { condominiumId };
+    const filter: Record<string, unknown> = { condominiumId, ...notDeleted };
     if (category) filter.category = category;
     if (status) filter.status = status;
     if (month) {
@@ -104,14 +105,18 @@ export const updateExpense = async (req: AuthRequest, res: Response): Promise<vo
 export const deleteExpense = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const condominiumId = req.user!.condominiumId;
-    const expense = await Expense.findOneAndDelete({ _id: req.params.id, condominiumId });
+    const expense = await Expense.findOne({ _id: req.params.id, condominiumId, ...notDeleted });
     if (!expense) { res.status(404).json({ error: 'Despesa não encontrada' }); return; }
 
+    expense.deletedAt = new Date();
+    expense.deletedBy = req.user!._id as any;
+    await expense.save();
+
     await audit(req, {
-      action: 'DELETE',
-      entity: 'Expense',
+      action: 'archive',
+      entity: 'expense',
       entityId: String(expense._id),
-      message: `Despesa "${expense.description}" excluída`,
+      message: `Despesa "${expense.description}" arquivada`,
     });
 
     res.json({ message: 'Despesa excluída' });

@@ -5,8 +5,11 @@ import Charge from '../models/Charge';
 import Issue from '../models/Issue';
 import Reservation from '../models/Reservation';
 import Condominium from '../models/Condominium';
+import { getEffectivePlan } from '../utils/planCheck';
 import { AuthRequest } from '../middlewares/auth';
+import { audit } from '../utils/audit';
 import { errorDetails } from '../utils/errorDetails';
+import { getPaginationParams } from '../utils/pagination';
 
 const PLAN_UNIT_LIMITS: Record<string, number> = { free: 20, pro: 100, ultra: Infinity };
 
@@ -22,8 +25,8 @@ export const createUnit = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const condo = await Condominium.findById(req.user!.condominiumId).select('plan');
-    const plan = condo?.plan ?? 'free';
+    const condo = await Condominium.findById(req.user!.condominiumId).select('plan subscriptionStatus');
+    const plan = getEffectivePlan(condo);
     const limit = PLAN_UNIT_LIMITS[plan] ?? 20;
     if (isFinite(limit)) {
       const count = await Unit.countDocuments({ condominiumId: req.user!.condominiumId });
@@ -51,8 +54,37 @@ export const createUnit = async (req: AuthRequest, res: Response): Promise<void>
 
 export const getUnits = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const units = await Unit.find({ condominiumId: req.user!.condominiumId }).sort({ block: 1, number: 1 });
-    res.json(units);
+    const baseFilter: Record<string, any> = { condominiumId: req.user!.condominiumId };
+
+    if (req.query.page) {
+      const { page, limit, skip } = getPaginationParams(req.query as Record<string, unknown>);
+
+      const filter: Record<string, any> = { ...baseFilter };
+      const rawSearch = String(req.query.search ?? '').trim().slice(0, 80);
+      if (rawSearch) {
+        const esc = rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(esc, 'i');
+        filter.$or = [{ block: re }, { number: re }, { notes: re }];
+      }
+
+      const [data, paginationTotal, summaryTotal, occupied, empty, late] = await Promise.all([
+        Unit.find(filter).sort({ block: 1, number: 1 }).skip(skip).limit(limit),
+        Unit.countDocuments(filter),
+        Unit.countDocuments(baseFilter),
+        Unit.countDocuments({ ...baseFilter, status: 'occupied' }),
+        Unit.countDocuments({ ...baseFilter, status: 'empty' }),
+        Unit.countDocuments({ ...baseFilter, status: 'late' }),
+      ]);
+
+      res.json({
+        data,
+        pagination: { page, limit, total: paginationTotal, totalPages: Math.ceil(paginationTotal / limit) },
+        summary: { total: summaryTotal, occupied, empty, late },
+      });
+    } else {
+      const units = await Unit.find(baseFilter).sort({ block: 1, number: 1 });
+      res.json(units);
+    }
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao buscar unidades', details: errorDetails(error) });
   }
@@ -129,6 +161,13 @@ export const deleteUnit = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     await Unit.deleteOne(filter);
+    await audit(req, {
+      action: 'delete',
+      entity: 'unit',
+      entityId: unit._id as any,
+      message: `Unidade ${unit.block ? `Bloco ${unit.block} - ` : ''}Apt ${unit.number} excluída`,
+      metadata: { block: unit.block, number: unit.number },
+    });
     res.json({ message: 'Unidade excluída com sucesso' });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao excluir unidade', details: errorDetails(error) });

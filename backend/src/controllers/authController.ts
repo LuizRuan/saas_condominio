@@ -11,6 +11,7 @@ import { AuthRequest } from '../middlewares/auth';
 import { getJwtSecret } from '../config/env';
 import { seedDemo } from '../utils/seed-demo';
 import { errorDetails } from '../utils/errorDetails';
+import { getEffectivePlan } from '../utils/planCheck';
 
 // Pre-computed hash used only for timing-safe login (dummy bcrypt when email not found)
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync('_dummy_not_used_', 10);
@@ -194,7 +195,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
     }
 
     const condo = user.condominiumId
-      ? await Condominium.findById(user.condominiumId).select('plan')
+      ? await Condominium.findById(user.condominiumId).select('plan subscriptionStatus')
       : null;
 
     res.json({
@@ -208,7 +209,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
         mustChangePassword: user.mustChangePassword ?? false,
         condominiumId: user.condominiumId,
         unitId: user.unitId,
-        plan: user.isDemo ? 'ultra' : (condo?.plan ?? 'free'),
+        plan: user.isDemo ? 'ultra' : getEffectivePlan(condo),
       },
     });
   } catch (error: any) {
@@ -299,7 +300,6 @@ const ALLOWED_EMAIL_DOMAINS = new Set([
   'yahoo.com', 'yahoo.com.br', 'live.com', 'msn.com',
   'proton.me', 'protonmail.com',
 ]);
-const INITIAL_PASSWORD = '123456';
 
 export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -333,8 +333,15 @@ export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
+    // Token de convite seguro: guarda-se apenas o hash; o token cru vai uma única
+    // vez no link de convite. O colaborador define a própria senha em /convite-staff/:token.
+    const rawInviteToken = crypto.randomBytes(24).toString('hex');
+    const inviteTokenHash = crypto.createHash('sha256').update(rawInviteToken).digest('hex');
+    const inviteExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dias
+
+    // Senha placeholder aleatória e inutilizável até o convite ser aceito.
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(INITIAL_PASSWORD, salt);
+    const placeholderPassword = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), salt);
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -343,21 +350,33 @@ export const inviteStaff = async (req: AuthRequest, res: Response): Promise<void
         return;
       }
       await User.updateOne({ _id: existing._id }, {
-        $set: { role, password: hashedPassword, mustChangePassword: true, condominiumId: req.user.condominiumId },
+        $set: {
+          role,
+          password: placeholderPassword,
+          mustChangePassword: false,
+          condominiumId: req.user.condominiumId,
+          staffInviteToken: inviteTokenHash,
+          staffInviteTokenExpiry: inviteExpiry,
+        },
       });
     } else {
       await User.create({
         name,
         email,
-        password: hashedPassword,
+        password: placeholderPassword,
         phone: '',
         role,
         condominiumId: req.user.condominiumId,
-        mustChangePassword: true,
+        mustChangePassword: false,
+        staffInviteToken: inviteTokenHash,
+        staffInviteTokenExpiry: inviteExpiry,
       });
     }
 
-    res.json({ email, role });
+    const baseUrl = (process.env.CLIENT_URL || 'http://localhost:5173').split(',')[0].replace(/\/+$/, '');
+    const inviteLink = `${baseUrl}/convite-staff/${rawInviteToken}`;
+
+    res.json({ email, role, inviteLink });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao adicionar colaborador', details: errorDetails(error) });
   }

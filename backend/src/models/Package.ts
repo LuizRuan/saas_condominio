@@ -33,5 +33,7 @@ const PackageSchema = new Schema<IPackage>(
 
 PackageSchema.index({ condominiumId: 1, status: 1 });
 PackageSchema.index({ unitId: 1 });
+// Listagem admin: find({condominiumId}).sort({createdAt:-1})
+PackageSchema.index({ condominiumId: 1, createdAt: -1 });
 
 export default mongoose.model<IPackage>('Package', PackageSchema);

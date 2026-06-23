@@ -45,5 +45,9 @@ ResidentSchema.index(
     partialFilterExpression: { email: { $type: 'string', $gt: '' } },
   }
 );
+// Listagem ordenada por nome: find({condominiumId}).sort({name:1})
+ResidentSchema.index({ condominiumId: 1, name: 1 });
+// Lookups por unidade: find({condominiumId, unitId}) em packageController e outros
+ResidentSchema.index({ condominiumId: 1, unitId: 1 });
 
 export default mongoose.model<IResident>('Resident', ResidentSchema);

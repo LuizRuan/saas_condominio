@@ -47,6 +47,8 @@ const FilterSelect: React.FC<FilterSelectProps> = ({
         type="button"
         disabled={disabled}
         onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
         className={[
           'inline-flex h-10 min-w-[160px] items-center justify-between gap-2 rounded-xl border px-3.5 text-sm font-semibold shadow-sm transition-all focus:outline-none focus:ring-4',
           isActive

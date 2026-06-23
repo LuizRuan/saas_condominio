@@ -36,5 +36,7 @@ const ReservationSchema = new Schema<IReservation>(
 ReservationSchema.index({ condominiumId: 1 });
 ReservationSchema.index({ condominiumId: 1, area: 1, date: 1 });
 ReservationSchema.index({ unitId: 1 });
+// Listagem com filtro de status e ordenação por data: find({condominiumId,[status]}).sort({date:-1})
+ReservationSchema.index({ condominiumId: 1, status: 1, date: -1 });
 
 export default mongoose.model<IReservation>('Reservation', ReservationSchema);

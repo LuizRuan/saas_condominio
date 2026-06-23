@@ -72,5 +72,7 @@ IssueSchema.index({ unitId: 1 });
 // Compound indexes for common query patterns
 IssueSchema.index({ condominiumId: 1, status: 1, createdAt: -1 });
 IssueSchema.index({ condominiumId: 1, priority: 1, createdAt: -1 });
+// Queries de morador: find({condominiumId, unitId}).sort({createdAt:-1})
+IssueSchema.index({ condominiumId: 1, unitId: 1, createdAt: -1 });
 
 export default mongoose.model<IIssue>('Issue', IssueSchema);

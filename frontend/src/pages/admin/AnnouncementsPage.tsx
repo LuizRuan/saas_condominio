@@ -372,7 +372,7 @@ const AnnouncementsPage: React.FC = () => {
   return (
     <PremiumPage
       title="Comunicados"
-      subtitle="Publique avisos claros, categorizados e fáceis de reutilizar."
+      subtitle="Publique avisos e mantenha os moradores informados."
       eyebrow="Comunicação"
       onMenuClick={onMenuClick}
       searchValue={search}

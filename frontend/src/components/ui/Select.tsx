@@ -79,6 +79,8 @@ const Select: React.FC<SelectProps> = ({
         id={selectId}
         disabled={disabled}
         onClick={openDropdown}
+        aria-expanded={open}
+        aria-haspopup="listbox"
         className={[
           'min-h-11 w-full rounded-xl border px-3.5 py-2.5 text-sm shadow-inner shadow-slate-900/[0.015] outline-none transition-all',
           'inline-flex items-center justify-between gap-2 text-left',

@@ -2,10 +2,10 @@ import { Response } from 'express';
 import Package from '../models/Package';
 import Unit from '../models/Unit';
 import Resident from '../models/Resident';
-import AuditLog from '../models/AuditLog';
 import { AuthRequest } from '../middlewares/auth';
 import { notify } from '../utils/notifications';
 import { audit } from '../utils/audit';
+import { getPaginationParams } from '../utils/pagination';
 
 export const createPackage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -61,11 +61,44 @@ export const createPackage = async (req: AuthRequest, res: Response): Promise<vo
 
 export const getPackages = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const packages = await Package.find({ condominiumId: req.user!.condominiumId })
-      .populate('unitId', 'block number')
-      .populate('receivedBy', 'name')
-      .sort({ createdAt: -1 });
-    res.json(packages);
+    const baseFilter: Record<string, any> = { condominiumId: req.user!.condominiumId };
+
+    if (req.query.page) {
+      const { page, limit, skip } = getPaginationParams(req.query as Record<string, unknown>);
+
+      const filter: Record<string, any> = { ...baseFilter };
+      const rawSearch = String(req.query.search ?? '').trim().slice(0, 80);
+      if (rawSearch) {
+        const esc = rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(esc, 'i');
+        filter.$or = [{ description: re }, { trackingCode: re }];
+      }
+
+      const [data, paginationTotal, summaryTotal, pending, delivered] = await Promise.all([
+        Package.find(filter)
+          .populate('unitId', 'block number')
+          .populate('receivedBy', 'name')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit),
+        Package.countDocuments(filter),
+        Package.countDocuments(baseFilter),
+        Package.countDocuments({ ...baseFilter, status: 'pending' }),
+        Package.countDocuments({ ...baseFilter, status: 'delivered' }),
+      ]);
+
+      res.json({
+        data,
+        pagination: { page, limit, total: paginationTotal, totalPages: Math.ceil(paginationTotal / limit) },
+        summary: { total: summaryTotal, pending, delivered },
+      });
+    } else {
+      const packages = await Package.find(baseFilter)
+        .populate('unitId', 'block number')
+        .populate('receivedBy', 'name')
+        .sort({ createdAt: -1 });
+      res.json(packages);
+    }
   } catch (error: any) {
     res.status(500).json({ message: 'Erro ao buscar encomendas', error: error.message });
   }
@@ -125,8 +158,13 @@ export const deletePackage = async (req: AuthRequest, res: Response): Promise<vo
     const pkg = await Package.findOneAndDelete({ _id: id, condominiumId: req.user!.condominiumId });
     if (!pkg) { res.status(404).json({ message: 'Encomenda não encontrada' }); return; }
 
-    await AuditLog.deleteMany({ entityId: id, condominiumId: req.user!.condominiumId }).catch(() => undefined);
-
+    await audit(req, {
+      action: 'delete',
+      entity: 'package',
+      entityId: pkg._id as any,
+      message: 'Encomenda excluída',
+      metadata: { description: pkg.description, status: pkg.status },
+    });
     res.json({ message: 'Encomenda excluída com sucesso' });
   } catch (error: any) {
     res.status(500).json({ message: 'Erro ao excluir encomenda', error: error.message });

@@ -91,6 +91,7 @@ export const updatePassword = async (req: AuthRequest, res: Response): Promise<v
     // Previously this was: user.password = newPassword; // (stored in plain text!)
     const salt = await bcrypt.genSalt(12);
     user.password = await bcrypt.hash(newPassword, salt);
+    user.passwordChangedAt = new Date(); // invalida JWTs emitidos antes da troca
     await user.save();
 
     await audit(req, {

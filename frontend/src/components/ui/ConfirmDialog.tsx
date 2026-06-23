@@ -30,11 +30,11 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-red-100/70 blur-2xl" />
         <div className="relative flex items-start gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600 shadow-sm ring-1 ring-red-200/70">
-            <Trash2 className="h-5 w-5" />
+            <Trash2 className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-red-600 ring-1 ring-red-100">
-              <AlertTriangle className="h-3 w-3" />
+              <AlertTriangle className="h-3 w-3" aria-hidden="true" />
               Ação irreversível
             </div>
             <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{description}</p>

@@ -8,6 +8,7 @@ import { syncOverdueCharges } from '../utils/charges';
 import { notify } from '../utils/notifications';
 import { requirePlan } from '../utils/planCheck';
 import { errorDetails } from '../utils/errorDetails';
+import { notDeleted } from '../utils/softDelete';
 
 const isImageDataUrl = (value: unknown): value is string =>
   typeof value === 'string' && value.startsWith('data:image/');
@@ -30,6 +31,13 @@ export const createCharge = async (req: AuthRequest, res: Response): Promise<voi
     const unit = await Unit.findOne({ _id: unitId, condominiumId });
     if (!unit) {
       res.status(400).json({ error: 'Unidade inválida para este condomínio' });
+      return;
+    }
+
+    // Idempotência: evita cobrança duplicada para a mesma unidade/mês (ignora arquivadas).
+    const existingCharge = await Charge.findOne({ condominiumId, unitId: unit._id, referenceMonth, ...notDeleted });
+    if (existingCharge) {
+      res.status(409).json({ error: 'Já existe cobrança para esta unidade neste mês de referência.' });
       return;
     }
 
@@ -99,8 +107,18 @@ export const createBulkCharges = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
+    // Idempotência: não recriar cobranças de unidades que já têm uma neste mês (ignora arquivadas).
+    const existing = await Charge.find({ condominiumId, referenceMonth, ...notDeleted }).select('unitId');
+    const existingUnitIds = new Set(existing.map((c) => c.unitId.toString()));
+
+    let skipped = 0;
     const charges = [];
     for (const unit of units) {
+      if (existingUnitIds.has((unit._id as any).toString())) {
+        skipped++;
+        continue;
+      }
+
       // Find financial responsible resident
       const resident = await Resident.findOne({
         condominiumId,
@@ -125,14 +143,21 @@ export const createBulkCharges = async (req: AuthRequest, res: Response): Promis
       });
     }
 
-    const created = await Charge.insertMany(charges);
+    const created = charges.length ? await Charge.insertMany(charges) : [];
     await audit(req, {
       action: 'bulk_create',
       entity: 'charge',
-      message: `${created.length} cobranças criadas em massa`,
-      metadata: { amount: Number(amount), referenceMonth },
+      message: `${created.length} cobranças criadas em massa${skipped ? `, ${skipped} já existiam e foram ignoradas` : ''}`,
+      metadata: { amount: Number(amount), referenceMonth, created: created.length, skipped },
     });
-    res.status(201).json({ message: `${created.length} cobranças criadas`, charges: created });
+    res.status(201).json({
+      message: skipped
+        ? `${created.length} cobranças criadas, ${skipped} já existiam e foram ignoradas.`
+        : `${created.length} cobranças criadas`,
+      created: created.length,
+      skipped,
+      charges: created,
+    });
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao criar cobranças em massa', details: errorDetails(error) });
   }
@@ -142,7 +167,7 @@ export const getCharges = async (req: AuthRequest, res: Response): Promise<void>
   try {
     await syncOverdueCharges(req.user!.condominiumId!);
 
-    const filter: any = {};
+    const filter: any = { ...notDeleted };
 
     if (req.user!.role === 'admin') {
       filter.condominiumId = req.user!.condominiumId;
@@ -181,6 +206,7 @@ export const getCharge = async (req: AuthRequest, res: Response): Promise<void> 
       _id: req.params.id,
       condominiumId: req.user!.condominiumId,
       ...(req.user!.role === 'resident' ? { unitId: req.user!.unitId } : {}),
+      ...notDeleted,
     })
       .populate('unitId', 'block number')
       .populate('residentId', 'name phone email');
@@ -445,7 +471,7 @@ export const exportChargesCsv = async (req: AuthRequest, res: Response): Promise
     if (!(await requirePlan(req, res, ['pro', 'ultra'], 'A exportação de cobranças está disponível nos planos Pro e Ultra.'))) return;
 
     await syncOverdueCharges(req.user!.condominiumId!);
-    const charges = await Charge.find({ condominiumId: req.user!.condominiumId })
+    const charges = await Charge.find({ condominiumId: req.user!.condominiumId, ...notDeleted })
       .populate('unitId', 'block number')
       .populate('residentId', 'name phone email')
       .sort({ dueDate: -1 });
@@ -478,19 +504,23 @@ export const exportChargesCsv = async (req: AuthRequest, res: Response): Promise
 
 export const deleteCharge = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const charge = await Charge.findOneAndDelete({
+    const charge = await Charge.findOne({
       _id: req.params.id,
       condominiumId: req.user!.condominiumId,
+      ...notDeleted,
     });
     if (!charge) {
       res.status(404).json({ error: 'Cobrança não encontrada' });
       return;
     }
+    charge.deletedAt = new Date();
+    charge.deletedBy = req.user!._id as any;
+    await charge.save();
     await audit(req, {
-      action: 'delete',
+      action: 'archive',
       entity: 'charge',
       entityId: charge._id as any,
-      message: `Cobrança ${charge.referenceMonth} excluída`,
+      message: `Cobrança ${charge.referenceMonth} arquivada`,
       metadata: { amount: charge.amount },
     });
     res.json({ message: 'Cobrança excluída com sucesso' });
