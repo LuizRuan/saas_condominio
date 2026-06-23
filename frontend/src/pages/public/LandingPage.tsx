@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Building2, CheckCircle2, Shield, Zap, Users, Receipt,
+  CheckCircle2, Shield, Zap, Users, Receipt,
   Megaphone, AlertTriangle, CalendarDays, Package, ArrowRight,
-  Star, ChevronDown, Menu, X, LogOut
+  ChevronDown, Menu, X, WalletCards
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import BrandMark from '../../components/ui/BrandMark';
 import api from '../../services/api';
-
-import { WalletCards } from 'lucide-react';
+import PricingCard from '../../components/billing/PricingCard';
+import { PLAN_DEFINITIONS } from '../../config/plans';
 
 const features = [
   { icon: Receipt, title: 'Cobranças e inadimplência', desc: 'Gere cobranças em massa, acompanhe pagamentos e envie lembretes aos moradores.' },
@@ -20,42 +20,6 @@ const features = [
   { icon: CalendarDays, title: 'Reservas de áreas', desc: 'Controle de horários de salão, churrasqueira e academia com aprovação do síndico.' },
   { icon: Megaphone, title: 'Comunicados', desc: 'Publique avisos com fotos, fixe os importantes e todos os moradores recebem notificação.' },
   { icon: Package, title: 'Encomendas', desc: 'Registre chegadas e notifique moradores para retirada, acabando com os esquecimentos.' },
-];
-
-const plans = [
-  {
-    name: 'Grátis',
-    price: 'Grátis',
-    monthlyAmount: 0,
-    period: '',
-    desc: 'Para condomínios pequenos começarem.',
-    items: ['Até 20 unidades', 'Dashboard completo', 'Cobranças e comunicados', 'Suporte por e-mail'],
-    cta: 'Começar grátis',
-    href: '/cadastro',
-    highlight: false,
-  },
-  {
-    name: 'Pro',
-    price: 'R$97',
-    monthlyAmount: 97,
-    period: '/mês',
-    desc: 'Para condomínios em operação.',
-    items: ['Até 100 unidades', 'Tudo do Grátis', 'Relatórios PDF', 'WhatsApp integrado', 'Suporte prioritário'],
-    cta: 'Plano Pro',
-    href: '/cadastro',
-    highlight: true,
-  },
-  {
-    name: 'Ultra',
-    price: 'R$197',
-    monthlyAmount: 197,
-    period: '/mês',
-    desc: 'Para quem gerencia mais de um condomínio.',
-    items: ['Unidades ilimitadas', 'Tudo do Pro', 'Multi-condomínio', 'Pix automático', 'SLA garantido'],
-    cta: 'Plano Ultra',
-    href: '/cadastro',
-    highlight: false,
-  },
 ];
 
 const faqs = [
@@ -373,100 +337,53 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
           <div className="grid gap-5 sm:grid-cols-3">
-            {plans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`relative overflow-hidden rounded-3xl border p-7 ${
-                  plan.highlight
-                    ? 'border-blue-500 bg-blue-600 text-white shadow-2xl shadow-blue-600/30'
-                    : 'border-slate-200 bg-white shadow-sm'
-                }`}
-              >
-                {plan.highlight && (
-                  <div className="absolute right-4 top-4 rounded-full bg-white/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.15em] text-white">
-                    Popular
-                  </div>
-                )}
-                <p className={`text-xs font-extrabold uppercase tracking-[0.18em] ${plan.highlight ? 'text-blue-200' : 'text-blue-600'}`}>
-                  {plan.name}
-                </p>
-                {(() => {
-                  const annualMonthlyStr = plan.monthlyAmount > 0
-                    ? (plan.monthlyAmount * 0.8).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    : '0,00';
-                  const annualTotalStr = plan.monthlyAmount > 0
-                    ? (plan.monthlyAmount * 0.8 * 12).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    : '0,00';
-                  return (
-                    <div className="mt-3 flex flex-col items-start gap-0.5">
-                      <div className="flex items-end gap-1">
-                        <span className={`text-4xl font-extrabold tracking-[-0.05em] ${plan.highlight ? 'text-white' : 'text-slate-950'}`}>
-                          {plan.price === 'Grátis' ? plan.price : (isAnnual ? `R$${annualMonthlyStr}` : plan.price)}
-                        </span>
-                        {plan.period && (
-                          <span className={`mb-1.5 text-sm font-semibold ${plan.highlight ? 'text-blue-200' : 'text-slate-400'}`}>
-                            {plan.period}
-                          </span>
-                        )}
-                      </div>
-                      {isAnnual && plan.price !== 'Grátis' && (
-                        <span className={`text-xs font-medium ${plan.highlight ? 'text-blue-200' : 'text-slate-400'}`}>
-                          {`faturado anualmente (R$${annualTotalStr})`}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
-                <p className={`mt-3 text-sm font-medium ${plan.highlight ? 'text-blue-100' : 'text-slate-500'}`}>
-                  {plan.desc}
-                </p>
-                <ul className="my-6 space-y-3">
-                  {plan.items.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm font-semibold">
-                      <CheckCircle2 className={`h-4 w-4 shrink-0 ${plan.highlight ? 'text-blue-200' : 'text-emerald-500'}`} />
-                      <span className={plan.highlight ? 'text-white' : 'text-slate-700'}>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                {(plan.name !== 'Grátis' && user?.role === 'admin' && !isDemo) ? (
-                  <button
-                    onClick={() => handleSubscribe(plan.name.toLowerCase() as 'pro' | 'ultra')}
-                    disabled={subscribeLoading === plan.name.toLowerCase()}
-                    className={`block w-full rounded-xl py-3 text-center text-sm font-bold transition disabled:opacity-60 ${
-                      plan.highlight
-                        ? 'bg-white text-blue-700 hover:bg-blue-50'
-                        : 'bg-slate-950 text-white hover:bg-slate-800'
-                    }`}
-                  >
-                    {subscribeLoading === plan.name.toLowerCase() ? 'Aguarde...' : plan.cta}
-                  </button>
-                ) : (
-                  <Link
-                    to={
-                      plan.name === 'Grátis'
-                        ? '/cadastro'
-                        : `/cadastro?plan=${plan.name.toLowerCase()}&cycle=${isAnnual ? 'yearly' : 'monthly'}`
+            {PLAN_DEFINITIONS.map((plan) => {
+              const btnClass = `block w-full rounded-xl py-3 text-center text-sm font-bold transition disabled:opacity-60 ${
+                plan.highlight
+                  ? 'bg-white text-blue-700 hover:bg-blue-50'
+                  : 'bg-slate-950 text-white hover:bg-slate-800'
+              }`;
+              const cta = (plan.id !== 'free' && user?.role === 'admin' && !isDemo) ? (
+                <button
+                  onClick={() => handleSubscribe(plan.id as 'pro' | 'ultra')}
+                  disabled={subscribeLoading === plan.id}
+                  className={btnClass}
+                >
+                  {subscribeLoading === plan.id ? 'Aguarde...' : plan.cta}
+                </button>
+              ) : (
+                <Link
+                  to={plan.id === 'free'
+                    ? '/cadastro'
+                    : `/cadastro?plan=${plan.id}&cycle=${isAnnual ? 'yearly' : 'monthly'}`
+                  }
+                  onClick={() => {
+                    if (plan.id !== 'free') {
+                      localStorage.setItem('pendingPlan', JSON.stringify({
+                        plan: plan.id,
+                        billingCycle: isAnnual ? 'yearly' : 'monthly',
+                        expiresAt: Date.now() + 2 * 60 * 60 * 1000,
+                      }));
                     }
-                    onClick={() => {
-                      if (plan.name !== 'Grátis') {
-                        localStorage.setItem('pendingPlan', JSON.stringify({
-                          plan: plan.name.toLowerCase(),
-                          billingCycle: isAnnual ? 'yearly' : 'monthly',
-                          expiresAt: Date.now() + 2 * 60 * 60 * 1000,
-                        }));
-                      }
-                    }}
-                    className={`block w-full rounded-xl py-3 text-center text-sm font-bold transition ${
-                      plan.highlight
-                        ? 'bg-white text-blue-700 hover:bg-blue-50'
-                        : 'bg-slate-950 text-white hover:bg-slate-800'
-                    }`}
-                  >
-                    {plan.cta}
-                  </Link>
-                )}
-              </div>
-            ))}
+                  }}
+                  className={btnClass}
+                >
+                  {plan.cta}
+                </Link>
+              );
+
+              const { id, href, ...cardProps } = plan;
+              return (
+                <PricingCard
+                  key={id}
+                  {...cardProps}
+                  isAnnual={isAnnual}
+                  cta={cta}
+                  badge={plan.highlight ? 'Popular' : undefined}
+                  badgeVariant="popular"
+                />
+              );
+            })}
           </div>
         </div>
       </section>

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CreditCard, CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { CreditCard, AlertCircle, Info, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import PricingCard from '../../components/billing/PricingCard';
+import { PLAN_DEFINITIONS, PlanKey } from '../../config/plans';
 
 interface BillingData {
   plan: string;
@@ -21,13 +23,19 @@ interface BillingData {
   } | null;
 }
 
-// Preço Pro temporário para validação em produção. Ajustar antes do lançamento comercial.
-const PRICES = {
-  pro:   { monthly: 97.00,  yearly: 931.20 },
-  ultra: { monthly: 197.00, yearly: 1891.20 },
-};
+type CtaMode =
+  | 'subscribe'
+  | 'current'
+  | 'inferior'
+  | 'upgrade'
+  | 'blocked-pending'
+  | 'blocked-active'
+  | 'free-current'
+  | 'free-inferior';
 
-type CtaMode = 'subscribe' | 'current' | 'inferior' | 'upgrade' | 'blocked-pending' | 'blocked-active';
+function getFreeCta(plan: string): CtaMode {
+  return plan === 'free' ? 'free-current' : 'free-inferior';
+}
 
 function getProCta(plan: string, sub: BillingData['subscription'] | null): CtaMode {
   if (!sub) return 'subscribe';
@@ -50,10 +58,6 @@ function formatDate(dateStr: string | null): string {
   return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
-function formatCurrency(value: number): string {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
 const STATUS_LABEL: Record<string, string> = {
   active: 'Ativo',
   pending: 'Pendente de ativação',
@@ -72,7 +76,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 const BillingPage: React.FC = () => {
   const [isAnnual, setIsAnnual] = useState(false);
-  const [subscribeLoading, setSubscribeLoading] = useState<'pro' | 'ultra' | null>(null);
+  const [subscribeLoading, setSubscribeLoading] = useState<PlanKey | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -83,7 +87,6 @@ const BillingPage: React.FC = () => {
     queryFn: () => api.get('/billing/me').then((r) => r.data),
   });
 
-  // Derived state — baseado apenas em data.subscription.status, nunca em subscriptionStatus stale
   const hasActiveOrPendingSubscription = !!(
     data?.subscription &&
     ['active', 'pending', 'overdue'].includes(data.subscription.status)
@@ -98,7 +101,7 @@ const BillingPage: React.FC = () => {
   const proCta  = getProCta(data?.plan ?? 'free',  data?.subscription ?? null);
   const ultraCta = getUltraCta(data?.plan ?? 'free', data?.subscription ?? null);
 
-  const handleSubscribe = async (plan: 'pro' | 'ultra') => {
+  const handleSubscribe = async (plan: PlanKey) => {
     setSubscribeLoading(plan);
     try {
       const res = await api.post('/billing/mercadopago/subscribe', {
@@ -240,55 +243,95 @@ const BillingPage: React.FC = () => {
         </div>
       )}
 
-      {/* Toggle: segmented control */}
+      {/* Toggle Mensal/Anual */}
       <div className="flex justify-center">
-        <div className="inline-flex rounded-xl bg-slate-100 p-1">
+        <div className="flex max-w-fit items-center gap-4 rounded-full border border-slate-200 bg-white p-1.5 shadow-sm">
           <button
             type="button"
             onClick={() => setIsAnnual(false)}
-            className={`rounded-lg px-5 py-2 text-sm font-bold transition-all ${
-              !isAnnual ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
-            }`}
+            className={`rounded-full px-5 py-2 text-sm font-bold transition-all ${!isAnnual ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
           >
             Mensal
           </button>
           <button
             type="button"
             onClick={() => setIsAnnual(true)}
-            className={`flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-bold transition-all ${
-              isAnnual ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
-            }`}
+            className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-bold transition-all ${isAnnual ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
           >
             Anual
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-black text-emerald-700">-20%</span>
+            <span className={`inline-flex items-center justify-center rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 ${isAnnual ? 'bg-emerald-500 text-white' : ''}`}>
+              -20%
+            </span>
           </button>
         </div>
       </div>
 
       {/* Cards de planos */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <PlanCard
-          name="Pro"
-          price={isAnnual ? PRICES.pro.yearly : PRICES.pro.monthly}
-          isAnnual={isAnnual}
-          ctaMode={proCta}
-          loading={subscribeLoading === 'pro'}
-          onSubscribe={() => handleSubscribe('pro')}
-          features={['Até 100 unidades', 'Cobranças e financeiro', 'Comunicados ilimitados', 'Reservas e encomendas', 'Suporte por e-mail']}
-          color="blue"
-        />
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        {PLAN_DEFINITIONS.map((plan) => {
+          const highlight = plan.highlight;
+          const btnHighlight = 'block w-full rounded-xl py-3 text-center text-sm font-bold transition disabled:opacity-60 bg-white text-blue-700 hover:bg-blue-50';
+          const btnDefault  = 'block w-full rounded-xl py-3 text-center text-sm font-bold transition disabled:opacity-60 bg-slate-950 text-white hover:bg-slate-800';
+          const btnClass    = highlight ? btnHighlight : btnDefault;
+          const inactiveClass = `block w-full rounded-xl py-3 text-center text-xs font-bold ${highlight ? 'bg-white/20 text-white/60' : 'bg-slate-100 text-slate-400'}`;
 
-        <PlanCard
-          name="Ultra"
-          price={isAnnual ? PRICES.ultra.yearly : PRICES.ultra.monthly}
-          isAnnual={isAnnual}
-          ctaMode={ultraCta}
-          loading={subscribeLoading === 'ultra'}
-          onSubscribe={() => handleSubscribe('ultra')}
-          onUpgrade={() => setShowUpgradeModal(true)}
-          features={['Unidades ilimitadas', 'Relatórios avançados', 'Portaria integrada', 'API de acesso', 'Suporte prioritário']}
-          color="violet"
-        />
+          let ctaMode: CtaMode;
+          let badge: string | undefined;
+          let badgeVariant: 'popular' | 'current' = 'popular';
+          let loading = false;
+          let onSubscribeFn = () => {};
+          let onUpgradeFn: (() => void) | undefined;
+
+          if (plan.id === 'free') {
+            ctaMode = getFreeCta(data.plan);
+            if (data.plan === 'free') { badge = 'Plano atual'; badgeVariant = 'current'; }
+          } else if (plan.id === 'pro') {
+            ctaMode = proCta;
+            loading = subscribeLoading === 'pro';
+            onSubscribeFn = () => handleSubscribe('pro');
+            badge = proCta === 'current' ? 'Plano atual' : 'Popular';
+            badgeVariant = proCta === 'current' ? 'current' : 'popular';
+          } else {
+            ctaMode = ultraCta;
+            loading = subscribeLoading === 'ultra';
+            onSubscribeFn = () => handleSubscribe('ultra');
+            onUpgradeFn = () => setShowUpgradeModal(true);
+            if (ultraCta === 'current') { badge = 'Plano atual'; badgeVariant = 'current'; }
+          }
+
+          let cta: React.ReactNode = null;
+          if (ctaMode === 'subscribe') {
+            cta = (
+              <button type="button" onClick={onSubscribeFn} disabled={loading} className={btnClass}>
+                {loading ? 'Aguarde...' : plan.cta}
+              </button>
+            );
+          } else if (ctaMode === 'current' || ctaMode === 'free-current') {
+            cta = <div className={inactiveClass}>Plano atual</div>;
+          } else if (ctaMode === 'upgrade') {
+            cta = (
+              <button type="button" onClick={onUpgradeFn} className={btnClass}>
+                Fazer upgrade para Ultra
+              </button>
+            );
+          } else if (ctaMode === 'blocked-pending') {
+            cta = <div className={inactiveClass}>Aguarde a confirmação ou cancele</div>;
+          } else if (ctaMode === 'blocked-active') {
+            cta = <div className={inactiveClass}>Cancele o plano atual para contratar</div>;
+          }
+
+          const { id, href, ...cardProps } = plan;
+          return (
+            <PricingCard
+              key={id}
+              {...cardProps}
+              isAnnual={isAnnual}
+              cta={cta}
+              badge={badge}
+              badgeVariant={badgeVariant}
+            />
+          );
+        })}
       </div>
 
       {/* Modal de cancelamento */}
@@ -366,111 +409,6 @@ const BillingPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
-};
-
-interface PlanCardProps {
-  name: string;
-  price: number;
-  isAnnual: boolean;
-  ctaMode: CtaMode;
-  loading: boolean;
-  onSubscribe: () => void;
-  onUpgrade?: () => void;
-  features: string[];
-  color: 'blue' | 'violet';
-}
-
-const PlanCard: React.FC<PlanCardProps> = ({
-  name, price, isAnnual, ctaMode, loading, onSubscribe, onUpgrade, features, color,
-}) => {
-  const colorMap = {
-    blue: {
-      badge: 'bg-blue-600 text-white',
-      btn: 'bg-blue-600 text-white hover:bg-blue-700',
-      ring: 'ring-blue-400',
-      icon: 'text-blue-400',
-    },
-    violet: {
-      badge: 'bg-violet-600 text-white',
-      btn: 'bg-violet-600 text-white hover:bg-violet-700',
-      ring: 'ring-violet-400',
-      icon: 'text-violet-400',
-    },
-  };
-
-  const c = colorMap[color];
-  const isCurrent = ctaMode === 'current';
-
-  return (
-    <div className={`surface-card relative flex flex-col p-6 ${isCurrent ? `ring-2 ${c.ring}` : ''}`}>
-      {isCurrent && (
-        <span className={`absolute -top-3 left-5 rounded-full px-3 py-1 text-xs font-black ${c.badge}`}>
-          Seu plano atual
-        </span>
-      )}
-
-      <div className="mb-4">
-        <h3 className="text-lg font-extrabold tracking-tight text-slate-950">{name}</h3>
-        <p className="mt-1">
-          <span className="text-3xl font-extrabold tracking-tight text-slate-950">
-            {price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          </span>
-          <span className="ml-1 text-sm font-medium text-slate-400">/{isAnnual ? 'ano' : 'mês'}</span>
-        </p>
-        {isAnnual && (
-          <p className="mt-0.5 text-xs font-semibold text-emerald-600">
-            equiv. {formatCurrency(price / 12)}/mês
-          </p>
-        )}
-      </div>
-
-      <ul className="mb-6 flex-1 space-y-2">
-        {features.map((f) => (
-          <li key={f} className="flex items-center gap-2 text-sm font-medium text-slate-600">
-            <CheckCircle2 className={`h-4 w-4 shrink-0 ${c.icon}`} />
-            {f}
-          </li>
-        ))}
-      </ul>
-
-      {ctaMode === 'current' && (
-        <div className="rounded-xl border border-slate-100 bg-slate-50 py-2.5 text-center text-sm font-bold text-slate-400">
-          Plano atual
-        </div>
-      )}
-      {ctaMode === 'inferior' && (
-        <div className="rounded-xl border border-slate-100 bg-slate-50 py-2.5 text-center text-sm font-bold text-slate-400">
-          Inferior ao seu plano
-        </div>
-      )}
-      {ctaMode === 'upgrade' && (
-        <button
-          type="button"
-          onClick={() => onUpgrade?.()}
-          className={`w-full rounded-xl px-4 py-2.5 text-sm font-bold transition ${c.btn}`}
-        >
-          Fazer upgrade para Ultra
-        </button>
-      )}
-      {(ctaMode === 'blocked-pending' || ctaMode === 'blocked-active') && (
-        <div className="rounded-xl border border-slate-100 bg-slate-50 py-2.5 text-center text-xs font-bold text-slate-400">
-          {ctaMode === 'blocked-pending'
-            ? 'Aguarde a confirmação ou cancele a solicitação'
-            : 'Cancele o plano atual para contratar'}
-        </div>
-      )}
-      {ctaMode === 'subscribe' && (
-        <button
-          type="button"
-          onClick={onSubscribe}
-          disabled={loading}
-          className={`w-full rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${c.btn}`}
-        >
-          {loading ? 'Aguarde...' : `Assinar ${name}`}
-        </button>
       )}
     </div>
   );
