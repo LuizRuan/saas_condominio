@@ -8,7 +8,6 @@ import {
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import BrandMark from '../../components/ui/BrandMark';
-import api from '../../services/api';
 import PricingCard from '../../components/billing/PricingCard';
 import { PLAN_DEFINITIONS } from '../../config/plans';
 
@@ -38,21 +37,33 @@ const LandingPage: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [isAnnual, setIsAnnual] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
-  const [subscribeLoading, setSubscribeLoading] = useState<string | null>(null);
   const { user, logout, loginDemo, isDemo } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubscribe = async (planName: 'pro' | 'ultra') => {
-    const billingCycle = isAnnual ? 'yearly' : 'monthly';
-    setSubscribeLoading(planName);
-    try {
-      const res = await api.post('/billing/mercadopago/subscribe', { plan: planName, billingCycle });
-      window.location.href = res.data.checkoutUrl;
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error || 'Erro ao criar assinatura. Tente novamente.');
-    } finally {
-      setSubscribeLoading(null);
+  const handlePlanClick = (planId: 'pro' | 'ultra') => {
+    const cycle = isAnnual ? 'yearly' : 'monthly';
+
+    // Síndico já logado: não vai direto ao pagamento — gerencia o plano no /billing.
+    if (user && user.role === 'admin' && !isDemo) {
+      toast('Gerencie seu plano na área de assinatura.', { icon: 'ℹ️' });
+      navigate(`/billing?plan=${planId}&cycle=${cycle}`);
+      return;
     }
+
+    // Logado mas sem permissão para assinar (morador, porteiro, financeiro ou demo).
+    if (user) {
+      toast.error('Apenas o síndico pode contratar planos.');
+      return;
+    }
+
+    // Visitante deslogado: precisa criar uma conta antes de assinar.
+    localStorage.setItem('pendingPlan', JSON.stringify({
+      plan: planId,
+      billingCycle: cycle,
+      expiresAt: Date.now() + 2 * 60 * 60 * 1000,
+    }));
+    toast('Antes de assinar um plano, é necessário criar uma conta primeiro.', { icon: 'ℹ️' });
+    navigate(`/cadastro?plan=${planId}&cycle=${cycle}`);
   };
 
   const handleAuthClick = () => {
@@ -343,33 +354,18 @@ const LandingPage: React.FC = () => {
                   ? 'bg-white text-blue-700 hover:bg-blue-50'
                   : 'bg-slate-950 text-white hover:bg-slate-800'
               }`;
-              const cta = (plan.id !== 'free' && user?.role === 'admin' && !isDemo) ? (
-                <button
-                  onClick={() => handleSubscribe(plan.id as 'pro' | 'ultra')}
-                  disabled={subscribeLoading === plan.id}
-                  className={btnClass}
-                >
-                  {subscribeLoading === plan.id ? 'Aguarde...' : plan.cta}
-                </button>
+              const cta = plan.id === 'free' ? (
+                <Link to="/cadastro" className={btnClass}>
+                  {plan.cta}
+                </Link>
               ) : (
-                <Link
-                  to={plan.id === 'free'
-                    ? '/cadastro'
-                    : `/cadastro?plan=${plan.id}&cycle=${isAnnual ? 'yearly' : 'monthly'}`
-                  }
-                  onClick={() => {
-                    if (plan.id !== 'free') {
-                      localStorage.setItem('pendingPlan', JSON.stringify({
-                        plan: plan.id,
-                        billingCycle: isAnnual ? 'yearly' : 'monthly',
-                        expiresAt: Date.now() + 2 * 60 * 60 * 1000,
-                      }));
-                    }
-                  }}
+                <button
+                  type="button"
+                  onClick={() => handlePlanClick(plan.id as 'pro' | 'ultra')}
                   className={btnClass}
                 >
                   {plan.cta}
-                </Link>
+                </button>
               );
 
               const { id, href, ...cardProps } = plan;

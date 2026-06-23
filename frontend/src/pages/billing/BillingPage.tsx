@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CreditCard, AlertCircle, Info, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -80,12 +81,58 @@ const BillingPage: React.FC = () => {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [highlightPlan, setHighlightPlan] = useState<PlanKey | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery<BillingData>({
     queryKey: ['billing', 'me'],
     queryFn: () => api.get('/billing/me').then((r) => r.data),
   });
+
+  // Consome o plano/ciclo escolhidos na landing (query param, com fallback no
+  // localStorage), pré-seleciona o ciclo, destaca o plano e limpa o pendingPlan.
+  useEffect(() => {
+    let plan: string | null = searchParams.get('plan');
+    let cycle: string | null = searchParams.get('cycle');
+
+    if (!plan || !cycle) {
+      try {
+        const raw = localStorage.getItem('pendingPlan');
+        if (raw) {
+          const p = JSON.parse(raw);
+          const valid = !p.expiresAt || Date.now() <= p.expiresAt;
+          if (valid) {
+            plan = plan || p.plan;
+            cycle = cycle || p.billingCycle;
+          }
+        }
+      } catch {
+        // ignore JSON inválido
+      }
+    }
+
+    if (cycle === 'yearly') setIsAnnual(true);
+    else if (cycle === 'monthly') setIsAnnual(false);
+
+    if (plan === 'pro' || plan === 'ultra') setHighlightPlan(plan);
+
+    // Informação consumida: limpa o pendente e os params da URL.
+    localStorage.removeItem('pendingPlan');
+    if (searchParams.has('plan') || searchParams.has('cycle')) {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Rola até o plano destacado e remove o realce após alguns segundos.
+  useEffect(() => {
+    if (!highlightPlan || isLoading) return;
+    const el = document.querySelector(`[data-plan-card="${highlightPlan}"]`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setHighlightPlan(null), 2600);
+    return () => clearTimeout(t);
+  }, [highlightPlan, isLoading]);
 
   const hasActiveOrPendingSubscription = !!(
     data?.subscription &&
@@ -322,14 +369,21 @@ const BillingPage: React.FC = () => {
 
           const { id, href, ...cardProps } = plan;
           return (
-            <PricingCard
+            <div
               key={id}
-              {...cardProps}
-              isAnnual={isAnnual}
-              cta={cta}
-              badge={badge}
-              badgeVariant={badgeVariant}
-            />
+              data-plan-card={id}
+              className={`rounded-3xl transition-all duration-300 ${
+                highlightPlan === id ? 'ring-2 ring-violet-400 ring-offset-2' : ''
+              }`}
+            >
+              <PricingCard
+                {...cardProps}
+                isAnnual={isAnnual}
+                cta={cta}
+                badge={badge}
+                badgeVariant={badgeVariant}
+              />
+            </div>
           );
         })}
       </div>

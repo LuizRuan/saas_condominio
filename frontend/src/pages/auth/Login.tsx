@@ -6,7 +6,6 @@ import Button from '../../components/ui/Button';
 import BrandMark from '../../components/ui/BrandMark';
 import { ArrowRight, CheckCircle2, Lock, Mail, ShieldCheck, Sparkles, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '../../services/api';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -39,24 +38,14 @@ const Login: React.FC = () => {
 
       if (pending && (pending.plan === 'pro' || pending.plan === 'ultra')) {
         if (loggedUser.role === 'admin' && !loggedUser.isDemo) {
+          // Não dispara checkout aqui. Leva à tela de assinatura com o plano/ciclo
+          // escolhidos; a BillingPage consome e limpa o pendingPlan.
           toast.success('Login realizado com sucesso!');
-          const loadingId = toast.loading('Redirecionando para pagamento...');
-          try {
-            const res = await api.post('/billing/mercadopago/subscribe', {
-              plan: pending.plan,
-              billingCycle: pending.billingCycle || 'monthly',
-            });
-            localStorage.removeItem('pendingPlan');
-            toast.dismiss(loadingId);
-            window.location.href = res.data.checkoutUrl;
-          } catch (err: any) {
-            toast.dismiss(loadingId);
-            toast.error(err?.response?.data?.error || 'Erro ao criar assinatura. Tente novamente.');
-            localStorage.removeItem('pendingPlan');
-            navigate('/dashboard');
-          }
+          const cycle = pending.billingCycle === 'yearly' ? 'yearly' : 'monthly';
+          navigate(`/billing?plan=${pending.plan}&cycle=${cycle}`);
           return;
         }
+        // Logado mas sem permissão para assinar → descarta o plano pendente.
         localStorage.removeItem('pendingPlan');
         if (loggedUser.role !== 'admin') {
           toast.error('Apenas o síndico pode contratar planos.');
