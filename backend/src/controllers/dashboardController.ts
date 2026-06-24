@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import Charge from '../models/Charge';
 import Unit from '../models/Unit';
+import Resident from '../models/Resident';
 import Issue from '../models/Issue';
 import Reservation from '../models/Reservation';
 import Announcement from '../models/Announcement';
@@ -18,12 +19,13 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response): Promis
     await syncOverdueCharges(condominiumId!);
 
     const [
-      totalUnits, chargesAgg,
+      totalUnits, totalResidents, chargesAgg,
       openIssues, pendingReservations, lateChargesList,
       recentAnnouncements, recentIssues, upcomingReservations,
       expensesAgg,
     ] = await Promise.all([
       Unit.countDocuments({ condominiumId }),
+      Resident.countDocuments({ condominiumId }),
       Charge.aggregate([
         { $match: { condominiumId, ...notDeleted } },
         {
@@ -69,6 +71,7 @@ export const getAdminDashboard = async (req: AuthRequest, res: Response): Promis
         expensesPending: expensesAgg[0]?.pending || 0,
         balanceThisMonth: receivedThisMonth - expensesPaidThisMonth,
         totalUnits,
+        totalResidents,
         openIssues,
         pendingReservations,
       },

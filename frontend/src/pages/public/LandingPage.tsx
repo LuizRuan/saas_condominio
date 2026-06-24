@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   CheckCircle2, Shield, Zap, Users, Receipt,
   Megaphone, AlertTriangle, CalendarDays, Package, ArrowRight,
-  ChevronDown, Menu, X, WalletCards
+  ChevronDown, Menu, X, WalletCards, FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,24 +12,24 @@ import PricingCard from '../../components/billing/PricingCard';
 import { PLAN_DEFINITIONS } from '../../config/plans';
 
 const features = [
-  { icon: Receipt, title: 'Cobranças e inadimplência', desc: 'Gere cobranças em massa, acompanhe pagamentos e envie lembretes aos moradores.' },
-  { icon: Users, title: 'Moradores e unidades', desc: 'Organize proprietários, inquilinos e responsáveis financeiros por unidade.' },
-  { icon: WalletCards, title: 'Despesas do condomínio', desc: 'Lance contas de luz, água, segurança, limpeza e acompanhe o saldo mensal.' },
-  { icon: AlertTriangle, title: 'Ocorrências com histórico', desc: 'Registre solicitações, acompanhe status e mantenha tudo documentado.' },
-  { icon: CalendarDays, title: 'Reservas de áreas', desc: 'Controle de horários de salão, churrasqueira e academia com aprovação do síndico.' },
-  { icon: Megaphone, title: 'Comunicados', desc: 'Publique avisos com fotos, fixe os importantes e todos os moradores recebem notificação.' },
-  { icon: Package, title: 'Encomendas', desc: 'Registre chegadas e notifique moradores para retirada, acabando com os esquecimentos.' },
+  { icon: Receipt, title: 'Cobranças e inadimplência', desc: 'Gere cobranças individuais ou em massa, acompanhe pagamentos e identifique inadimplentes em segundos.' },
+  { icon: Users, title: 'Moradores e unidades', desc: 'Organize proprietários, inquilinos e responsáveis financeiros vinculados a cada unidade.' },
+  { icon: WalletCards, title: 'Despesas do condomínio', desc: 'Registre contas de luz, água, segurança, limpeza, manutenção e acompanhe o saldo mensal.' },
+  { icon: AlertTriangle, title: 'Ocorrências com histórico', desc: 'Registre solicitações, acompanhe status e mantenha tudo documentado com histórico completo.' },
+  { icon: CalendarDays, title: 'Reservas de áreas comuns', desc: 'Controle horários de salão, churrasqueira e academia com aprovação e bloqueio pelo síndico.' },
+  { icon: Megaphone, title: 'Comunicados', desc: 'Publique avisos com fotos, fixe os mais importantes e todos os moradores são notificados.' },
+  { icon: Package, title: 'Encomendas', desc: 'Registre chegadas e notifique moradores para retirada, eliminando esquecimentos na portaria.' },
+  { icon: FileText, title: 'Relatórios e caixa', desc: 'Gere relatórios mensais de receitas, despesas e inadimplência para prestação de contas.' },
 ];
 
 const faqs = [
   { q: 'Preciso instalar alguma coisa?', a: 'Não. O Domus é 100% online e funciona direto pelo navegador, no computador, tablet ou celular.' },
-  { q: 'Os moradores precisam criar conta?', a: 'Sim, mas o processo é simples. O síndico envia um convite por link, e-mail ou WhatsApp. O morador cria a senha e acessa o portal em poucos minutos.' },
-  { q: 'Como funciona o plano grátis?', a: 'O plano Grátis pode ser usado sem limite de tempo para condomínios com até 20 unidades. Não precisa de cartão de crédito para começar.' },
-  { q: 'Posso migrar meus dados de planilhas?', a: 'Sim. Você pode importar unidades, moradores e cobranças por planilha, evitando cadastrar tudo manualmente.' },
-  { q: 'Os dados ficam seguros?', a: 'Sim. O Domus utiliza acesso seguro, criptografia e autenticação protegida para manter as informações do condomínio e dos moradores em segurança.' },
+  { q: 'Como funciona o plano grátis?', a: 'O plano Grátis pode ser usado sem limite de tempo para condomínios com até 20 unidades. Não precisa de cartão para começar.' },
+  { q: 'Os moradores precisam criar conta?', a: 'Sim, mas o processo é simples. O síndico envia um convite, e o morador cria a senha para acessar o portal.' },
+  { q: 'Posso migrar dados de planilhas?', a: 'Sim. Você pode importar unidades, moradores e cobranças por planilha, evitando cadastrar tudo manualmente.' },
+  { q: 'Os dados ficam seguros?', a: 'Sim. O Domus utiliza acesso protegido, criptografia e autenticação segura para manter as informações do condomínio em segurança.' },
   { q: 'Posso cancelar quando quiser?', a: 'Sim. Os planos pagos podem ser cancelados quando necessário, sem burocracia.' },
-  { q: 'O Domus serve para administradoras?', a: 'Sim. O plano Ultra permite gerenciar mais de um condomínio em uma única plataforma.' },
-  { q: 'Os moradores conseguem acessar pelo celular?', a: 'Sim. O portal do morador funciona pelo navegador do celular, sem necessidade de instalação.' },
+  { q: 'O Domus serve para administradoras?', a: 'Sim. O plano Ultra foi pensado para quem precisa gerenciar mais unidades e uma operação maior.' },
 ];
 
 const LandingPage: React.FC = () => {
@@ -175,11 +175,11 @@ const LandingPage: React.FC = () => {
             <h1 className="text-4xl font-extrabold leading-[1.08] tracking-[-0.055em] sm:text-5xl md:text-6xl">
               Menos planilhas.{' '}
               <span className="bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent">
-                Mais controle para o síndico.
+                Mais controle para o seu condomínio.
               </span>
             </h1>
             <p className="mt-6 text-base font-medium leading-7 text-slate-400 sm:text-lg">
-              Automatize cobranças, organize moradores, acompanhe despesas e mantenha o condomínio sempre em dia.
+              Organize cobranças, moradores, despesas, reservas, ocorrências e comunicados em uma única plataforma — sem planilhas, sem complicação.
             </p>
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
               <Link
@@ -300,7 +300,7 @@ const LandingPage: React.FC = () => {
             {[
               { icon: Shield, label: 'Dados protegidos', desc: 'Informações do condomínio e dos moradores armazenadas com segurança.' },
               { icon: Zap, label: 'Configuração rápida', desc: 'Cadastre o condomínio, unidades e moradores em poucos minutos.' },
-              { icon: CheckCircle2, label: 'Funciona em qualquer lugar', desc: 'Acesse pelo navegador, sem instalação e sem depender de planilhas.' },
+              { icon: CheckCircle2, label: 'Acesso em qualquer lugar', desc: 'Use o Domus pelo navegador, no computador ou celular, sem instalação.' },
             ].map(({ icon: Icon, label, desc }) => (
               <div key={label} className="flex items-start gap-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
@@ -354,9 +354,14 @@ const LandingPage: React.FC = () => {
                   ? 'bg-white text-blue-700 hover:bg-blue-50'
                   : 'bg-slate-950 text-white hover:bg-slate-800'
               }`;
+              const ctaLabels: Record<string, string> = {
+                free: 'Começar grátis',
+                pro: 'Assinar Pro',
+                ultra: 'Escolher Ultra',
+              };
               const cta = plan.id === 'free' ? (
                 <Link to="/cadastro" className={btnClass}>
-                  {plan.cta}
+                  {ctaLabels[plan.id]}
                 </Link>
               ) : (
                 <button
@@ -364,7 +369,7 @@ const LandingPage: React.FC = () => {
                   onClick={() => handlePlanClick(plan.id as 'pro' | 'ultra')}
                   className={btnClass}
                 >
-                  {plan.cta}
+                  {ctaLabels[plan.id]}
                 </button>
               );
 

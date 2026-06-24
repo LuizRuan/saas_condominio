@@ -138,6 +138,10 @@ const App: React.FC = () => {
               {/* Shared routes */}
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/perfil" element={<ProfilePage />} />
+              </Route>
+
+              {/* Settings — apenas síndico e gestão */}
+              <Route element={<AdminRoute><AppLayout /></AdminRoute>}>
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
 

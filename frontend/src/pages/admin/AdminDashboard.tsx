@@ -113,7 +113,18 @@ const AdminDashboard: React.FC = () => {
           </div>
         </section>
 
-        <OnboardingBanner totalUnits={data?.stats.totalUnits || 0} />
+        <OnboardingBanner
+          totalUnits={data?.stats.totalUnits || 0}
+          stats={{
+            toReceive: data?.stats.toReceive || 0,
+            receivedThisMonth: data?.stats.receivedThisMonth || 0,
+            late: data?.stats.late || 0,
+            expensesPaidThisMonth: data?.stats.expensesPaidThisMonth || 0,
+            expensesPending: data?.stats.expensesPending || 0,
+            totalResidents: data?.stats.totalResidents || 0,
+          }}
+          hasAnnouncements={(data?.recentAnnouncements?.length || 0) > 0}
+        />
 
         {/* ── KPI cards ── */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">

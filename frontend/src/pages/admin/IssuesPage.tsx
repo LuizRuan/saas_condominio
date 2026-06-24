@@ -129,6 +129,7 @@ const IssuesPage: React.FC = () => {
   const [response, setResponse] = useState('');
   const [replyPhotos, setReplyPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [form, setForm] = useState({ unitId: '', title: '', description: '', category: 'other', priority: 'medium', photos: [] as string[] });
 
   const openDetail = (issue: Issue) => { setSelected(issue); setResponse(''); setReplyPhotos([]); setDetailOpen(true); };
@@ -217,16 +218,49 @@ const IssuesPage: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const handleExport = () => {
-    exportToCSV(items, 'ocorrencias', [
-      { key: 'title', label: 'Título' },
-      { key: 'unitId', label: 'Unidade', format: (val) => getUnitLabel(val) },
-      { key: 'category', label: 'Categoria', format: (val) => categoryLabels[val] || val },
-      { key: 'priority', label: 'Prioridade', format: (val) => priorityLabels[val] || val },
-      { key: 'status', label: 'Status' },
-      { key: 'description', label: 'Descrição' },
-      { key: 'createdAt', label: 'Data Abertura', format: (val) => formatDate(val) },
-    ]);
+  // Exporta TODAS as ocorrências que batem com os filtros atuais, não apenas a
+  // página visível. Como a paginação server-side limita a 100 por requisição,
+  // percorremos as páginas usando o mesmo contrato já existente do endpoint.
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const baseParams: Record<string, any> = { limit: 100 };
+      if (debouncedSearch) baseParams.search = debouncedSearch;
+      if (filterStatus) baseParams.status = filterStatus;
+      if (filterPriority) baseParams.priority = filterPriority;
+
+      const all: Issue[] = [];
+      const MAX_PAGES = 100; // trava de segurança (até 10.000 registros)
+      let current = 1;
+      let pages = 1;
+      do {
+        const { data } = await api.get('/issues', { params: { ...baseParams, page: current } });
+        const pageItems: Issue[] = Array.isArray(data) ? data : (data.data ?? []);
+        all.push(...pageItems);
+        pages = data?.pagination?.totalPages ?? data?.totalPages ?? 1;
+        current += 1;
+      } while (current <= pages && current <= MAX_PAGES);
+
+      if (all.length === 0) {
+        toast('Nenhuma ocorrência para exportar.', { icon: 'ℹ️' });
+        return;
+      }
+
+      exportToCSV(all, 'ocorrencias', [
+        { key: 'title', label: 'Título' },
+        { key: 'unitId', label: 'Unidade', format: (val) => getUnitLabel(val) },
+        { key: 'category', label: 'Categoria', format: (val) => categoryLabels[val] || val },
+        { key: 'priority', label: 'Prioridade', format: (val) => priorityLabels[val] || val },
+        { key: 'status', label: 'Status' },
+        { key: 'description', label: 'Descrição' },
+        { key: 'createdAt', label: 'Data Abertura', format: (val) => formatDate(val) },
+      ]);
+      toast.success(`${all.length} ocorrência(s) exportada(s).`);
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Não foi possível exportar as ocorrências');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if ((loadingIssues && !issuesData) || loadingUnits) return <LoadingSpinner text="Carregando..." />;
@@ -241,7 +275,7 @@ const IssuesPage: React.FC = () => {
       searchPlaceholder="Buscar ocorrências..."
       actions={(
         <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="secondary" onClick={handleExport} icon={<Download className="h-4 w-4" />} className="flex-1 sm:flex-none">
+          <Button variant="secondary" onClick={handleExport} loading={exporting} aria-label="Exportar ocorrências filtradas para CSV" icon={<Download className="h-4 w-4" />} className="flex-1 sm:flex-none">
             Exportar
           </Button>
           <Button

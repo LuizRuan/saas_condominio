@@ -212,6 +212,7 @@ export interface DashboardStats {
   expensesPending: number;
   balanceThisMonth: number;
   totalUnits: number;
+  totalResidents: number;
   openIssues: number;
   pendingReservations: number;
 }
